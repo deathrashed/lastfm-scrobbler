@@ -33,6 +33,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p dist
+          go build -buildvcs=false -o /tmp/scrobbler-completion ./cmd/scrobbler
           for target in darwin/arm64 darwin/amd64; do
             GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
               go build -buildvcs=false \
@@ -45,8 +46,8 @@ jobs:
             mkdir -p "${package_dir}/completions"
             cp "dist/scrobbler-${platform}-${arch}" "${package_dir}/scrobbler"
             cp LICENSE "${package_dir}/LICENSE"
-            "dist/scrobbler-${platform}-${arch}" completion zsh > "${package_dir}/completions/_scrobbler"
-            "dist/scrobbler-${platform}-${arch}" completion fish > "${package_dir}/completions/scrobbler.fish"
+            /tmp/scrobbler-completion completion zsh > "${package_dir}/completions/_scrobbler"
+            /tmp/scrobbler-completion completion fish > "${package_dir}/completions/scrobbler.fish"
             tar -C "${package_dir}" -czf "dist/scrobbler-${VERSION}-${platform}-${arch}.tar.gz" .
             rm -rf "${package_dir}"
           done
