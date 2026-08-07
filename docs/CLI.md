@@ -5,6 +5,10 @@ the preferred surface for scripts and automation because it provides stable
 exit codes, optional JSON output, duplicate protection, recovery records, and
 completion notifications.
 
+`scrobbler --version` reports `development` for an untagged local build, the
+release metadata for GitHub binaries, and the installed module version when
+installed with `go install ...@latest`.
+
 <p align="center">
   <a href="../README.md">Overview</a> •
   <a href="TUI.md">TUI controls</a> •
@@ -69,6 +73,9 @@ scrobbler file [options] PATH
 
 `PATH` can be TXT, CSV, TSV, JSON, M3U/M3U8, an album folder, or an artist
 folder. Import errors identify the specific entry that failed.
+
+The file command accepts the common options shown above, but does not accept
+manual-only `--artist` or `--album` flags.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Discography
 
@@ -140,6 +147,9 @@ scrobbler check-update --json
 
 Configure `SCROBBLER_UPDATE_URL` or inject a repository with build-time
 `-ldflags`.
+
+The repository fallback is `deathrashed/lastfm-scrobbler`, including for
+module-installed binaries.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Exit codes
 

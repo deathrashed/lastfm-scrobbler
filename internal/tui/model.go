@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -49,6 +50,8 @@ type model struct {
 	width, height  int
 	helpVisible    bool
 	headerURLHover bool
+	sessionCtx     context.Context
+	sessionCancel  context.CancelFunc
 
 	modeChoice        string
 	modeIndex         int

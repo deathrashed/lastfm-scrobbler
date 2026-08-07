@@ -86,5 +86,29 @@ func PersistSessionKey(cfg Config, sessionKey string) error {
 	if strings.TrimSpace(cfg.SessionKey) != "" || strings.TrimSpace(sessionKey) == "" {
 		return nil
 	}
-	return SaveSessionKey(cfg.Profile, sessionKey)
+	sessionKey = strings.TrimSpace(sessionKey)
+	switch sessionKeyDestination(cfg.CredentialSource) {
+	case "none":
+		return nil
+	case "file":
+		cfg.SessionKey = sessionKey
+		cfg.MarkCredentialEdited("session_key")
+		return Save(cfg)
+	case "keychain":
+		return SaveSessionKey(cfg.Profile, sessionKey)
+	}
+	return nil
+}
+
+func sessionKeyDestination(source string) string {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "environment":
+		return "none"
+	case "file":
+		return "file"
+	case "auto", "keychain", "":
+		return "keychain"
+	default:
+		return "keychain"
+	}
 }

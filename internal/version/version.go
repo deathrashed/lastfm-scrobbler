@@ -1,13 +1,36 @@
 package version
 
-// These values may be replaced at build time with -ldflags, for example:
-//
-//	-X github.com/deathrashed/lastfm-scrobbler/internal/version.Version=v10.1.0
-//	-X github.com/deathrashed/lastfm-scrobbler/internal/version.Commit=$(git rev-parse --short HEAD)
-//	-X github.com/deathrashed/lastfm-scrobbler/internal/version.Repository=owner/repository
+import (
+	"runtime/debug"
+	"strings"
+)
+
+const DefaultRepository = "deathrashed/lastfm-scrobbler"
+
 var (
-	Version    = "v10.0.0"
+	Version    = "development"
 	Commit     = "development"
-	Repository = ""
+	Repository = DefaultRepository
 	UpdateURL  = ""
 )
+
+func init() {
+	var buildVersion string
+	if info, ok := debug.ReadBuildInfo(); ok {
+		buildVersion = info.Main.Version
+	}
+	Version = ResolveVersion(Version, buildVersion)
+	if strings.TrimSpace(Repository) == "" {
+		Repository = DefaultRepository
+	}
+}
+
+func ResolveVersion(explicit, buildInfo string) string {
+	if value := strings.TrimSpace(explicit); value != "" && value != "development" {
+		return value
+	}
+	if value := strings.TrimSpace(buildInfo); value != "" && value != "(devel)" {
+		return value
+	}
+	return "development"
+}

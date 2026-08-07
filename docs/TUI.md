@@ -4,6 +4,11 @@ The Bubble Tea interface uses a fixed-width layout with Torch Red active
 controls, centered panels, footer hints, and mouse support. Run `scrobbler`
 without a subcommand to open it.
 
+The UI requires a terminal at least 67 columns wide. Compact Header is only
+enabled by the `SCROBBLE_COMPACT_HEADER` setting; it does not switch on
+automatically for narrow terminals. Compact mode uses a fixed four-line header,
+while the full header retains the profile URL and artwork.
+
 <p align="center">
   <a href="../README.md">Overview</a> •
   <a href="CLI.md">CLI</a> •
@@ -18,7 +23,7 @@ without a subcommand to open it.
 | `↑ ↓ ← →` / `J K` | Navigate lists and tabs. |
 | `Enter` | Confirm, save, open, or continue. |
 | `Esc` | Go back or cancel. |
-| `Q` / `Ctrl+C` | Quit. Active sessions can resume later. |
+| `Q` / `Ctrl+C` | Quit. Active sessions cancel promptly and retain recovery state. |
 | `?` | Open the contextual help overlay. |
 | Mouse wheel | Navigate long lists when mouse support is enabled. |
 
@@ -97,6 +102,10 @@ After a queue finishes or is cancelled:
 | `Esc` | Return to the Dashboard. |
 
 Interrupted active queues are offered for resume at the next launch.
+
+With the full header, the Last.fm profile URL is both an OSC 8 hyperlink and a
+mouse target. Moving over it highlights the URL and clicking opens it. Compact
+Header intentionally has no URL or URL hit area.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Config
 

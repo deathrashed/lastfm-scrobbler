@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -50,7 +49,7 @@ func main() {
 	m := tui.New(cfg, client)
 	options := []tea.ProgramOption{tea.WithAltScreen()}
 	if cfg.MouseEnabled {
-		options = append(options, tea.WithMouseCellMotion())
+		options = append(options, tea.WithMouseAllMotion())
 	}
 	p := tea.NewProgram(m, options...)
 
@@ -96,40 +95,10 @@ func runPlainMode(cfg config.Config, client lastfm.Client) {
 			fmt.Println("Use: Artist - Album")
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		loaded, err := client.GetAlbumTracks(ctx, artist, album)
-		cancel()
-		if err != nil {
-			fmt.Println("Error:", err)
-			continue
+		code := cli.Run([]string{"manual", "--artist", artist, "--album", album}, cfg, client, os.Stdout, os.Stderr)
+		if code != 0 {
+			fmt.Printf("Command exited with status %d\n", code)
 		}
-		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		err = client.Authenticate(ctx)
-		cancel()
-		if err != nil {
-			fmt.Println("Authentication:", err)
-			continue
-		}
-		limit := cfg.DefaultLimit
-		if limit <= 0 || limit > len(loaded.Tracks) {
-			limit = len(loaded.Tracks)
-		}
-		for loop := 0; loop < max(1, cfg.DefaultLoop); loop++ {
-			for index, track := range loaded.Tracks[:limit] {
-				ctx, cancel = context.WithTimeout(context.Background(), 45*time.Second)
-				err = client.Scrobble(ctx, loaded.Artist, track.Title, loaded.Title, time.Now().Unix())
-				cancel()
-				if err != nil {
-					fmt.Printf("Failed: %s — %v\n", track.Title, err)
-				} else {
-					fmt.Printf("[%d/%d] %s\n", index+1, limit, track.Title)
-				}
-				if index < limit-1 && cfg.DefaultInterval > 0 {
-					time.Sleep(cfg.DefaultInterval)
-				}
-			}
-		}
-		fmt.Println("Done.")
 	}
 }
 
@@ -144,11 +113,4 @@ func splitArtistAlbum(value string) (string, string, bool) {
 		}
 	}
 	return "", "", false
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

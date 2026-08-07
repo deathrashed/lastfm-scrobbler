@@ -28,9 +28,9 @@ LASTFM_SESSION_KEY=your-session-key
 ```
 
 Alternatively, omit `LASTFM_SESSION_KEY` and provide `LASTFM_PASSWORD`; the
-connection test can obtain a mobile session when the account permits it. On
-macOS, a newly acquired session key is saved to Keychain so the password is no
-longer required on later runs.
+connection test can obtain a mobile session when the account permits it. A
+newly acquired session key is persisted according to the selected credential
+source, as described below.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> File precedence
 
@@ -105,6 +105,20 @@ Credential sources:
 | `environment` | Read credentials only from real process environment variables. |
 | `file` | Read credentials only from the selected environment file. |
 | `keychain` | Public values come from environment/file; secret values come from macOS Keychain. |
+
+Environment and Keychain overrides are runtime values, not replacements for
+the values already stored in the credentials file. When Config saves an
+unrelated setting, the original file fallback is preserved. Explicitly editing
+a credential field marks the new value as intentional.
+
+Session-key persistence follows the source:
+
+| Source | Newly acquired session key |
+| --- | --- |
+| `auto` | Save to macOS Keychain. |
+| `keychain` | Save to macOS Keychain. |
+| `file` | Save to the selected credentials file. |
+| `environment` | Do not persist automatically. |
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Security notes
 

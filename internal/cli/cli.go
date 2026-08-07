@@ -7,9 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
@@ -318,8 +321,10 @@ func executeAlbums(command string, cfg config.Config, client lastfm.Client, albu
 		result.Message = "queue resolved; no scrobbles sent"
 		return emitResult(result, opts.json, stdout)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	if err := client.Authenticate(ctx); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	authCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	if err := client.Authenticate(authCtx); err != nil {
 		cancel()
 		fmt.Fprintln(stderr, err)
 		return 1
@@ -329,7 +334,7 @@ func executeAlbums(command string, cfg config.Config, client lastfm.Client, albu
 		_ = config.PersistSessionKey(cfg, sessionClient.SessionKey())
 	}
 	if cfg.DuplicateGuard > 0 && strings.TrimSpace(cfg.Username) != "" {
-		recent, err := client.GetRecentTracks(context.Background(), cfg.Username, time.Now().Add(-cfg.DuplicateGuard))
+		recent, err := client.GetRecentTracks(ctx, cfg.Username, time.Now().Add(-cfg.DuplicateGuard))
 		if err == nil {
 			seen := map[string]bool{}
 			for _, track := range recent {
@@ -356,7 +361,19 @@ func executeAlbums(command string, cfg config.Config, client lastfm.Client, albu
 	record.SkippedDuplicates = result.Skipped
 	_ = store.SavePending(record)
 	for index, item := range queue {
-		_, err := scrobbler.RunOne(context.Background(), client, scrobbler.Track{Artist: item.Artist, Title: item.Title, Album: item.Album}, scrobbler.Options{Retries: cfg.RetryCount, RetryDelay: cfg.RetryDelay})
+		if err := ctx.Err(); err != nil {
+			record.Status = "cancelled"
+			_ = store.SavePending(record)
+			_ = store.Append(record)
+			return 1
+		}
+		_, err := scrobbler.RunOne(ctx, client, scrobbler.Track{Artist: item.Artist, Title: item.Title, Album: item.Album}, scrobbler.Options{Retries: cfg.RetryCount, RetryDelay: cfg.RetryDelay})
+		if errors.Is(err, context.Canceled) {
+			record.Status = "cancelled"
+			_ = store.SavePending(record)
+			_ = store.Append(record)
+			return 1
+		}
 		if err != nil {
 			result.Failed++
 			fmt.Fprintf(stderr, "failed: %s — %v\n", item.Title, err)
@@ -370,7 +387,12 @@ func executeAlbums(command string, cfg config.Config, client lastfm.Client, albu
 		record.Completed = index + 1
 		_ = store.SavePending(record)
 		if index < len(queue)-1 && opts.interval > 0 {
-			time.Sleep(opts.interval)
+			if err := scrobbler.Wait(ctx, opts.interval); err != nil {
+				record.Status = "cancelled"
+				_ = store.SavePending(record)
+				_ = store.Append(record)
+				return 1
+			}
 		}
 	}
 	if result.Failed > 0 {
@@ -579,84 +601,122 @@ func Completion(shell string) (string, error) {
 	shell = strings.ToLower(strings.TrimSpace(shell))
 	switch shell {
 	case "zsh":
-		return zshCompletion, nil
+		return renderZshCompletion(), nil
 	case "bash":
-		return bashCompletion, nil
+		return renderBashCompletion(), nil
 	case "fish":
-		return fishCompletion, nil
+		return renderFishCompletion(), nil
 	default:
 		return "", fmt.Errorf("unsupported shell %q; choose zsh, bash, or fish", shell)
 	}
 }
 
-const zshCompletion = `#compdef scrobbler
-_scrobbler() {
-  local -a commands
-  commands=(
-    'tui:launch the terminal interface'
-    'manual:scrobble one Artist - Album'
-    'file:import a list, playlist, or folder'
-    'discography:list or scrobble an artist discography'
-    'similar:list similar album suggestions'
-    'test:test API and authentication'
-    'diagnostics:export a redacted support bundle'
-    'check-update:check the configured update source'
-    'completion:print shell completion'
-    'version:print version information'
-  )
-  _arguments -C \
-    '1:command:->command' \
-    '*::argument:->args'
-  case $state in
-    command) _describe 'command' commands ;;
-    args)
-      case $words[2] in
-        manual|file|discography) _arguments '--loop[album loops]:count' '--limit[tracks per album]:count' '--interval[delay]:duration' '--dry-run[do not scrobble]' '--json[JSON output]' ;;
-        completion) _values 'shell' zsh bash fish ;;
-      esac
-    ;;
-  esac
+type completionFlag struct {
+	Name        string
+	Description string
+	Value       bool
 }
-_scrobbler "$@"
-`
 
-const bashCompletion = `_scrobbler_complete() {
-  local cur prev commands
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  prev="${COMP_WORDS[COMP_CWORD-1]}"
-  commands="tui manual file discography similar test diagnostics check-update completion version help"
-  if [[ ${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
-    return
-  fi
-  case "${COMP_WORDS[1]}" in
-    manual|file|discography)
-      COMPREPLY=( $(compgen -W "--loop --limit --interval --dry-run --json --artist --album --all --albums --first --clean" -- "${cur}") ) ;;
-    completion)
-      COMPREPLY=( $(compgen -W "zsh bash fish" -- "${cur}") ) ;;
-  esac
+type completionCommand struct {
+	Name        string
+	Description string
+	Flags       []completionFlag
 }
-complete -F _scrobbler_complete scrobbler
-`
 
-const fishCompletion = `complete -c scrobbler -f
-complete -c scrobbler -n '__fish_use_subcommand' -a tui -d 'Launch the TUI'
-complete -c scrobbler -n '__fish_use_subcommand' -a manual -d 'Scrobble one Artist - Album'
-complete -c scrobbler -n '__fish_use_subcommand' -a file -d 'Import a list, playlist, or folder'
-complete -c scrobbler -n '__fish_use_subcommand' -a discography -d 'List or scrobble a discography'
-complete -c scrobbler -n '__fish_use_subcommand' -a similar -d 'Similar album suggestions'
-complete -c scrobbler -n '__fish_use_subcommand' -a test -d 'Test Last.fm connection'
-complete -c scrobbler -n '__fish_use_subcommand' -a diagnostics -d 'Export diagnostics bundle'
-complete -c scrobbler -n '__fish_use_subcommand' -a check-update -d 'Check for updates'
-complete -c scrobbler -n '__fish_use_subcommand' -a completion -d 'Print shell completion'
-complete -c scrobbler -n '__fish_use_subcommand' -a version -d 'Print version'
-complete -c scrobbler -n '__fish_seen_subcommand_from manual file discography' -l loop -r
-complete -c scrobbler -n '__fish_seen_subcommand_from manual file discography' -l limit -r
-complete -c scrobbler -n '__fish_seen_subcommand_from manual file discography' -l interval -r
-complete -c scrobbler -n '__fish_seen_subcommand_from manual file discography' -l dry-run
-complete -c scrobbler -n '__fish_seen_subcommand_from manual file discography' -l json
-`
+var completionCommands = []completionCommand{
+	{Name: "tui", Description: "launch the terminal interface"},
+	{Name: "manual", Description: "scrobble one Artist - Album", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "artist", Description: "artist name", Value: true}, {Name: "album", Description: "album name", Value: true}}},
+	{Name: "file", Description: "import a list, playlist, or folder", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}}},
+	{Name: "discography", Description: "list or scrobble an artist discography", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "all", Description: "select all albums"}, {Name: "albums", Description: "album names", Value: true}, {Name: "first", Description: "first albums", Value: true}, {Name: "clean", Description: "remove noisy releases"}}},
+	{Name: "similar", Description: "list similar album suggestions", Flags: []completionFlag{{Name: "limit", Description: "result count", Value: true}, {Name: "json", Description: "JSON output"}}},
+	{Name: "test", Description: "test API and authentication", Flags: []completionFlag{{Name: "json", Description: "JSON output"}}},
+	{Name: "diagnostics", Description: "export a redacted support bundle", Flags: []completionFlag{{Name: "json", Description: "JSON output"}}},
+	{Name: "check-update", Description: "check the configured update source", Flags: []completionFlag{{Name: "json", Description: "JSON output"}}},
+	{Name: "completion", Description: "print shell completion"},
+	{Name: "version", Description: "print version information"},
+	{Name: "help", Description: "print command help"},
+}
+
+func renderZshCompletion() string {
+	var b strings.Builder
+	b.WriteString("#compdef scrobbler\n_scrobbler() {\n  local -a commands\n  commands=(\n")
+	for _, command := range completionCommands {
+		fmt.Fprintf(&b, "    '%s:%s'\n", command.Name, command.Description)
+	}
+	b.WriteString("  )\n  _arguments -C \\\n    '1:command:->command' \\\n    '*::argument:->args'\n  case $state in\n    command) _describe 'command' commands ;;\n    args)\n      case $words[2] in\n")
+	for _, command := range completionCommands {
+		if command.Name == "completion" {
+			b.WriteString("        completion) _values 'shell' zsh bash fish ;;\n")
+			continue
+		}
+		if len(command.Flags) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "        %s) _arguments", command.Name)
+		for _, flag := range command.Flags {
+			if flag.Value {
+				fmt.Fprintf(&b, " '--%s[%s]:value'", flag.Name, flag.Description)
+			} else {
+				fmt.Fprintf(&b, " '--%s[%s]'", flag.Name, flag.Description)
+			}
+		}
+		b.WriteString(" ;;\n")
+	}
+	b.WriteString("      esac\n    ;;\n  esac\n}\n_scrobbler \"$@\"\n")
+	return b.String()
+}
+
+func renderBashCompletion() string {
+	var b strings.Builder
+	b.WriteString("_scrobbler_complete() {\n  local cur commands\n  COMPREPLY=()\n  cur=\"${COMP_WORDS[COMP_CWORD]}\"\n  commands=\"")
+	for index, command := range completionCommands {
+		if index > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(command.Name)
+	}
+	b.WriteString("\"\n  if [[ ${COMP_CWORD} -eq 1 ]]; then\n    COMPREPLY=( $(compgen -W \"${commands}\" -- \"${cur}\") )\n    return\n  fi\n  case \"${COMP_WORDS[1]}\" in\n")
+	for _, command := range completionCommands {
+		if command.Name == "completion" {
+			b.WriteString("    completion) COMPREPLY=( $(compgen -W \"zsh bash fish\" -- \"${cur}\") ) ;;\n")
+			continue
+		}
+		if len(command.Flags) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "    %s) COMPREPLY=( $(compgen -W \"", command.Name)
+		for index, flag := range command.Flags {
+			if index > 0 {
+				b.WriteByte(' ')
+			}
+			fmt.Fprintf(&b, "--%s", flag.Name)
+		}
+		b.WriteString("\" -- \"${cur}\") ) ;;\n")
+	}
+	b.WriteString("  esac\n}\ncomplete -F _scrobbler_complete scrobbler\n")
+	return b.String()
+}
+
+func renderFishCompletion() string {
+	var b strings.Builder
+	b.WriteString("complete -c scrobbler -f\n")
+	for _, command := range completionCommands {
+		fmt.Fprintf(&b, "complete -c scrobbler -n '__fish_use_subcommand' -a %s -d '%s'\n", command.Name, command.Description)
+	}
+	for _, command := range completionCommands {
+		if command.Name == "completion" {
+			b.WriteString("complete -c scrobbler -n '__fish_seen_subcommand_from completion' -a 'zsh bash fish'\n")
+		}
+		for _, flag := range command.Flags {
+			fmt.Fprintf(&b, "complete -c scrobbler -n '__fish_seen_subcommand_from %s' -l %s", command.Name, flag.Name)
+			if flag.Value {
+				b.WriteString(" -r")
+			}
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
+}
 
 // normalizeArgs keeps standard flag.FlagSet parsing while allowing options to
 // appear before or after positional arguments. valueFlags contains flag names

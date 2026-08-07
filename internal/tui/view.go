@@ -17,8 +17,8 @@ const headerContentWidth = 67
 var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 
 func (m model) View() string {
-	if m.width > 0 && m.width < 40 {
-		return theme.ErrorStyle.Render("Terminal too narrow (need ≥40 cols)")
+	if m.width > 0 && m.width < headerContentWidth {
+		return theme.ErrorStyle.Render("Terminal too narrow\nLast.fm Scrobbler requires at least 67 columns.")
 	}
 
 	var body string

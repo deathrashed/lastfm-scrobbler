@@ -94,8 +94,23 @@ func TestHeaderHeightMatchesRenderedMode(t *testing.T) {
 		t.Fatalf("compact header height = %d, want %d", got, compactHeaderLines)
 	}
 	small := model{width: 66}
-	if got := small.headerHeight(); got != compactHeaderLines {
-		t.Fatalf("small terminal header height = %d, want %d", got, compactHeaderLines)
+	if got := small.headerHeight(); got != fullHeaderLines {
+		t.Fatalf("small terminal header height = %d, want %d", got, fullHeaderLines)
+	}
+}
+
+func TestViewRejectsTerminalsNarrowerThanHeader(t *testing.T) {
+	for _, width := range []int{40, 66} {
+		view := (model{width: width}).View()
+		if !strings.Contains(stripANSI(view), "Terminal too narrow") {
+			t.Fatalf("width %d did not show the narrow-terminal message: %q", width, view)
+		}
+	}
+	for _, width := range []int{67, 120} {
+		view := (model{width: width}).View()
+		if strings.Contains(stripANSI(view), "Terminal too narrow") {
+			t.Fatalf("width %d was rejected", width)
+		}
 	}
 }
 
@@ -124,6 +139,9 @@ func TestHeaderURLUsesOSC8AndConfiguredUsername(t *testing.T) {
 	}
 	if theme.HeaderURLStyle.GetUnderline() || !theme.HeaderURLHoverStyle.GetUnderline() {
 		t.Fatal("header URL hover state is not visually distinguished")
+	}
+	if theme.HeaderURLStyle.GetForeground() != theme.DeepRed || theme.HeaderURLHoverStyle.GetForeground() != theme.TorchRed {
+		t.Fatal("header URL colors do not distinguish normal and hover states")
 	}
 
 	fallback := RenderHeaderWithHover(140, stageInput, "", "", "", false, false)

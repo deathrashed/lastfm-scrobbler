@@ -100,9 +100,6 @@ func RenderHeader(width int, stg stage, modeChoice, username, settingsLine strin
 }
 
 func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsLine string, compact, urlHover bool) string {
-	if width > 0 && width < minHeaderWidth {
-		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover)
-	}
 	if compact {
 		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover)
 	}
@@ -110,7 +107,7 @@ func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsL
 }
 
 func (m model) compactHeaderEnabled() bool {
-	return m.cfg.CompactHeader || (m.width > 0 && m.width < minHeaderWidth)
+	return m.cfg.CompactHeader
 }
 
 func (m model) headerHeight() int {

@@ -34,6 +34,10 @@ The visual system is deliberately consistent across every screen:
 - wrapped or clipped long text that cannot break a border
 - Nerd Font icons with plain-text fallbacks where practical
 
+The TUI requires at least 67 terminal columns. Compact Header is a user
+setting, not an automatic narrow-terminal fallback. Full-header profile URLs
+highlight on hover and open on click; compact mode has no profile URL.
+
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Features
 
 | Area | What it provides |
@@ -71,9 +75,9 @@ A versioned release build can inject source information for update checking:
 
 ```bash
 go build \
-  -ldflags "-X github.com/deathrashed/lastfm-scrobbler/internal/version.Version=v10.0.0 \
+  -ldflags "-X github.com/deathrashed/lastfm-scrobbler/internal/version.Version=v1.0.0 \
             -X github.com/deathrashed/lastfm-scrobbler/internal/version.Commit=$(git rev-parse --short HEAD) \
-            -X github.com/deathrashed/lastfm-scrobbler/internal/version.Repository=OWNER/REPOSITORY" \
+            -X github.com/deathrashed/lastfm-scrobbler/internal/version.Repository=deathrashed/lastfm-scrobbler" \
   -o bin/scrobbler ./cmd/scrobbler
 ```
 
@@ -318,6 +322,11 @@ Credential sources:
 - `keychain`: public values come from environment/file and secrets come from
   macOS Keychain
 
+Saving an unrelated setting preserves file fallback values when an environment
+or Keychain override is active. Newly acquired session keys go to Keychain for
+`auto` and `keychain`, to the credentials file for `file`, and nowhere
+automatically for `environment`.
+
 ### Environment file precedence
 
 For normal `auto` mode, values are resolved in this order:
@@ -412,18 +421,21 @@ Mouse support is enabled by default and can be disabled in Advanced or with
   Profiles, and Advanced
 - keyboard controls remain available everywhere
 
+With the full header, moving over the Last.fm URL changes it to Torch Red and
+clicking opens it. Compact Header does not expose a URL target.
+
 Bubble Tea mouse capture can interfere with normal terminal text selection in
 some terminals. Disable the setting when native selection is more important.
 
 ## Update checking
 
-The checker does not assume a repository. Configure either:
+The checker defaults to the public repository. Configure either:
 
 ```env
-SCROBBLER_UPDATE_URL=https://api.github.com/repos/OWNER/REPOSITORY/releases/latest
+SCROBBLER_UPDATE_URL=https://api.github.com/repos/deathrashed/lastfm-scrobbler/releases/latest
 ```
 
-or inject `Repository=OWNER/REPOSITORY` at build time. A custom endpoint may
+or inject `Repository=deathrashed/lastfm-scrobbler` at build time. A custom endpoint may
 return GitHub-style JSON (`tag_name`, `html_url`, `body`) or simple JSON
 (`version`, `url`, `notes`). The checker only reports availability; it does not
 replace the running binary.

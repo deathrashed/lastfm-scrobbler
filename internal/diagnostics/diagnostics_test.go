@@ -17,7 +17,7 @@ func TestCreateRedactsSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := config.Config{APIKey: "1234567890abcdef", APISecret: "supersecret", Password: "pw-secret-XYZ", SessionKey: "session-secret-XYZ", Username: "user", ExportDir: dir}
-	path, err := Create(cfg, nil, logPath, "v10", "test")
+	path, err := Create(cfg, nil, logPath, "v1.0.0", "test")
 	if err != nil {
 		t.Fatal(err)
 	}

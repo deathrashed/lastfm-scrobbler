@@ -2,6 +2,7 @@ package cli
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
@@ -15,6 +16,32 @@ func TestNormalizeArgsAllowsFlagsAfterPositionals(t *testing.T) {
 	want := []string{"--first", "3", "--dry-run", "--interval=500ms", "Demolition Hammer"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("normalizeArgs() = %#v, want %#v", got, want)
+	}
+}
+
+func TestCompletionsMatchCommandFlags(t *testing.T) {
+	zsh, _ := Completion("zsh")
+	bash, _ := Completion("bash")
+	fish, _ := Completion("fish")
+	for _, output := range []string{zsh, bash} {
+		if !strings.Contains(output, "--artist") || !strings.Contains(output, "--album") {
+			t.Fatalf("manual credential flags missing from completion:\n%s", output)
+		}
+		if !strings.Contains(output, "--all") || !strings.Contains(output, "--clean") {
+			t.Fatalf("discography flags missing from completion:\n%s", output)
+		}
+	}
+	if !strings.Contains(fish, "-l artist") || !strings.Contains(fish, "-l album") || !strings.Contains(fish, "-l all") || !strings.Contains(fish, "-l clean") {
+		t.Fatal("fish command flags are incomplete")
+	}
+	if strings.Contains(bash, `file) COMPREPLY=( $(compgen -W "--loop --limit --interval --dry-run --json --artist`) {
+		t.Fatal("bash file completion advertises manual-only flags")
+	}
+	if strings.Contains(zsh, "file) _arguments '--artist") {
+		t.Fatal("zsh file completion advertises manual-only flags")
+	}
+	if strings.Contains(fish, "__fish_seen_subcommand_from file' -l artist") {
+		t.Fatal("fish file completion advertises manual-only flags")
 	}
 }
 

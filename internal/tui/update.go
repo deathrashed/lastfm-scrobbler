@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,6 +34,8 @@ type scrobbleResultMsg struct {
 	track queuedTrack
 	err   error
 }
+
+type scrobbleCancelledMsg struct{}
 
 type searchResultMsg struct {
 	albums []lastfm.Album
@@ -223,6 +226,9 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stage = stageSimilarSelect
 		return m, nil
 	case scrobblePreparedMsg:
+		if m.sessionCtx != nil && m.sessionCtx.Err() != nil {
+			return m, nil
+		}
 		if msg.err != nil {
 			m.err = msg.err
 			m.stage = stagePreview
@@ -242,6 +248,11 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.updateScrobbling(msg)
+	case scrobbleCancelledMsg:
+		if m.stage == stageScrobbling {
+			m.cancelScrobbleSession()
+		}
+		return m, nil
 	case exportResultMsg:
 		if msg.err != nil {
 			m.err = msg.err
@@ -869,6 +880,7 @@ func (m model) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.previewStatus = "Preparing session…"
 		m.searching = true
+		m.startScrobbleSession()
 		return m, tea.Batch(m.prepareScrobble(), m.spinner.Tick)
 	case "e":
 		return m, m.exportRecordCmd(m.queueRecord("preview"))
@@ -879,6 +891,7 @@ func (m model) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.stage = stageTrackSelect
 	case "q", "ctrl+c":
+		m.cancelActiveSession()
 		return m, tea.Quit
 	}
 	return m, nil
@@ -886,8 +899,9 @@ func (m model) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m model) prepareScrobble() tea.Cmd {
 	queue := append([]queuedTrack(nil), m.scrobbleQueue...)
+	ctx := m.sessionContext()
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		defer cancel()
 		if err := m.client.Authenticate(ctx); err != nil {
 			return scrobblePreparedMsg{err: err}
@@ -926,10 +940,14 @@ func recentKey(artist, title, album string) string {
 }
 
 func (m model) authenticateThenContinue() tea.Cmd {
+	ctx := m.sessionContext()
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 		defer cancel()
 		if err := m.client.Authenticate(ctx); err != nil {
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return scrobbleCancelledMsg{}
+			}
 			return scrobbleResultMsg{err: err}
 		}
 		return m.scrobbleNext()()
@@ -937,12 +955,19 @@ func (m model) authenticateThenContinue() tea.Cmd {
 }
 
 func (m model) scrobbleNext() tea.Cmd {
+	ctx := m.sessionContext()
 	return func() tea.Msg {
+		if err := ctx.Err(); err != nil {
+			return scrobbleCancelledMsg{}
+		}
 		if m.scrobbleIdx >= len(m.scrobbleQueue) {
 			return scrobbleResultMsg{idx: m.scrobbleIdx}
 		}
 		item := m.scrobbleQueue[m.scrobbleIdx]
-		attempts, err := scrobbler.RunOne(context.Background(), m.client, scrobbler.Track{Artist: item.Artist, Title: item.Title, Album: item.Album}, scrobbler.Options{Retries: m.cfg.RetryCount, RetryDelay: m.cfg.RetryDelay})
+		attempts, err := scrobbler.RunOne(ctx, m.client, scrobbler.Track{Artist: item.Artist, Title: item.Title, Album: item.Album}, scrobbler.Options{Retries: m.cfg.RetryCount, RetryDelay: m.cfg.RetryDelay})
+		if errors.Is(err, context.Canceled) {
+			return scrobbleCancelledMsg{}
+		}
 		item.Attempts = attempts
 		return scrobbleResultMsg{idx: m.scrobbleIdx + 1, track: item, err: err}
 	}
@@ -953,18 +978,17 @@ func (m model) updateScrobbling(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
-			// Keep the pending-session file so the next launch can resume.
+			m.cancelScrobbleSession()
 			return m, tea.Quit
 		case "ctrl+c", "esc":
-			record := m.queueRecord("cancelled")
-			_ = m.store.Append(record)
-			_ = m.store.ClearPending()
-			m.history, _ = m.store.LoadHistory()
-			m.stage = stageTrackSelect
-			m.err = nil
+			m.cancelScrobbleSession()
 			return m, nil
 		}
 	case scrobbleResultMsg:
+		if errors.Is(msg.err, context.Canceled) {
+			m.cancelScrobbleSession()
+			return m, nil
+		}
 		if msg.idx == 0 && msg.err != nil {
 			m.err = msg.err
 			m.stage = stagePreview
@@ -987,21 +1011,29 @@ func (m model) updateScrobbling(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.scrobbleIdx >= len(m.scrobbleQueue) {
 			return m.finishSession()
 		}
-		return m, tea.Sequence(waitCmd(m.interval), m.scrobbleNext())
+		return m, tea.Sequence(waitCmd(m.sessionContext(), m.interval), m.scrobbleNext())
 	}
 	return m, nil
 }
 
-func waitCmd(duration time.Duration) tea.Cmd {
+func waitCmd(ctx context.Context, duration time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		if duration > 0 {
-			time.Sleep(duration)
+		if duration <= 0 {
+			return nil
 		}
-		return nil
+		timer := time.NewTimer(duration)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return scrobbleCancelledMsg{}
+		case <-timer.C:
+			return nil
+		}
 	}
 }
 
 func (m model) finishSession() (tea.Model, tea.Cmd) {
+	m.cancelActiveSession()
 	m.stage = stageDone
 	record := m.queueRecord("complete")
 	m.lastRecord = record
@@ -1020,6 +1052,37 @@ func (m model) finishSession() (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m *model) startScrobbleSession() {
+	m.cancelActiveSession()
+	m.sessionCtx, m.sessionCancel = context.WithCancel(context.Background())
+}
+
+func (m model) sessionContext() context.Context {
+	if m.sessionCtx != nil {
+		return m.sessionCtx
+	}
+	return context.Background()
+}
+
+func (m *model) cancelActiveSession() {
+	if m.sessionCancel != nil {
+		m.sessionCancel()
+	}
+	m.sessionCtx = nil
+	m.sessionCancel = nil
+}
+
+func (m *model) cancelScrobbleSession() {
+	m.cancelActiveSession()
+	record := m.queueRecord("cancelled")
+	_ = m.store.Append(record)
+	_ = m.store.SavePending(record)
+	m.pending = &record
+	m.history, _ = m.store.LoadHistory()
+	m.stage = stageTrackSelect
+	m.err = nil
 }
 
 func (m model) openConfig() (tea.Model, tea.Cmd) {
@@ -1783,12 +1846,14 @@ func (m model) updateRecovery(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		m.restoreRecord(*m.pending)
+		m.startScrobbleSession()
 		m.scrobbleIdx = minInt(m.pending.Completed, len(m.scrobbleQueue))
 		m.scrobbleStarted = m.pending.StartedAt
 		m.stage = stageScrobbling
 		return m, m.authenticateThenContinue()
 	case "r":
 		m.restoreRecord(*m.pending)
+		m.startScrobbleSession()
 		m.resetQueueForRun()
 		m.scrobbleStarted = time.Now()
 		m.stage = stageScrobbling

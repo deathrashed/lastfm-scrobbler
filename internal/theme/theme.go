@@ -42,8 +42,8 @@ var (
 	BadgeStyle          = lipgloss.NewStyle().Bold(true).Foreground(redColor)
 	HeaderTextStyle     = lipgloss.NewStyle().Bold(true).Foreground(redColor)
 	HeaderMetaStyle     = lipgloss.NewStyle().Bold(true).Foreground(redColor)
-	HeaderURLStyle      = lipgloss.NewStyle().Foreground(redColor)
-	HeaderURLHoverStyle = lipgloss.NewStyle().Underline(true).Foreground(textColor)
+	HeaderURLStyle      = lipgloss.NewStyle().Foreground(DeepRed)
+	HeaderURLHoverStyle = lipgloss.NewStyle().Underline(true).Foreground(TorchRed)
 
 	TitleStyle            = lipgloss.NewStyle().Bold(true).Foreground(textColor)
 	TitleIconStyle        = lipgloss.NewStyle().Bold(true).Foreground(redColor)

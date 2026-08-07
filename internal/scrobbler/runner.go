@@ -25,9 +25,15 @@ func RunOne(ctx context.Context, client lastfm.Client, track Track, options Opti
 	}
 	var err error
 	for attempt := 1; attempt <= attempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return attempt - 1, err
+		}
 		callCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 		err = client.Scrobble(callCtx, track.Artist, track.Title, track.Album, time.Now().Unix())
 		cancel()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return attempt, ctxErr
+		}
 		if err == nil {
 			return attempt, nil
 		}
@@ -42,4 +48,18 @@ func RunOne(ctx context.Context, client lastfm.Client, track Track, options Opti
 		}
 	}
 	return attempts, err
+}
+
+func Wait(ctx context.Context, duration time.Duration) error {
+	if duration <= 0 {
+		return ctx.Err()
+	}
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

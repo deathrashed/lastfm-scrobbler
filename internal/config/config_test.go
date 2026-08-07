@@ -231,13 +231,16 @@ func TestSaveDoesNotPersistEnvironmentCredentials(t *testing.T) {
 	}
 }
 
-func TestSaveDoesNotPersistAutoEnvironmentOverrides(t *testing.T) {
+func TestSavePreservesAutoEnvironmentFallbacks(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=auto\nAPI_KEY=file-key\nLASTFM_USERNAME=file-user\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=auto\nAPI_KEY=file-key\nAPI_SECRET=file-secret\nLASTFM_USERNAME=file-user\nLASTFM_PASSWORD=file-pass\nLASTFM_SESSION_KEY=file-session\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("LASTFM_API_KEY", "environment-key")
+	t.Setenv("LASTFM_API_SECRET", "environment-secret")
 	t.Setenv("LASTFM_USERNAME", "environment-user")
+	t.Setenv("LASTFM_PASSWORD", "environment-pass")
+	t.Setenv("LASTFM_SESSION_KEY", "environment-session")
 	cfg, err := LoadFromPath(path)
 	if err != nil {
 		t.Fatal(err)
@@ -249,8 +252,46 @@ func TestSaveDoesNotPersistAutoEnvironmentOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if values["API_KEY"] != "" || values["LASTFM_USERNAME"] != "" {
-		t.Fatalf("environment overrides were persisted: %#v", values)
+	want := map[string]string{
+		"API_KEY":            "file-key",
+		"API_SECRET":         "file-secret",
+		"LASTFM_USERNAME":    "file-user",
+		"LASTFM_PASSWORD":    "file-pass",
+		"LASTFM_SESSION_KEY": "file-session",
+	}
+	for key, value := range want {
+		if values[key] != value {
+			t.Fatalf("%s = %q, want persisted fallback %q", key, values[key], value)
+		}
+	}
+}
+
+func TestSavePreservesAutoKeychainFallbacks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=auto\nAPI_SECRET=file-secret\nLASTFM_PASSWORD=file-pass\nLASTFM_SESSION_KEY=file-session\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromPath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.apiSecretFromKeychain = true
+	cfg.passwordFromKeychain = true
+	cfg.sessionFromKeychain = true
+	cfg.APISecret = "keychain-secret"
+	cfg.Password = "keychain-pass"
+	cfg.SessionKey = "keychain-session"
+	if err := Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	values, err := readEnvFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range map[string]string{"API_SECRET": "file-secret", "LASTFM_PASSWORD": "file-pass", "LASTFM_SESSION_KEY": "file-session"} {
+		if values[key] != value {
+			t.Fatalf("%s = %q, want %q", key, values[key], value)
+		}
 	}
 }
 

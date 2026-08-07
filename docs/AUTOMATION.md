@@ -4,6 +4,11 @@ The headless CLI is preferred over driving the TUI with simulated keystrokes.
 It has stable exit codes, optional JSON output, dry-run support, and the same
 configuration as the interactive app.
 
+The legacy `NO_TUI=1` or `--no-tui` input loop routes each entered album through
+the same headless command/session runner. It therefore uses the same
+authentication, retry, duplicate, history, recovery, notification, and
+cancellation behavior.
+
 <p align="center">
   <a href="../README.md">Overview</a> •
   <a href="TUI.md">TUI controls</a> •

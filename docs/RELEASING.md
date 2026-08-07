@@ -24,8 +24,8 @@ or `git archive`.
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Create a release
 
 ```bash
-git tag -a v10.0.0 -m "Release v10.0.0"
-git push origin v10.0.0
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
 ```
 
 The release workflow builds:

@@ -43,6 +43,11 @@ type Config struct {
 	apiSecretFromKeychain    bool
 	passwordFromKeychain     bool
 	sessionFromKeychain      bool
+	apiKeyFromFile           string
+	apiSecretFromFile        string
+	usernameFromFile         string
+	passwordFromFile         string
+	sessionFromFile          string
 }
 
 // Load discovers a credentials file and then overlays real environment
@@ -111,6 +116,7 @@ func loadConfigWithFallback(envPath, fallbackPath string) (Config, error) {
 	cfg := defaultConfig()
 
 	fileValues := map[string]string{}
+	persistedValues := map[string]string{}
 	if envPath != "" {
 		values, err := readEnvFile(envPath)
 		if err != nil && !os.IsNotExist(err) {
@@ -118,6 +124,9 @@ func loadConfigWithFallback(envPath, fallbackPath string) (Config, error) {
 		}
 		if err == nil {
 			fileValues = values
+			for key, value := range values {
+				persistedValues[key] = value
+			}
 		}
 		cfg.EnvPath = envPath
 	} else {
@@ -184,13 +193,18 @@ func loadConfigWithFallback(envPath, fallbackPath string) (Config, error) {
 	cfg.Username = credentialValue("LASTFM_USERNAME", "LASTFM_USER")
 	cfg.Password = credentialValue("LASTFM_PASSWORD")
 	cfg.SessionKey = credentialValue("LASTFM_SESSION_KEY", "SESSION_KEY")
-	if cfg.CredentialSource == "environment" || cfg.CredentialSource == "auto" {
+	if cfg.CredentialSource == "environment" || cfg.CredentialSource == "auto" || cfg.CredentialSource == "keychain" {
 		cfg.apiKeyFromEnvironment = strings.TrimSpace(getEnv("API_KEY", "LASTFM_API_KEY")) != ""
 		cfg.apiSecretFromEnvironment = strings.TrimSpace(getEnv("API_SECRET", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET")) != ""
 		cfg.usernameFromEnvironment = strings.TrimSpace(getEnv("LASTFM_USERNAME", "LASTFM_USER")) != ""
 		cfg.passwordFromEnvironment = strings.TrimSpace(getEnv("LASTFM_PASSWORD")) != ""
 		cfg.sessionFromEnvironment = strings.TrimSpace(getEnv("LASTFM_SESSION_KEY", "SESSION_KEY")) != ""
 	}
+	cfg.apiKeyFromFile = persistedValues["API_KEY"]
+	cfg.apiSecretFromFile = firstNonEmpty(persistedValues["API_SECRET"], persistedValues["LASTFM_API_SECRET"], persistedValues["LASTFM_SHARED_SECRET"])
+	cfg.usernameFromFile = firstNonEmpty(persistedValues["LASTFM_USERNAME"], persistedValues["LASTFM_USER"])
+	cfg.passwordFromFile = persistedValues["LASTFM_PASSWORD"]
+	cfg.sessionFromFile = firstNonEmpty(persistedValues["LASTFM_SESSION_KEY"], persistedValues["SESSION_KEY"])
 
 	// Auto fills only missing secrets from Keychain. Keychain mode makes the
 	// Keychain authoritative for secret values, while environment/file still
@@ -284,8 +298,8 @@ func findEnvFile() string {
 	if exe, err := os.Executable(); err == nil {
 		binDir := filepath.Dir(exe)
 		candidates = append(candidates,
-			filepath.Join(binDir, ".env"),
 			filepath.Join(binDir, "..", ".env"),
+			filepath.Join(binDir, ".env"),
 			filepath.Join(binDir, "..", "..", ".env"),
 		)
 	}
@@ -543,30 +557,30 @@ func Save(cfg Config) error {
 	}
 	if cfg.CredentialSource == "environment" {
 		apiKey, apiSecret, username, password, sessionKey = "", "", "", "", ""
-	} else if cfg.CredentialSource == "auto" {
+	} else if cfg.CredentialSource == "auto" || cfg.CredentialSource == "keychain" {
 		if cfg.apiKeyFromEnvironment {
-			apiKey = ""
+			apiKey = cfg.apiKeyFromFile
 		}
 		if cfg.apiSecretFromEnvironment {
-			apiSecret = ""
+			apiSecret = cfg.apiSecretFromFile
 		}
 		if cfg.usernameFromEnvironment {
-			username = ""
+			username = cfg.usernameFromFile
 		}
 		if cfg.passwordFromEnvironment {
-			password = ""
+			password = cfg.passwordFromFile
 		}
 		if cfg.sessionFromEnvironment {
-			sessionKey = ""
+			sessionKey = cfg.sessionFromFile
 		}
 		if cfg.apiSecretFromKeychain {
-			apiSecret = ""
+			apiSecret = cfg.apiSecretFromFile
 		}
 		if cfg.passwordFromKeychain {
-			password = ""
+			password = cfg.passwordFromFile
 		}
 		if cfg.sessionFromKeychain {
-			sessionKey = ""
+			sessionKey = cfg.sessionFromFile
 		}
 	}
 
