@@ -45,7 +45,7 @@ func renderInputView(m model) string {
 	widths := []int{19, 25, 18}
 	boxes := make([]string, len(labels))
 	for i, label := range labels {
-		boxes[i] = renderExactBox(label, widths[i], i == m.modeIndex)
+		boxes[i] = renderDashboardBox(label, widths[i], i == m.modeIndex)
 	}
 	row := joinThreeLineBoxes(boxes, theme.SepStyle.Render("•"))
 	descriptions := []string{
@@ -126,7 +126,7 @@ func renderDiscographySelectView(m model) string {
 		if filterValue == "" {
 			filterValue = "none"
 		}
-		filterLine = renderInfoBox("VIEW", fmt.Sprintf("filter %s   •   clean %s   •   sort %s", filterValue, clean, sortName), fmt.Sprintf("%d / %d", len(visible), len(m.discography)), 65, false)
+		filterLine = renderDiscographyViewBox(filterValue, clean, sortName, len(visible), len(m.discography))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
 		centerToHeader(artistBox),
@@ -135,6 +135,19 @@ func renderDiscographySelectView(m model) string {
 		centerToHeader(listBox),
 		"",
 	)
+}
+
+func renderDiscographyViewBox(filterValue, clean, sortName string, visible, total int) string {
+	left := theme.KeyStyle.Render("VIEW ❯") + " " +
+		theme.MutedStyle.Render("filter ") + theme.KeyStyle.Render(filterValue) +
+		theme.MutedStyle.Render(" • clean ") + theme.KeyStyle.Render(clean) +
+		theme.MutedStyle.Render(" • sort ") + theme.KeyStyle.Render(sortName)
+	right := theme.MutedStyle.Render(fmt.Sprintf("%d / %d", visible, total))
+	gap := 59 - lipgloss.Width(left) - lipgloss.Width(right)
+	if gap < 1 {
+		gap = 1
+	}
+	return renderPanelBox([]string{left + strings.Repeat(" ", gap) + right}, 65, theme.BorderStyle)
 }
 
 func renderDiscographyList(m model, visibleIndexes []int) string {

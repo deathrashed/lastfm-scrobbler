@@ -92,7 +92,7 @@ func lastfmURL(username string) string {
 
 func renderHeaderURL(username string, hover bool) string {
 	value := lastfmURL(username)
-	display := truncateToWidth(value, fullHeaderWidth-2)
+	display := truncateToWidth(headerURLDisplay(username), fullHeaderWidth-2)
 	style := theme.HeaderURLStyle
 	if hover {
 		style = theme.HeaderURLHoverStyle
@@ -105,9 +105,17 @@ func renderOSC8(target, value string) string {
 }
 
 func headerURLBounds(username string) (left, top, width int) {
-	displayWidth := lipgloss.Width(truncateToWidth(lastfmURL(username), fullHeaderWidth-2))
+	displayWidth := lipgloss.Width(truncateToWidth(headerURLDisplay(username), fullHeaderWidth-2))
 	left = 1 + (fullHeaderWidth-2-displayWidth)/2
 	return left, 1, displayWidth
+}
+
+func headerURLDisplay(username string) string {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return "last.fm"
+	}
+	return "last.fm/user/" + url.PathEscape(username)
 }
 
 func renderDashboardContext() string {

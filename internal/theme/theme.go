@@ -43,7 +43,7 @@ var (
 	HeaderTextStyle     = lipgloss.NewStyle().Bold(true).Foreground(redColor)
 	HeaderMetaStyle     = lipgloss.NewStyle().Bold(true).Foreground(redColor)
 	HeaderURLStyle      = lipgloss.NewStyle().Foreground(redColor)
-	HeaderURLHoverStyle = lipgloss.NewStyle().Foreground(textColor)
+	HeaderURLHoverStyle = lipgloss.NewStyle().Underline(true).Foreground(textColor)
 
 	TitleStyle            = lipgloss.NewStyle().Bold(true).Foreground(textColor)
 	TitleIconStyle        = lipgloss.NewStyle().Bold(true).Foreground(redColor)

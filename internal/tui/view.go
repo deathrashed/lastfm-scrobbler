@@ -92,11 +92,13 @@ func hint(parts ...string) string  { return strings.Join(parts, "") }
 func renderFooter(m model) string {
 	switch m.stage {
 	case stageInput:
-		lineOne := hint(hintKey("→/↑/↓/←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" select"), hintSep(), hintKey("M-D-F"), hintText(" quick"))
+		lineOne := hint(hintKey("→ ↑ ↓ ←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" select"), hintSep(), hintKey("M-D-F"), hintText(" quick"))
 		lineTwo := hint(hintKey("h"), hintText(" history"), hintSep(), hintKey("p"), hintText(" profiles"), hintSep(), hintKey("c"), hintText(" config"), hintSep(), hintKey("i"), hintText(" info"), hintSep(), hintKey("?"), hintText(" help"))
 		return lineOne + "\n" + lineTwo
 	case stageImportSource:
-		return hint(hintKey("→/↑/↓/←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" choose"), hintSep(), hintKey("o"), hintText(" picker"), hintSep(), hintKey("esc"), hintText(" menu"), hintSep(), hintKey("?"), hintText(" help"))
+		lineOne := hint(hintKey("→ ↑ ↓ ←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" choose"))
+		lineTwo := hint(hintKey("o"), hintText(" picker"), hintSep(), hintKey("esc"), hintText(" menu"), hintSep(), hintKey("?"), hintText(" help"))
+		return lineOne + "\n" + lineTwo
 	case stageSearch:
 		extra := ""
 		if m.modeChoice == "file" {
@@ -104,14 +106,18 @@ func renderFooter(m model) string {
 		}
 		return hint(hintKey("enter"), hintText(" continue"), extra, hintSep(), hintKey("esc"), hintText(" back"), hintSep(), hintKey("ctrl+c"), hintText(" quit"))
 	case stageResults:
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" select"), hintSep(), hintKey("s"), hintText(" similar"), hintSep(), hintKey("esc"), hintText(" back"))
+		return hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" select"), hintSep(), hintKey("s"), hintText(" similar"), hintSep(), hintKey("esc"), hintText(" back"))
 	case stageDiscographySelect:
 		if m.discographyFiltering {
 			return hint(hintKey("type"), hintText(" filter"), hintSep(), hintKey("enter"), hintText(" apply"), hintSep(), hintKey("esc"), hintText(" cancel"))
 		}
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("space"), hintText(" check"), hintSep(), hintKey("a"), hintText(" all"), hintSep(), hintKey("c"), hintText(" clean"), hintSep(), hintKey("/"), hintText(" filter"), hintSep(), hintKey("s"), hintText(" sort"), hintSep(), hintKey("enter"), hintText(" continue"))
+		lineOne := hint(hintKey("space"), hintText(" check"), hintSep(), hintKey("a"), hintText(" all"), hintSep(), hintKey("c"), hintText(" clean"), hintSep(), hintKey("/"), hintText(" filter"), hintSep(), hintKey("s"), hintText(" sort"))
+		lineTwo := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" continue"))
+		return lineOne + "\n" + lineTwo
 	case stageTrackSelect:
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("space"), hintText(" check"), hintSep(), hintKey("a"), hintText(" all"), hintSep(), hintKey("-/+"), hintText(" loop"), hintSep(), hintKey("[/]"), hintText(" album loop"), hintSep(), hintKey("enter"), hintText(" preview"), hintSep(), hintKey("s"), hintText(" similar"))
+		lineOne := hint(hintKey("space"), hintText(" check"), hintSep(), hintKey("a"), hintText(" all"), hintSep(), hintKey("-/+"), hintText(" loop"), hintSep(), hintKey("[/]"), hintText(" album loop"))
+		lineTwo := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" preview"), hintSep(), hintKey("s"), hintText(" similar"))
+		return lineOne + "\n" + lineTwo
 	case stagePreview:
 		return hint(hintKey("enter"), hintText(" start"), hintSep(), hintKey("e"), hintText(" export"), hintSep(), hintKey("s"), hintText(" similar"), hintSep(), hintKey("esc"), hintText(" edit"), hintSep(), hintKey("?"), hintText(" help"))
 	case stageConfig:
@@ -119,15 +125,17 @@ func renderFooter(m model) string {
 		if m.configIndex >= 4 {
 			action = "open"
 		}
-		lineOne := hint(hintKey("→/↑/↓/←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" "+action), hintSep(), hintKey("tab"), hintText(" field"), hintSep(), hintKey("ctrl+p"), hintText(" credentials path"))
-		lineTwo := hint(hintKey("ctrl+g"), hintText(" advanced"), hintSep(), hintKey("ctrl+o"), hintText(" info"), hintSep(), hintKey("esc"), hintText(" back"))
+		lineOne := hint(hintKey("→ ↑ ↓ ←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" "+action), hintSep(), hintKey("tab"), hintText(" field"), hintSep(), hintKey("esc"), hintText(" back"))
+		lineTwo := hint(hintKey("ctrl+p"), hintText(" credentials path"), hintSep(), hintKey("ctrl+g"), hintText(" advanced"), hintSep(), hintKey("ctrl+o"), hintText(" info"))
 		return lineOne + "\n" + lineTwo
 	case stageAdvancedConfig:
 		action := "save"
 		if advancedAction(m.advancedIndex) {
 			action = "open"
 		}
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("←/→"), hintText(" toggle"), hintSep(), hintKey("enter"), hintText(" "+action), hintSep(), hintKey("o"), hintText(" folder"), hintSep(), hintKey("esc"), hintText(" back"))
+		lineOne := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("← →"), hintText(" toggle"), hintSep(), hintKey("enter"), hintText(" "+action))
+		lineTwo := hint(hintKey("o"), hintText(" folder"), hintSep(), hintKey("esc"), hintText(" back"))
+		return lineOne + "\n" + lineTwo
 	case stageEnvPath:
 		return hint(hintKey("enter"), hintText(" save"), hintSep(), hintKey("o"), hintText(" picker"), hintSep(), hintKey("esc"), hintText(" back"))
 	case stageScrobbling:
@@ -137,17 +145,21 @@ func renderFooter(m model) string {
 		lineTwo := hint(hintKey("s"), hintText(" similar"), hintSep(), hintKey("h"), hintText(" history"), hintSep(), hintKey("esc"), hintText(" menu"), hintSep(), hintKey("q"), hintText(" quit"))
 		return lineOne + "\n" + lineTwo
 	case stageHistory:
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("enter/r"), hintText(" edit + re-run"), hintSep(), hintKey("R"), hintText(" exact re-run"), hintSep(), hintKey("e"), hintText(" export"), hintSep(), hintKey("d"), hintText(" delete"), hintSep(), hintKey("esc"), hintText(" menu"))
+		lineOne := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter/r"), hintText(" edit + re-run"), hintSep(), hintKey("R"), hintText(" exact re-run"))
+		lineTwo := hint(hintKey("e"), hintText(" export"), hintSep(), hintKey("d"), hintText(" delete"), hintSep(), hintKey("esc"), hintText(" menu"))
+		return lineOne + "\n" + lineTwo
 	case stageRecovery:
 		return hint(hintKey("enter"), hintText(" resume"), hintSep(), hintKey("r"), hintText(" restart"), hintSep(), hintKey("d"), hintText(" discard"), hintSep(), hintKey("q"), hintText(" quit"))
 	case stageSimilarSelect:
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" load"), hintSep(), hintKey("esc"), hintText(" back"))
+		return hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" load"), hintSep(), hintKey("esc"), hintText(" back"))
 	case stageProfiles:
-		return hint(hintKey("↑/↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" load"), hintSep(), hintKey("n"), hintText(" new"), hintSep(), hintKey("s"), hintText(" save"), hintSep(), hintKey("d"), hintText(" delete"), hintSep(), hintKey("esc"), hintText(" menu"))
+		lineOne := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" load"), hintSep(), hintKey("n"), hintText(" new"), hintSep(), hintKey("s"), hintText(" save"))
+		lineTwo := hint(hintKey("d"), hintText(" delete"), hintSep(), hintKey("esc"), hintText(" menu"))
+		return lineOne + "\n" + lineTwo
 	case stageProfileName:
 		return hint(hintKey("enter"), hintText(" create"), hintSep(), hintKey("esc"), hintText(" back"))
 	case stageInfo:
-		return hint(hintKey("←/→"), hintText(" section"), hintSep(), hintKey("esc"), hintText(" back"), hintSep(), hintKey("?"), hintText(" quick help"), hintSep(), hintKey("q"), hintText(" quit"))
+		return hint(hintKey("← →"), hintText(" section"), hintSep(), hintKey("esc"), hintText(" back"), hintSep(), hintKey("?"), hintText(" quick help"), hintSep(), hintKey("q"), hintText(" quit"))
 	case stageConnectionTest:
 		return hint(hintKey("r"), hintText(" re-test"), hintSep(), hintKey("esc"), hintText(" advanced"), hintSep(), hintKey("q"), hintText(" quit"))
 	case stageDiagnostics:
@@ -183,20 +195,35 @@ func (m model) headerSettingsLine() string {
 }
 
 func renderExactBox(label string, totalWidth int, selected bool) string {
+	return renderExactBoxWithMnemonic(label, totalWidth, selected, false)
+}
+
+func renderDashboardBox(label string, totalWidth int, selected bool) string {
+	return renderExactBoxWithMnemonic(label, totalWidth, selected, true)
+}
+
+func renderExactBoxWithMnemonic(label string, totalWidth int, selected, mnemonic bool) string {
 	border := theme.BorderStyle
 	if selected {
 		border = theme.InnerBorderStyle
 	}
 	innerWidth := maxInt(1, totalWidth-2)
 	labelStyle := theme.ModeStyle
-	mnemonicStyle := theme.MnemonicStyle
+	mnemonicStyle := labelStyle
 	if selected {
 		labelStyle = theme.SelectedModeStyle
-		mnemonicStyle = theme.SelectedMnemonicStyle
+		mnemonicStyle = labelStyle
 	}
 	labelText := label
-	if len(label) > 0 {
+	if mnemonic && len(label) > 0 {
+		if selected {
+			mnemonicStyle = theme.SelectedMnemonicStyle
+		} else {
+			mnemonicStyle = theme.MnemonicStyle
+		}
 		labelText = mnemonicStyle.Render(label[:1]) + labelStyle.Render(label[1:])
+	} else {
+		labelText = labelStyle.Render(label)
 	}
 	return strings.Join([]string{
 		border.Render("╭" + strings.Repeat("─", innerWidth) + "╮"),

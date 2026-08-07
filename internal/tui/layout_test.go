@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
+	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 )
 
 func assertBlockWidth(t *testing.T, block string, want int) {
@@ -56,6 +57,12 @@ func TestHeaderURLUsesOSC8AndConfiguredUsername(t *testing.T) {
 	got := RenderHeaderWithHover(140, stageInput, "", "deathrashed", "", false, false)
 	if !strings.Contains(got, "\x1b]8;;https://www.last.fm/user/deathrashed\x1b\\") {
 		t.Fatal("header URL is not wrapped in an OSC 8 hyperlink")
+	}
+	if !strings.Contains(got, "last.fm/user/deathrashed") {
+		t.Fatal("header URL does not use the compact visible form")
+	}
+	if theme.HeaderURLStyle.GetUnderline() || !theme.HeaderURLHoverStyle.GetUnderline() {
+		t.Fatal("header URL hover state is not visually distinguished")
 	}
 
 	fallback := RenderHeaderWithHover(140, stageInput, "", "", "", false, false)
