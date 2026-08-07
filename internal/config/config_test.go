@@ -24,7 +24,14 @@ func TestLoadReadsDotEnvAndEnvironmentOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	for _, key := range []string{"API_KEY", "API_SECRET", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("LASTFM_API_KEY", "environment-key")
+	t.Setenv("LASTFM_CREDENTIAL_SOURCE", "")
+	for _, key := range []string{"SCROBBLE_INTERVAL", "INTERVAL", "SCROBBLE_LOOP", "LOOP_COUNT", "LOOP"} {
+		t.Setenv(key, "")
+	}
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +81,12 @@ func TestSaveUsesLoadedEnvPath(t *testing.T) {
 func TestRememberEnvPathAndLoadFromPath(t *testing.T) {
 	configHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("XDG_DATA_HOME", configHome)
 	t.Setenv("LASTFM_ENV_FILE", "")
+	t.Setenv("LASTFM_CREDENTIAL_SOURCE", "")
+	for _, key := range []string{"API_KEY", "API_SECRET", "LASTFM_API_KEY", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET", "LASTFM_USERNAME", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY"} {
+		t.Setenv(key, "")
+	}
 
 	path := filepath.Join(t.TempDir(), "credentials.env")
 	content := "API_KEY=key\nAPI_SECRET=secret\nLASTFM_USERNAME=user\nLASTFM_SESSION_KEY=session\n"
@@ -166,7 +178,11 @@ func TestCredentialSourceEnvironmentDoesNotFallBackToFile(t *testing.T) {
 	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=environment\nAPI_KEY=file-key\nAPI_SECRET=file-secret\nLASTFM_USERNAME=file-user\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	for _, key := range []string{"API_KEY", "API_SECRET", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET", "LASTFM_USERNAME", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("LASTFM_API_KEY", "environment-key")
+	t.Setenv("LASTFM_CREDENTIAL_SOURCE", "")
 	cfg, err := LoadFromPath(path)
 	if err != nil {
 		t.Fatal(err)
@@ -184,7 +200,11 @@ func TestCredentialSourceFileIgnoresEnvironmentCredentialOverrides(t *testing.T)
 	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=file\nAPI_KEY=file-key\nLASTFM_USERNAME=file-user\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	for _, key := range []string{"API_KEY", "API_SECRET", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET", "LASTFM_USERNAME", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("LASTFM_API_KEY", "environment-key")
+	t.Setenv("LASTFM_CREDENTIAL_SOURCE", "")
 	cfg, err := LoadFromPath(path)
 	if err != nil {
 		t.Fatal(err)
@@ -231,5 +251,75 @@ func TestSaveDoesNotPersistAutoEnvironmentOverrides(t *testing.T) {
 	}
 	if values["API_KEY"] != "" || values["LASTFM_USERNAME"] != "" {
 		t.Fatalf("environment overrides were persisted: %#v", values)
+	}
+}
+
+func TestEditedAutoCredentialsPersistToFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	cfg := Config{
+		Username:                "edited-user",
+		Password:                "edited-pass",
+		CredentialSource:        "auto",
+		EnvPath:                 path,
+		usernameFromEnvironment: true,
+		passwordFromKeychain:    true,
+	}
+	cfg.MarkCredentialEdited("username")
+	cfg.MarkCredentialEdited("password")
+
+	if err := Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	values, err := readEnvFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["LASTFM_USERNAME"] != "edited-user" || values["LASTFM_PASSWORD"] != "edited-pass" {
+		t.Fatalf("edited credentials were not persisted: %#v", values)
+	}
+}
+
+func TestLoadUsesProjectEnvWhenRememberedPathIsStale(t *testing.T) {
+	projectDir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, ".env"), []byte("LASTFM_USERNAME=project-user\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("LASTFM_ENV_FILE", "")
+	t.Setenv("LASTFM_PROFILE", "default")
+	for _, key := range []string{"API_KEY", "API_SECRET", "LASTFM_API_KEY", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET", "LASTFM_USERNAME", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY"} {
+		t.Setenv(key, "")
+	}
+	stalePath := filepath.Join(t.TempDir(), "old", ".env")
+	if err := os.MkdirAll(filepath.Dir(stalePath), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stalePath, []byte("LASTFM_USERNAME=stale-user\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RememberEnvPath(stalePath); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvedProjectDir, err := filepath.EvalSymlinks(projectDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := filepath.Join(resolvedProjectDir, ".env")
+	if cfg.EnvPath != expected {
+		t.Fatalf("EnvPath = %q, want %q", cfg.EnvPath, expected)
 	}
 }

@@ -113,10 +113,12 @@ func loadConfigWithFallback(envPath, fallbackPath string) (Config, error) {
 	fileValues := map[string]string{}
 	if envPath != "" {
 		values, err := readEnvFile(envPath)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return cfg, err
 		}
-		fileValues = values
+		if err == nil {
+			fileValues = values
+		}
 		cfg.EnvPath = envPath
 	} else {
 		cwd, _ := os.Getwd()
@@ -295,10 +297,6 @@ func findEnvFile() string {
 		filepath.Join(cwd, "..", ".env"),
 	)
 
-	if remembered := rememberedEnvPath(); remembered != "" {
-		candidates = append(candidates, remembered)
-	}
-
 	seen := map[string]bool{}
 	for _, candidate := range candidates {
 		candidate = ExpandPath(candidate)
@@ -310,6 +308,32 @@ func findEnvFile() string {
 		if info, err := os.Stat(abs); err == nil && !info.IsDir() {
 			return abs
 		}
+	}
+	if profile == "" || profile == "default" {
+		if preferred := preferredEnvPath(); preferred != "" {
+			return preferred
+		}
+	}
+	if remembered := rememberedEnvPath(); remembered != "" {
+		return remembered
+	}
+	return ""
+}
+
+func preferredEnvPath() string {
+	if exe, err := os.Executable(); err == nil {
+		binDir := filepath.Dir(exe)
+		if filepath.Base(binDir) == "bin" {
+			return filepath.Clean(filepath.Join(binDir, "..", ".env"))
+		}
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	path := filepath.Join(cwd, ".env")
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		return path
 	}
 	return ""
 }
@@ -361,6 +385,24 @@ func RememberEnvPath(path string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(configDir(), "env-path"), []byte(path+"\n"), 0600)
+}
+
+func (cfg *Config) MarkCredentialEdited(field string) {
+	switch strings.ToLower(strings.TrimSpace(field)) {
+	case "api_key":
+		cfg.apiKeyFromEnvironment = false
+	case "api_secret":
+		cfg.apiSecretFromEnvironment = false
+		cfg.apiSecretFromKeychain = false
+	case "username":
+		cfg.usernameFromEnvironment = false
+	case "password":
+		cfg.passwordFromEnvironment = false
+		cfg.passwordFromKeychain = false
+	case "session_key":
+		cfg.sessionFromEnvironment = false
+		cfg.sessionFromKeychain = false
+	}
 }
 
 func rememberedProfile() string {

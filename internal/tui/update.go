@@ -1121,14 +1121,18 @@ func (m *model) commitConfigField() {
 		}
 	case 2:
 		if m.configFieldIndex == 0 {
+			m.cfg.MarkCredentialEdited("username")
 			m.cfg.Username = value
 		} else {
+			m.cfg.MarkCredentialEdited("password")
 			m.cfg.Password = value
 		}
 	case 3:
 		if m.configFieldIndex == 0 {
+			m.cfg.MarkCredentialEdited("api_key")
 			m.cfg.APIKey = value
 		} else {
+			m.cfg.MarkCredentialEdited("api_secret")
 			m.cfg.APISecret = value
 		}
 	}
