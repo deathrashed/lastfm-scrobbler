@@ -62,7 +62,7 @@ func renderInputView(m model) string {
 
 func renderImportSourceView(m model) string {
 	labels := []string{"L I S T   F I L E", "P L A Y L I S T", "A L B U M   F O L D E R", "A R T I S T   F O L D E R"}
-	widths := []int{20, 19, 31, 31}
+	widths := []int{22, 19, 27, 29}
 	firstRow := joinThreeLineBoxes([]string{
 		renderExactBox(labels[0], widths[0], m.importSourceIndex == 0),
 		renderExactBox(labels[1], widths[1], m.importSourceIndex == 1),
@@ -74,7 +74,7 @@ func renderImportSourceView(m model) string {
 	descriptions := []string{
 		"TXT, CSV, TSV, or JSON containing Artist - Album entries",
 		"M3U or M3U8 playlist",
-		"read one album from its Artist/Album folder",
+		"read one album folder containing audio files",
 		"scan album folders inside one artist folder",
 	}
 	formats := renderInfoBox("IMPORTS", "TXT  •  CSV  •  TSV  •  JSON  •  M3U  •  M3U8  •  folders", "", 65, false)
@@ -513,8 +513,8 @@ func renderSimilarSelectView(m model) string {
 }
 
 func renderInfoView(m model) string {
-	labels := []string{"M O D E S", "I M P O R T S", "C U R A T I O N", "D A T A", "A U T O M A T I O N"}
-	widths := []int{13, 15, 19, 11, 23}
+	labels := []string{"M O D E S", "A U T O M A T I O N", "D A T A", "C U R A T I O N", "I M P O R T S"}
+	widths := []int{13, 23, 11, 19, 19}
 	boxes := make([]string, len(labels))
 	for index, label := range labels {
 		boxes[index] = renderExactBox(label, widths[index], index == m.infoIndex)
@@ -529,18 +529,11 @@ func renderInfoView(m model) string {
 			helpRow("SIMILAR", "press S from results, preview, or completion"),
 		},
 		{
-			helpRow("LIST FILE", "TXT, CSV, TSV, and JSON album lists"),
-			helpRow("PLAYLIST", "M3U and M3U8 playlists"),
-			helpRow("ALBUM FOLDER", "infer Artist/Album from one folder"),
-			helpRow("ARTIST FOLDER", "scan album folders beneath an artist"),
-			helpRow("O", "open the native macOS file/folder picker"),
-		},
-		{
-			helpRow("SPACE / A", "select tracks or all/none"),
-			helpRow("- / +", "change the global loop count"),
-			helpRow("[ / ]", "change the current album loop"),
-			helpRow("RERUN", "edit a saved queue before starting it again"),
-			helpRow("E", "export JSON, CSV, TXT, and M3U8"),
+			helpRow("HEADLESS CLI", "manual, file, and discography commands"),
+			helpRow("CONNECTION", "test API lookup and authentication"),
+			helpRow("COMPLETION", "zsh, bash, and fish shell completion"),
+			helpRow("MOUSE", "click tabs; use the wheel in long lists"),
+			helpRow("UPDATES", "custom or GitHub release endpoint"),
 		},
 		{
 			helpRow("HISTORY", "re-run, export, or delete sessions"),
@@ -550,11 +543,18 @@ func renderInfoView(m model) string {
 			helpRow("STORAGE", "~/.config/lastfm-scrobbler"),
 		},
 		{
-			helpRow("HEADLESS CLI", "manual, file, and discography commands"),
-			helpRow("CONNECTION", "test API lookup and authentication"),
-			helpRow("COMPLETION", "zsh, bash, and fish shell completion"),
-			helpRow("MOUSE", "click tabs; use the wheel in long lists"),
-			helpRow("UPDATES", "custom or GitHub release endpoint"),
+			helpRow("SPACE / A", "select tracks or all/none"),
+			helpRow("- / +", "change the global loop count"),
+			helpRow("[ / ]", "change the current album loop"),
+			helpRow("RERUN", "edit a saved queue before starting it again"),
+			helpRow("E", "export JSON, CSV, TXT, and M3U8"),
+		},
+		{
+			helpRow("LIST FILE", "TXT, CSV, TSV, and JSON album lists"),
+			helpRow("PLAYLIST", "M3U and M3U8 playlists"),
+			helpRow("ALBUM FOLDER", "infer Artist/Album from one folder"),
+			helpRow("ARTIST FOLDER", "scan album folders beneath an artist"),
+			helpRow("O", "open the native macOS file/folder picker"),
 		},
 	}
 	box := renderPanelBox(sections[m.infoIndex], 65, theme.BorderStyle)
@@ -562,7 +562,6 @@ func renderInfoView(m model) string {
 		centerToHeader(firstRow),
 		centerToHeader(secondRow),
 		centerToHeader(box),
-		centerToHeader(theme.MutedStyle.Render("use ←/→ to read each section; press ? for the short key map")),
 		"",
 	)
 }

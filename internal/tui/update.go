@@ -75,6 +75,10 @@ type updateCheckMsg struct {
 	err    error
 }
 
+type headerURLMsg struct {
+	err error
+}
+
 type filePickedMsg struct {
 	path   string
 	target string
@@ -159,6 +163,7 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateMouse(msg)
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.headerURLHover = false
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -271,6 +276,12 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.err = nil
 			m.updateResult = msg.result
+		}
+		return m, nil
+	case headerURLMsg:
+		m.err = msg.err
+		if msg.err != nil {
+			logging.Printf("header URL open failed: %v", msg.err)
 		}
 		return m, nil
 	case filePickedMsg:
@@ -1994,7 +2005,22 @@ func openURLCmd(value string) tea.Cmd {
 	}
 }
 
+func openHeaderURLCmd(value string) tea.Cmd {
+	return func() tea.Msg {
+		return headerURLMsg{err: platform.OpenURL(value)}
+	}
+}
+
+func (m model) headerURLContains(x, y int) bool {
+	left, top, width := headerURLBounds(m.cfg.Username)
+	return y == top && x >= left && x < left+width
+}
+
 func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if msg.Action == tea.MouseActionMotion {
+		m.headerURLHover = m.headerURLContains(msg.X, msg.Y)
+		return m, nil
+	}
 	if msg.Button == tea.MouseButtonWheelUp {
 		return m.mouseMove(-1)
 	}
@@ -2005,6 +2031,9 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	x, y := msg.X, msg.Y
+	if m.headerURLContains(x, y) {
+		return m, openHeaderURLCmd(lastfmURL(m.cfg.Username))
+	}
 	switch m.stage {
 	case stageInput:
 		if y >= 11 && y <= 13 {

@@ -72,7 +72,7 @@ func (m model) View() string {
 	}
 
 	parts := []string{
-		RenderHeader(m.width, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.cfg.CompactHeader),
+		RenderHeaderWithHover(m.width, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.cfg.CompactHeader, m.headerURLHover),
 		body,
 	}
 	if !m.helpVisible {
@@ -188,9 +188,19 @@ func renderExactBox(label string, totalWidth int, selected bool) string {
 		border = theme.InnerBorderStyle
 	}
 	innerWidth := maxInt(1, totalWidth-2)
+	labelStyle := theme.ModeStyle
+	mnemonicStyle := theme.MnemonicStyle
+	if selected {
+		labelStyle = theme.SelectedModeStyle
+		mnemonicStyle = theme.SelectedMnemonicStyle
+	}
+	labelText := label
+	if len(label) > 0 {
+		labelText = mnemonicStyle.Render(label[:1]) + labelStyle.Render(label[1:])
+	}
 	return strings.Join([]string{
 		border.Render("╭" + strings.Repeat("─", innerWidth) + "╮"),
-		border.Render("│") + centerText(theme.ModeStyle.Render(label), innerWidth) + border.Render("│"),
+		border.Render("│") + centerText(labelText, innerWidth) + border.Render("│"),
 		border.Render("╰" + strings.Repeat("─", innerWidth) + "╯"),
 	}, "\n")
 }

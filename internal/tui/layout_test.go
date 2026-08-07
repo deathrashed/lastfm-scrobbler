@@ -4,7 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/deathrashed/lastfm-scrobbler/internal/config"
 )
 
 func assertBlockWidth(t *testing.T, block string, want int) {
@@ -46,6 +49,38 @@ func TestHeaderAlwaysFitsExactMockupWidth(t *testing.T) {
 				t.Fatalf("mode %q structural line %d width = %d, want 67", mode, lineNumber+1, got)
 			}
 		}
+	}
+}
+
+func TestHeaderURLUsesOSC8AndConfiguredUsername(t *testing.T) {
+	got := RenderHeaderWithHover(140, stageInput, "", "deathrashed", "", false, false)
+	if !strings.Contains(got, "\x1b]8;;https://www.last.fm/user/deathrashed\x1b\\") {
+		t.Fatal("header URL is not wrapped in an OSC 8 hyperlink")
+	}
+
+	fallback := RenderHeaderWithHover(140, stageInput, "", "", "", false, false)
+	if !strings.Contains(fallback, "https://www.last.fm") || strings.Contains(fallback, "/user/username") {
+		t.Fatalf("unexpected fallback URL: %q", fallback)
+	}
+}
+
+func TestHeaderURLMouseHoverAndClickBounds(t *testing.T) {
+	m := model{cfg: config.Config{Username: "deathrashed", MouseEnabled: true}}
+	left, top, width := headerURLBounds(m.cfg.Username)
+
+	updated, cmd := m.updateMouse(tea.MouseMsg{X: left, Y: top, Action: tea.MouseActionMotion})
+	if cmd != nil || !updated.(model).headerURLHover {
+		t.Fatal("URL hover did not activate inside the header bounds")
+	}
+
+	updated, cmd = updated.(model).updateMouse(tea.MouseMsg{X: left + width, Y: top, Action: tea.MouseActionMotion})
+	if cmd != nil || updated.(model).headerURLHover {
+		t.Fatal("URL hover remained active outside the header bounds")
+	}
+
+	_, cmd = m.updateMouse(tea.MouseMsg{X: left, Y: top, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft, Ctrl: true})
+	if cmd == nil {
+		t.Fatal("URL click did not return a Bubble Tea command")
 	}
 }
 
@@ -100,6 +135,14 @@ func TestExpandedConfigAndFootersFitHeader(t *testing.T) {
 		for _, line := range strings.Split(renderFooter(m), "\n") {
 			if got := lipgloss.Width(stripANSI(line)); got > headerContentWidth {
 				t.Fatalf("footer stage %d width = %d, exceeds %d: %q", stage, got, headerContentWidth, line)
+			}
+		}
+	}
+
+	for _, view := range []string{renderImportSourceView(m), renderInfoView(m)} {
+		for lineNumber, line := range strings.Split(view, "\n") {
+			if got := lipgloss.Width(stripANSI(line)); got > headerContentWidth {
+				t.Fatalf("view line %d width = %d, exceeds %d\n%q", lineNumber+1, got, headerContentWidth, line)
 			}
 		}
 	}

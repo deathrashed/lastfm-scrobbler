@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -14,21 +15,22 @@ const (
 )
 
 func RenderHeader(width int, stg stage, modeChoice, username, settingsLine string, compact bool) string {
-	if width > 0 && width < minHeaderWidth {
-		return renderCompactHeader(stg, modeChoice, username, settingsLine)
-	}
-	if compact {
-		return renderCompactHeader(stg, modeChoice, username, settingsLine)
-	}
-	return renderFullHeader(fullHeaderWidth, stg, modeChoice, username, settingsLine)
+	return RenderHeaderWithHover(width, stg, modeChoice, username, settingsLine, compact, false)
 }
 
-func renderCompactHeader(stg stage, modeChoice, username, settingsLine string) string {
+func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsLine string, compact, urlHover bool) string {
+	if width > 0 && width < minHeaderWidth {
+		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover)
+	}
+	if compact {
+		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover)
+	}
+	return renderFullHeader(fullHeaderWidth, stg, modeChoice, username, settingsLine, urlHover)
+}
+
+func renderCompactHeader(stg stage, modeChoice, username, settingsLine string, urlHover bool) string {
 	width := fullHeaderWidth
 	outer := theme.BorderStyle
-	if strings.TrimSpace(username) == "" {
-		username = "username"
-	}
 	contextLine, badgeText, badgeIcon := headerBadge(stg, modeChoice)
 	context := theme.HeaderTextStyle.Render(contextLine)
 	if settingsLine != "" {
@@ -36,7 +38,7 @@ func renderCompactHeader(stg stage, modeChoice, username, settingsLine string) s
 	}
 	lines := []string{
 		outer.Render("╭" + strings.Repeat("─", width-2) + "╮"),
-		outer.Render("│") + centerText(theme.PathStyle.Render("https://www.last.fm/user/"+username), width-2) + outer.Render("│"),
+		outer.Render("│") + centerText(renderHeaderURL(username, urlHover), width-2) + outer.Render("│"),
 		outer.Render("│") + centerText(context, width-2) + outer.Render("│"),
 	}
 	_, bottom, underline := renderBadgeBottom(width, badgeText, badgeIcon)
@@ -44,22 +46,18 @@ func renderCompactHeader(stg stage, modeChoice, username, settingsLine string) s
 	return strings.Join(lines, "\n")
 }
 
-func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine string) string {
+func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool) string {
 	outer := theme.BorderStyle
 	inner := theme.BorderStyle
 	wordmark := theme.TitleIconStyle
-	urlStyle := theme.PathStyle
 	contextLine, badgeText, badgeIcon := headerBadge(stg, modeChoice)
 	isDashboard := modeChoice == ""
 	innerWidth := width - 12
 
 	lines := []string{outer.Render("╭" + strings.Repeat("─", width-2) + "╮")}
-	if strings.TrimSpace(username) == "" {
-		username = "username"
-	}
-	urlText := "https://www.last.fm/user/" + strings.TrimSpace(username)
+	urlText := renderHeaderURL(username, urlHover)
 	lines = append(lines,
-		outer.Render("│")+urlStyle.Render(centerText(urlText, width-2))+outer.Render("│"),
+		outer.Render("│")+centerText(urlText, width-2)+outer.Render("│"),
 		outer.Render("│    ")+inner.Render("╭"+strings.Repeat("─", innerWidth)+"╮")+outer.Render("    │"),
 	)
 	for _, line := range renderWordmarkLines() {
@@ -73,6 +71,8 @@ func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine s
 		context = renderSettingsContext(settingsLine)
 	case isDashboard:
 		context = renderDashboardContext()
+	case modeChoice == "info" || modeChoice == "file":
+		context = theme.MutedStyle.Render(contextLine)
 	default:
 		context = theme.HeaderTextStyle.Render(contextLine)
 	}
@@ -80,6 +80,34 @@ func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine s
 	badgeTop, bottomLine, badgeUnderline := renderBadgeBottom(width, badgeText, badgeIcon)
 	lines = append(lines, badgeTop, bottomLine, badgeUnderline)
 	return strings.Join(lines, "\n")
+}
+
+func lastfmURL(username string) string {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return "https://www.last.fm"
+	}
+	return "https://www.last.fm/user/" + url.PathEscape(username)
+}
+
+func renderHeaderURL(username string, hover bool) string {
+	value := lastfmURL(username)
+	display := truncateToWidth(value, fullHeaderWidth-2)
+	style := theme.HeaderURLStyle
+	if hover {
+		style = theme.HeaderURLHoverStyle
+	}
+	return renderOSC8(value, style.Render(display))
+}
+
+func renderOSC8(target, value string) string {
+	return "\x1b]8;;" + target + "\x1b\\" + value + "\x1b]8;;\x1b\\"
+}
+
+func headerURLBounds(username string) (left, top, width int) {
+	displayWidth := lipgloss.Width(truncateToWidth(lastfmURL(username), fullHeaderWidth-2))
+	left = 1 + (fullHeaderWidth-2-displayWidth)/2
+	return left, 1, displayWidth
 }
 
 func renderDashboardContext() string {

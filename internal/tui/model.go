@@ -41,13 +41,14 @@ const (
 )
 
 type model struct {
-	cfg           config.Config
-	client        lastfm.Client
-	store         sessionstore.Store
-	stage         stage
-	returnStage   stage
-	width, height int
-	helpVisible   bool
+	cfg            config.Config
+	client         lastfm.Client
+	store          sessionstore.Store
+	stage          stage
+	returnStage    stage
+	width, height  int
+	helpVisible    bool
+	headerURLHover bool
 
 	modeChoice        string
 	modeIndex         int
