@@ -10,9 +10,90 @@ import (
 )
 
 const (
-	minHeaderWidth  = 67
-	fullHeaderWidth = 67
+	minHeaderWidth     = 67
+	fullHeaderWidth    = 67
+	fullHeaderLines    = 11
+	compactHeaderLines = 4
 )
+
+type compactHeaderSpec struct {
+	Title    string
+	Subtitle string
+	Icon     string
+}
+
+var compactHeaderSpecs = map[string]compactHeaderSpec{
+	"": {
+		Title:    "D A S H B O A R D",
+		Subtitle: "SEARCH  •  SELECT  •  SCROBBLE",
+		Icon:     theme.IconDashboard,
+	},
+	"manual": {
+		Title:    "M A N U A L",
+		Subtitle: "enter artist - album manually",
+		Icon:     theme.IconManual,
+	},
+	"discography": {
+		Title:    "D I S C O G R A P H Y",
+		Subtitle: "scrobble an artist's top albums",
+		Icon:     theme.IconDiscography,
+	},
+	"file": {
+		Title:    "F I L E",
+		Subtitle: "load albums from a list, playlist, or music folder",
+		Icon:     theme.IconFile,
+	},
+	"config": {
+		Title:    "C O N F I G",
+		Subtitle: "edit user settings",
+		Icon:     theme.IconManual,
+	},
+	"advanced": {
+		Title:    "A D V A N C E D",
+		Subtitle: "edit advanced behaviour",
+		Icon:     theme.IconSettings,
+	},
+	"history": {
+		Title:    "H I S T O R Y",
+		Subtitle: "review, export, or re-run sessions",
+		Icon:     theme.IconHistory,
+	},
+	"profiles": {
+		Title:    "P R O F I L E S",
+		Subtitle: "switch Last.fm profiles",
+		Icon:     theme.IconProfile,
+	},
+	"info": {
+		Title:    "I N F O",
+		Subtitle: "guide, formats, controls, and data locations",
+		Icon:     theme.IconInfo,
+	},
+	"env": {
+		Title:    "E N V",
+		Subtitle: "choose a credentials file",
+		Icon:     theme.IconManual,
+	},
+	"profile": {
+		Title:    "P R O F I L E",
+		Subtitle: "create a Last.fm profile",
+		Icon:     theme.IconProfile,
+	},
+	"connection": {
+		Title:    "C O N N E C T I O N",
+		Subtitle: "test Last.fm lookup and authentication readiness",
+		Icon:     theme.IconSettings,
+	},
+	"diagnostics": {
+		Title:    "D I A G N O S T I C S",
+		Subtitle: "export redacted logs and configuration",
+		Icon:     theme.IconFile,
+	},
+	"update": {
+		Title:    "U P D A T E",
+		Subtitle: "check the configured release source",
+		Icon:     theme.IconSettings,
+	},
+}
 
 func RenderHeader(width int, stg stage, modeChoice, username, settingsLine string, compact bool) string {
 	return RenderHeaderWithHover(width, stg, modeChoice, username, settingsLine, compact, false)
@@ -28,22 +109,65 @@ func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsL
 	return renderFullHeader(fullHeaderWidth, stg, modeChoice, username, settingsLine, urlHover)
 }
 
+func (m model) compactHeaderEnabled() bool {
+	return m.cfg.CompactHeader || (m.width > 0 && m.width < minHeaderWidth)
+}
+
+func (m model) headerHeight() int {
+	if m.compactHeaderEnabled() {
+		return compactHeaderLines
+	}
+	return fullHeaderLines
+}
+
 func renderCompactHeader(stg stage, modeChoice, username, settingsLine string, urlHover bool) string {
-	width := fullHeaderWidth
-	outer := theme.BorderStyle
-	contextLine, badgeText, badgeIcon := headerBadge(stg, modeChoice)
-	context := theme.HeaderTextStyle.Render(contextLine)
+	_ = stg
+	_ = username
+	_ = urlHover
+	spec := compactHeaderSpecFor(modeChoice)
+	subtitle := theme.MutedStyle.Render(spec.Subtitle)
+	if modeChoice == "" {
+		subtitle = renderDashboardContext()
+	}
 	if settingsLine != "" {
-		context = renderSettingsContext(settingsLine)
+		subtitle = renderSettingsContext(settingsLine)
 	}
-	lines := []string{
-		outer.Render("╭" + strings.Repeat("─", width-2) + "╮"),
-		outer.Render("│") + centerText(renderHeaderURL(username, urlHover), width-2) + outer.Render("│"),
-		outer.Render("│") + centerText(context, width-2) + outer.Render("│"),
+	return strings.Join([]string{
+		renderCompactBorder('╭', '╮'),
+		renderCompactContent(spec.Title, theme.HeaderTextStyle),
+		renderCompactContentStyled(subtitle),
+		renderCompactBottom(spec.Icon),
+	}, "\n")
+}
+
+func compactHeaderSpecFor(modeChoice string) compactHeaderSpec {
+	if spec, ok := compactHeaderSpecs[modeChoice]; ok {
+		return spec
 	}
-	_, bottom, underline := renderBadgeBottom(width, badgeText, badgeIcon)
-	lines = append(lines, bottom, underline)
-	return strings.Join(lines, "\n")
+	return compactHeaderSpecs[""]
+}
+
+func renderCompactBorder(left, right rune) string {
+	return theme.BorderStyle.Render(string(left) + strings.Repeat("─", fullHeaderWidth-2) + string(right))
+}
+
+func renderCompactContent(value string, style lipgloss.Style) string {
+	return renderCompactContentStyled(style.Render(value))
+}
+
+func renderCompactContentStyled(value string) string {
+	return theme.BorderStyle.Render("│") + centerText(value, fullHeaderWidth-2) + theme.BorderStyle.Render("│")
+}
+
+func renderCompactBottom(icon string) string {
+	innerWidth := fullHeaderWidth - 2
+	iconWidth := lipgloss.Width(icon)
+	dashes := maxInt(0, innerWidth-iconWidth)
+	left := dashes / 2
+	right := dashes - left
+	return theme.BorderStyle.Render("╰"+strings.Repeat("─", left)) +
+		theme.TitleIconStyle.Render(icon) +
+		theme.BorderStyle.Render(strings.Repeat("─", right)+"╯")
 }
 
 func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool) string {
@@ -160,36 +284,8 @@ func renderBadgeBottom(width int, badgeText, badgeIcon string) (badgeTop, bottom
 
 func headerBadge(stg stage, modeChoice string) (contextLine, badgeText, badgeIcon string) {
 	_ = stg
-	switch modeChoice {
-	case "manual":
-		return "enter artist - album manually", "M A N U A L", theme.IconManual
-	case "file":
-		return "load albums from a list, playlist, or music folder", "F I L E", theme.IconFile
-	case "config":
-		return "edit user settings", "C O N F I G", theme.IconManual
-	case "advanced":
-		return "edit advanced behaviour", "A D V A N C E D", theme.IconSettings
-	case "env":
-		return "choose a credentials file", "E N V", theme.IconManual
-	case "discography":
-		return "scrobble an artists top albums", "D I S C O G R A P H Y", theme.IconDiscography
-	case "history":
-		return "review, export, or re-run sessions", "H I S T O R Y", theme.IconHistory
-	case "profiles":
-		return "switch Last.fm profiles", "P R O F I L E S", theme.IconProfile
-	case "profile":
-		return "create a Last.fm profile", "P R O F I L E", theme.IconProfile
-	case "info":
-		return "guide, formats, controls, and data locations", "I N F O", theme.IconInfo
-	case "connection":
-		return "test Last.fm lookup and authentication readiness", "C O N N E C T I O N", theme.IconSettings
-	case "diagnostics":
-		return "export redacted logs and configuration", "D I A G N O S T I C S", theme.IconFile
-	case "update":
-		return "check the configured release source", "U P D A T E", theme.IconSettings
-	default:
-		return "SEARCH  •  SELECT  •  SCROBBLE", "D A S H B O A R D", theme.IconDashboard
-	}
+	spec := compactHeaderSpecFor(modeChoice)
+	return spec.Subtitle, spec.Title, spec.Icon
 }
 
 func renderWordmarkLines() []string {

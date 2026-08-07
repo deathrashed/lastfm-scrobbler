@@ -50,7 +50,7 @@ func renderInputView(m model) string {
 	row := joinThreeLineBoxes(boxes, theme.SepStyle.Render("•"))
 	descriptions := []string{
 		"enter artist - album manually",
-		"scrobble an artists top albums",
+		"scrobble an artist's top albums",
 		"load albums from a list, playlist, or music folder",
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,

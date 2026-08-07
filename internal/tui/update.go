@@ -2016,6 +2016,9 @@ func openHeaderURLCmd(value string) tea.Cmd {
 }
 
 func (m model) headerURLContains(x, y int) bool {
+	if m.compactHeaderEnabled() {
+		return false
+	}
 	left, top, width := headerURLBounds(m.cfg.Username)
 	return y == top && x >= left && x < left+width
 }
@@ -2038,9 +2041,10 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.headerURLContains(x, y) {
 		return m, openHeaderURLCmd(lastfmURL(m.cfg.Username))
 	}
+	bodyY := y - m.headerHeight()
 	switch m.stage {
 	case stageInput:
-		if y >= 11 && y <= 13 {
+		if bodyY >= 0 && bodyY <= 2 {
 			switch {
 			case x >= 1 && x <= 19:
 				return m.activateMode(0)
@@ -2052,20 +2056,20 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 	case stageImportSource:
 		switch {
-		case y >= 11 && y <= 13 && x >= 13 && x <= 32:
+		case bodyY >= 0 && bodyY <= 2 && x >= 13 && x <= 32:
 			m.importSourceIndex = 0
-		case y >= 11 && y <= 13 && x >= 34 && x <= 52:
+		case bodyY >= 0 && bodyY <= 2 && x >= 34 && x <= 52:
 			m.importSourceIndex = 1
-		case y >= 14 && y <= 16 && x >= 2 && x <= 32:
+		case bodyY >= 3 && bodyY <= 5 && x >= 2 && x <= 32:
 			m.importSourceIndex = 2
-		case y >= 14 && y <= 16 && x >= 34 && x <= 64:
+		case bodyY >= 3 && bodyY <= 5 && x >= 34 && x <= 64:
 			m.importSourceIndex = 3
 		default:
 			return m, nil
 		}
 	case stageConfig:
 		index := -1
-		if y >= 11 && y <= 13 {
+		if bodyY >= 0 && bodyY <= 2 {
 			switch {
 			case x >= 3 && x <= 13:
 				index = 0
@@ -2076,7 +2080,7 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			case x >= 55 && x <= 63:
 				index = 3
 			}
-		} else if y >= 14 && y <= 16 {
+		} else if bodyY >= 3 && bodyY <= 5 {
 			switch {
 			case x >= 5 && x <= 23:
 				index = 4
@@ -2090,7 +2094,7 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m.selectConfigTab(index)
 		}
 	case stageAdvancedConfig:
-		row := y - 12
+		row := bodyY - 1
 		maxRows := 11
 		if m.height > 0 {
 			maxRows = maxInt(7, minInt(13, m.height-19))

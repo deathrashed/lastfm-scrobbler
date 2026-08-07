@@ -53,6 +53,67 @@ func TestHeaderAlwaysFitsExactMockupWidth(t *testing.T) {
 	}
 }
 
+func TestCompactHeadersUseTheFourLineSpec(t *testing.T) {
+	modes := []string{"", "manual", "discography", "file", "config", "advanced", "history", "profiles", "info", "env", "profile", "connection", "diagnostics", "update"}
+	for _, mode := range modes {
+		header := RenderHeader(140, stageInput, mode, "deathrashed", "", true)
+		lines := strings.Split(header, "\n")
+		if len(lines) != compactHeaderLines {
+			t.Fatalf("mode %q line count = %d, want %d", mode, len(lines), compactHeaderLines)
+		}
+		for lineNumber, line := range lines {
+			if got := lipgloss.Width(stripANSI(line)); got != fullHeaderWidth {
+				t.Fatalf("mode %q line %d width = %d, want %d\n%q", mode, lineNumber+1, got, fullHeaderWidth, line)
+			}
+		}
+		if strings.Contains(header, "last.fm/user/") || strings.Contains(header, "┤") || strings.Contains(header, "├") {
+			t.Fatalf("mode %q contains full-header or detached-badge content\n%s", mode, header)
+		}
+		spec := compactHeaderSpecFor(mode)
+		assertCenteredHeaderText(t, lines[1], spec.Title)
+		assertCenteredHeaderText(t, lines[2], spec.Subtitle)
+		assertCenteredHeaderText(t, lines[3], spec.Icon)
+	}
+}
+
+func TestCompactHeaderLongestSubtitleFits(t *testing.T) {
+	for mode, spec := range compactHeaderSpecs {
+		if got := lipgloss.Width(spec.Subtitle); got > fullHeaderWidth-2 {
+			t.Fatalf("mode %q subtitle width = %d, exceeds %d", mode, got, fullHeaderWidth-2)
+		}
+	}
+}
+
+func TestHeaderHeightMatchesRenderedMode(t *testing.T) {
+	full := model{width: 140}
+	if got := full.headerHeight(); got != fullHeaderLines {
+		t.Fatalf("full header height = %d, want %d", got, fullHeaderLines)
+	}
+	compact := model{width: 140, cfg: config.Config{CompactHeader: true}}
+	if got := compact.headerHeight(); got != compactHeaderLines {
+		t.Fatalf("compact header height = %d, want %d", got, compactHeaderLines)
+	}
+	small := model{width: 66}
+	if got := small.headerHeight(); got != compactHeaderLines {
+		t.Fatalf("small terminal header height = %d, want %d", got, compactHeaderLines)
+	}
+}
+
+func assertCenteredHeaderText(t *testing.T, line, content string) {
+	t.Helper()
+	plain := stripANSI(line)
+	inner := strings.TrimSuffix(strings.TrimPrefix(plain, "│"), "│")
+	index := strings.Index(inner, content)
+	if index < 0 {
+		t.Fatalf("line does not contain %q: %q", content, plain)
+	}
+	left := lipgloss.Width(inner[:index])
+	right := lipgloss.Width(inner[index+len(content):])
+	if absInt(left-right) > 1 {
+		t.Fatalf("content %q is not centered: left=%d right=%d line=%q", content, left, right, plain)
+	}
+}
+
 func TestHeaderURLUsesOSC8AndConfiguredUsername(t *testing.T) {
 	got := RenderHeaderWithHover(140, stageInput, "", "deathrashed", "", false, false)
 	if !strings.Contains(got, "\x1b]8;;https://www.last.fm/user/deathrashed\x1b\\") {
@@ -89,6 +150,54 @@ func TestHeaderURLMouseHoverAndClickBounds(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("URL click did not return a Bubble Tea command")
 	}
+}
+
+func TestCompactHeaderDisablesURLHitTesting(t *testing.T) {
+	m := model{width: 140, cfg: config.Config{Username: "deathrashed", CompactHeader: true, MouseEnabled: true}}
+	left, top, width := headerURLBounds(m.cfg.Username)
+	if m.headerURLContains(left, top) {
+		t.Fatal("compact header exposed a URL hit area")
+	}
+	updated, cmd := m.updateMouse(tea.MouseMsg{X: left, Y: top, Action: tea.MouseActionMotion})
+	if cmd != nil || updated.(model).headerURLHover {
+		t.Fatal("compact header activated URL hover")
+	}
+	if got := width; got == 0 {
+		t.Fatal("URL test fixture unexpectedly has no width")
+	}
+}
+
+func TestMouseCoordinatesFollowCompactAndFullHeaderHeights(t *testing.T) {
+	compact := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageInput, searchInput: newTextInput(512, 48)}
+	updated, _ := compact.updateMouse(tea.MouseMsg{X: 30, Y: compact.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if got := updated.(model).modeChoice; got != "discography" {
+		t.Fatalf("compact dashboard click selected %q, want discography", got)
+	}
+
+	file := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageImportSource, modeChoice: "file"}
+	updated, _ = file.updateMouse(tea.MouseMsg{X: 20, Y: file.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if got := updated.(model).importSourceIndex; got != 0 {
+		t.Fatalf("compact file click selected source %d, want 0", got)
+	}
+
+	configModel := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageConfig, modeChoice: "config", configInput: newTextInput(1024, 44)}
+	updated, _ = configModel.updateMouse(tea.MouseMsg{X: 20, Y: configModel.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if got := updated.(model).configIndex; got != 1 {
+		t.Fatalf("compact config click selected tab %d, want 1", got)
+	}
+
+	full := model{width: 140, cfg: config.Config{MouseEnabled: true}, stage: stageInput, searchInput: newTextInput(512, 48)}
+	updated, _ = full.updateMouse(tea.MouseMsg{X: 30, Y: full.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if got := updated.(model).modeChoice; got != "discography" {
+		t.Fatalf("full dashboard click selected %q, want discography", got)
+	}
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func TestDashboardAndConfigRowsFitHeader(t *testing.T) {
