@@ -32,7 +32,7 @@ while the full header retains the profile URL and artwork.
 | Key | Destination |
 | --- | --- |
 | `M` | Manual album entry. |
-| `D` | Artist discography. |
+| `D` | Last.fm top albums for an artist. |
 | `F` | File, playlist, or folder import. |
 | `H` | Session history and recovery. |
 | `P` | Saved profiles. |
@@ -46,7 +46,7 @@ used by the application. Move between sections with `←` and `→`:
 
 | Section | Covers |
 | --- | --- |
-| **Modes** | Manual entry, discography curation, file imports, and similar albums. |
+| **Modes** | Manual entry, Last.fm top-album curation, file imports, and similar albums. |
 | **Automation** | Headless CLI commands, connection tests, completions, mouse support, and update checks. |
 | **Data** | History, recovery, profiles, diagnostics, and local storage. |
 | **Curation** | Track selection, loop controls, saved-queue editing, and exports. |
@@ -67,10 +67,11 @@ select tracks and preview the queue before starting the scrobble.
 | `E` | Export the queue. |
 | `S` | Find similar albums. |
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Discography
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm top albums
 
-Search an artist, filter or sort the returned albums, clean obvious duplicate
-editions, select albums, and load their tracks into one queue.
+Search an artist, filter or sort the returned top albums, clean obvious
+duplicate editions, select albums, and load their tracks into one queue. This
+is a Last.fm top-albums result, not a canonical complete discography.
 
 | Key | Action |
 | --- | --- |

@@ -83,6 +83,14 @@ func LoadProfile(name string) (Config, error) {
 }
 
 func loadFromDiscoveredPath() (Config, error) {
+	if explicit := strings.TrimSpace(os.Getenv("LASTFM_ENV_FILE")); explicit != "" {
+		return loadConfig(ExpandPath(explicit))
+	}
+	if remembered := rememberedEnvPath(); remembered != "" {
+		if info, err := os.Stat(remembered); err == nil && !info.IsDir() {
+			return loadConfig(remembered)
+		}
+	}
 	return loadConfigWithFallback(findEnvFile(), homeEnvFile())
 }
 
@@ -287,21 +295,15 @@ func loadConfigWithFallback(envPath, fallbackPath string) (Config, error) {
 
 func findEnvFile() string {
 	var candidates []string
-	if explicit := strings.TrimSpace(os.Getenv("LASTFM_ENV_FILE")); explicit != "" {
-		candidates = append(candidates, ExpandPath(explicit))
-	}
 	profile := firstNonEmpty(strings.TrimSpace(os.Getenv("LASTFM_PROFILE")), rememberedProfile())
 	if profile != "" && profile != "default" {
 		candidates = append(candidates, ProfilePath(profile))
 	}
 
 	if exe, err := os.Executable(); err == nil {
-		binDir := filepath.Dir(exe)
-		candidates = append(candidates,
-			filepath.Join(binDir, "..", ".env"),
-			filepath.Join(binDir, ".env"),
-			filepath.Join(binDir, "..", "..", ".env"),
-		)
+		if sourcePath := sourceEnvPath(exe); sourcePath != "" {
+			candidates = append(candidates, sourcePath)
+		}
 	}
 
 	cwd, _ := os.Getwd()
@@ -323,33 +325,37 @@ func findEnvFile() string {
 			return abs
 		}
 	}
-	if profile == "" || profile == "default" {
-		if preferred := preferredEnvPath(); preferred != "" {
-			return preferred
-		}
-	}
-	if remembered := rememberedEnvPath(); remembered != "" {
-		return remembered
+	if preferred := preferredEnvPath(); preferred != "" {
+		return preferred
 	}
 	return ""
 }
 
 func preferredEnvPath() string {
-	if exe, err := os.Executable(); err == nil {
-		binDir := filepath.Dir(exe)
-		if filepath.Base(binDir) == "bin" {
-			return filepath.Clean(filepath.Join(binDir, "..", ".env"))
-		}
+	return filepath.Join(credentialsDir(), ".env")
+}
+
+func credentialsDir() string {
+	if dir := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); dir != "" {
+		return filepath.Join(ExpandPath(dir), "lastfm-scrobbler")
 	}
-	cwd, err := os.Getwd()
+	home, err := os.UserHomeDir()
 	if err != nil {
+		return filepath.Join(".", ".config", "lastfm-scrobbler")
+	}
+	return filepath.Join(home, ".config", "lastfm-scrobbler")
+}
+
+func sourceEnvPath(executable string) string {
+	binDir := filepath.Dir(executable)
+	if filepath.Base(binDir) != "bin" {
 		return ""
 	}
-	path := filepath.Join(cwd, ".env")
-	if info, err := os.Stat(path); err == nil && !info.IsDir() {
-		return path
+	root := filepath.Clean(filepath.Join(binDir, ".."))
+	if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
+		return ""
 	}
-	return ""
+	return filepath.Join(root, ".env")
 }
 
 func homeEnvFile() string {

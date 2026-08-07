@@ -30,12 +30,13 @@ import (
 )
 
 type scrobbleResultMsg struct {
-	idx   int
-	track queuedTrack
-	err   error
+	sessionID uint64
+	idx       int
+	track     queuedTrack
+	err       error
 }
 
-type scrobbleCancelledMsg struct{}
+type scrobbleCancelledMsg struct{ sessionID uint64 }
 
 type searchResultMsg struct {
 	albums []lastfm.Album
@@ -54,9 +55,10 @@ type similarResultMsg struct {
 }
 
 type scrobblePreparedMsg struct {
-	queue   []queuedTrack
-	skipped int
-	err     error
+	sessionID uint64
+	queue     []queuedTrack
+	skipped   int
+	err       error
 }
 
 type exportResultMsg struct {
@@ -226,7 +228,7 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stage = stageSimilarSelect
 		return m, nil
 	case scrobblePreparedMsg:
-		if m.sessionCtx != nil && m.sessionCtx.Err() != nil {
+		if m.stage != stagePreview || msg.sessionID != m.sessionID || m.sessionCtx == nil || m.sessionCtx.Err() != nil {
 			return m, nil
 		}
 		if msg.err != nil {
@@ -249,7 +251,7 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.updateScrobbling(msg)
 	case scrobbleCancelledMsg:
-		if m.stage == stageScrobbling {
+		if msg.sessionID == m.sessionID && m.stage == stageScrobbling {
 			m.cancelScrobbleSession()
 		}
 		return m, nil
@@ -889,6 +891,7 @@ func (m model) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.startSimilar(artist)
 		}
 	case "esc":
+		m.cancelActiveSession()
 		m.stage = stageTrackSelect
 	case "q", "ctrl+c":
 		m.cancelActiveSession()
@@ -900,11 +903,12 @@ func (m model) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) prepareScrobble() tea.Cmd {
 	queue := append([]queuedTrack(nil), m.scrobbleQueue...)
 	ctx := m.sessionContext()
+	sessionID := m.sessionID
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		defer cancel()
 		if err := m.client.Authenticate(ctx); err != nil {
-			return scrobblePreparedMsg{err: err}
+			return scrobblePreparedMsg{sessionID: sessionID, err: err}
 		}
 		if sessionClient, ok := m.client.(interface{ SessionKey() string }); ok {
 			_ = config.PersistSessionKey(m.cfg, sessionClient.SessionKey())
@@ -929,9 +933,9 @@ func (m model) prepareScrobble() tea.Cmd {
 			}
 		}
 		if len(queue) == 0 {
-			return scrobblePreparedMsg{err: fmt.Errorf("all selected tracks were skipped by duplicate protection")}
+			return scrobblePreparedMsg{sessionID: sessionID, err: fmt.Errorf("all selected tracks were skipped by duplicate protection")}
 		}
-		return scrobblePreparedMsg{queue: queue, skipped: skipped}
+		return scrobblePreparedMsg{sessionID: sessionID, queue: queue, skipped: skipped}
 	}
 }
 
@@ -941,14 +945,15 @@ func recentKey(artist, title, album string) string {
 
 func (m model) authenticateThenContinue() tea.Cmd {
 	ctx := m.sessionContext()
+	sessionID := m.sessionID
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 		defer cancel()
 		if err := m.client.Authenticate(ctx); err != nil {
 			if errors.Is(ctx.Err(), context.Canceled) {
-				return scrobbleCancelledMsg{}
+				return scrobbleCancelledMsg{sessionID: sessionID}
 			}
-			return scrobbleResultMsg{err: err}
+			return scrobbleResultMsg{sessionID: sessionID, err: err}
 		}
 		return m.scrobbleNext()()
 	}
@@ -956,20 +961,21 @@ func (m model) authenticateThenContinue() tea.Cmd {
 
 func (m model) scrobbleNext() tea.Cmd {
 	ctx := m.sessionContext()
+	sessionID := m.sessionID
 	return func() tea.Msg {
 		if err := ctx.Err(); err != nil {
-			return scrobbleCancelledMsg{}
+			return scrobbleCancelledMsg{sessionID: sessionID}
 		}
 		if m.scrobbleIdx >= len(m.scrobbleQueue) {
-			return scrobbleResultMsg{idx: m.scrobbleIdx}
+			return scrobbleResultMsg{sessionID: sessionID, idx: m.scrobbleIdx}
 		}
 		item := m.scrobbleQueue[m.scrobbleIdx]
 		attempts, err := scrobbler.RunOne(ctx, m.client, scrobbler.Track{Artist: item.Artist, Title: item.Title, Album: item.Album}, scrobbler.Options{Retries: m.cfg.RetryCount, RetryDelay: m.cfg.RetryDelay})
 		if errors.Is(err, context.Canceled) {
-			return scrobbleCancelledMsg{}
+			return scrobbleCancelledMsg{sessionID: sessionID}
 		}
 		item.Attempts = attempts
-		return scrobbleResultMsg{idx: m.scrobbleIdx + 1, track: item, err: err}
+		return scrobbleResultMsg{sessionID: sessionID, idx: m.scrobbleIdx + 1, track: item, err: err}
 	}
 }
 
@@ -985,6 +991,9 @@ func (m model) updateScrobbling(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	case scrobbleResultMsg:
+		if msg.sessionID != m.sessionID {
+			return m, nil
+		}
 		if errors.Is(msg.err, context.Canceled) {
 			m.cancelScrobbleSession()
 			return m, nil
@@ -1011,12 +1020,12 @@ func (m model) updateScrobbling(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.scrobbleIdx >= len(m.scrobbleQueue) {
 			return m.finishSession()
 		}
-		return m, tea.Sequence(waitCmd(m.sessionContext(), m.interval), m.scrobbleNext())
+		return m, tea.Sequence(waitCmd(m.sessionContext(), m.sessionID, m.interval), m.scrobbleNext())
 	}
 	return m, nil
 }
 
-func waitCmd(ctx context.Context, duration time.Duration) tea.Cmd {
+func waitCmd(ctx context.Context, sessionID uint64, duration time.Duration) tea.Cmd {
 	return func() tea.Msg {
 		if duration <= 0 {
 			return nil
@@ -1025,7 +1034,7 @@ func waitCmd(ctx context.Context, duration time.Duration) tea.Cmd {
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
-			return scrobbleCancelledMsg{}
+			return scrobbleCancelledMsg{sessionID: sessionID}
 		case <-timer.C:
 			return nil
 		}
@@ -1056,6 +1065,7 @@ func (m model) finishSession() (tea.Model, tea.Cmd) {
 
 func (m *model) startScrobbleSession() {
 	m.cancelActiveSession()
+	m.sessionID++
 	m.sessionCtx, m.sessionCancel = context.WithCancel(context.Background())
 }
 

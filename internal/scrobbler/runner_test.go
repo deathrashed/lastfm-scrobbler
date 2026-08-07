@@ -13,6 +13,7 @@ type runnerClient struct {
 	remainingFailures int
 	calls             int
 	blockScrobble     bool
+	timestamps        []int64
 }
 
 func (c *runnerClient) Authenticate(context.Context) error { return nil }
@@ -31,8 +32,9 @@ func (c *runnerClient) GetSimilarAlbums(context.Context, string, int) ([]lastfm.
 func (c *runnerClient) GetRecentTracks(context.Context, string, time.Time) ([]lastfm.RecentTrack, error) {
 	return nil, nil
 }
-func (c *runnerClient) Scrobble(ctx context.Context, _ string, _ string, _ string, _ int64) error {
+func (c *runnerClient) Scrobble(ctx context.Context, _ string, _ string, _ string, ts int64) error {
 	c.calls++
+	c.timestamps = append(c.timestamps, ts)
 	if c.blockScrobble {
 		<-ctx.Done()
 		return ctx.Err()
@@ -49,6 +51,9 @@ func TestRunOneRetriesAndReportsAttempts(t *testing.T) {
 	attempts, err := RunOne(context.Background(), client, Track{Artist: "A", Album: "B", Title: "C"}, Options{Retries: 2})
 	if err != nil || attempts != 3 || client.calls != 3 {
 		t.Fatalf("attempts = %d, calls = %d, err = %v", attempts, client.calls, err)
+	}
+	if len(client.timestamps) != 3 || client.timestamps[0] != client.timestamps[1] || client.timestamps[1] != client.timestamps[2] {
+		t.Fatalf("retry timestamps = %#v, want one logical timestamp", client.timestamps)
 	}
 }
 

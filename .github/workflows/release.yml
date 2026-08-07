@@ -48,6 +48,7 @@ jobs:
             cp LICENSE "${package_dir}/LICENSE"
             /tmp/scrobbler-completion completion zsh > "${package_dir}/completions/_scrobbler"
             /tmp/scrobbler-completion completion fish > "${package_dir}/completions/scrobbler.fish"
+            /tmp/scrobbler-completion completion bash > "${package_dir}/completions/scrobbler.bash"
             tar -C "${package_dir}" -czf "dist/scrobbler-${VERSION}-${platform}-${arch}.tar.gz" .
             rm -rf "${package_dir}"
           done

@@ -33,8 +33,14 @@ The release workflow builds:
 ```text
 scrobbler-darwin-arm64
 scrobbler-darwin-amd64
+scrobbler-v<version>-darwin-arm64.tar.gz
+scrobbler-v<version>-darwin-amd64.tar.gz
 checksums.txt
 ```
+
+Each archive contains the binary, `LICENSE`, and Zsh, Bash, and Fish
+completion files. Checksums use release-asset basenames so `shasum -a 256 -c
+checksums.txt` works directly from a downloaded release directory.
 
 It injects the tag, commit SHA, and repository into the binary and publishes
 the files to the GitHub Release. The update checker can then use the repository
@@ -42,7 +48,7 @@ metadata or a configured `SCROBBLER_UPDATE_URL`.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Installation paths
 
-Once the repository is public, the module path supports:
+The public module path supports:
 
 ```bash
 go install github.com/deathrashed/lastfm-scrobbler/cmd/scrobbler@latest

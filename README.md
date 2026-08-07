@@ -43,7 +43,7 @@ highlight on hover and open on click; compact mode has no profile URL.
 | Area | What it provides |
 | --- | --- |
 | **Manual scrobbling** | Resolve an `Artist - Album`, choose tracks, preview the queue, and scrobble with configurable loops and intervals. |
-| **Discography curation** | Filter, sort, clean, select, and queue multiple albums from an artist discography. |
+| **Top-album curation** | Filter, sort, clean, select, and queue albums returned by Last.fm's top-albums endpoint. |
 | **Import workflows** | Load TXT, CSV, TSV, JSON, M3U/M3U8 playlists, album folders, or artist folders. |
 | **Recovery** | Keep history, resume interrupted queues, edit saved sessions, or perform exact re-runs. |
 | **Automation** | Use stable JSON-capable CLI commands from Keyboard Maestro, shell scripts, and launch agents. |
@@ -57,8 +57,7 @@ Requirements:
 - Internet access during the first build so Go can download Bubble Tea modules
 - A Nerd Font for the intended icons
 
-If the repository is published at `github.com/deathrashed/lastfm-scrobbler`,
-install the latest tagged command directly with Go:
+Install the latest tagged command directly with Go:
 
 ```bash
 go install github.com/deathrashed/lastfm-scrobbler/cmd/scrobbler@latest
@@ -113,11 +112,12 @@ go build \
    ./bin/scrobbler test
    ```
 
-The project-local `.env` is the normal save and load location. Values missing
-from it may be read from `~/.env`. Set
-`LASTFM_ENV_FILE=/absolute/path/to/file.env` when an explicit credentials file
-is required. `.env` is ignored by Git; `.env.example` is the safe template to
-commit.
+Source-tree builds can use the project-local `.env`. Installed binaries use
+`~/.config/lastfm-scrobbler/.env` by default. Values missing from an
+automatically discovered file may be read from `~/.env`. Set
+`LASTFM_ENV_FILE=/absolute/path/to/file.env` to make a specific credentials
+file authoritative, including before it exists. `.env` is ignored by Git;
+`.env.example` is the safe template to commit.
 
 > [!TIP]
 > Use `./bin/scrobbler test --json` after setup. It checks Last.fm access and
@@ -214,11 +214,11 @@ Enter `Artist - Album`, select the correct search result when necessary, choose
 individual tracks, adjust global or per-album loops, inspect the dry-run
 preview, and start scrobbling.
 
-### Discography
+### Last.fm top albums
 
 Search an artist, filter and sort the returned albums, hide obvious reissues or
 duplicates, select any combination, load their tracks, and build one queue.
-Long discographies and track lists include scroll indicators.
+Long top-album results and track lists include scroll indicators.
 
 ### File and folder import
 
@@ -342,7 +342,7 @@ For normal `auto` mode, values are resolved in this order:
 screen can also change and remember the credentials path. `API_SECRET`,
 `LASTFM_API_SECRET`, and `LASTFM_SHARED_SECRET` are accepted as aliases.
 
-The project `.env` is written with owner-only permissions and is ignored by
+Credential files are written with owner-only permissions and are ignored by
 Git. Never replace `.env.example` with real credentials or commit a credentials
 file.
 
@@ -417,7 +417,7 @@ Mouse support is enabled by default and can be disabled in Advanced or with
 `SCROBBLE_MOUSE=false`.
 
 - click Dashboard modes, File import sources, and Config tabs
-- use the mouse wheel to navigate results, discographies, tracks, History,
+- use the mouse wheel to navigate results, top-album lists, tracks, History,
   Profiles, and Advanced
 - keyboard controls remain available everywhere
 
@@ -475,7 +475,7 @@ Input
 Configuration ── project .env ── ~/.env fallback ── Keychain (optional)
           │
           ▼
-Last.fm client ── search / album tracks / discographies / similar albums
+Last.fm client ── search / album tracks / top albums / similar albums
           │
           ▼
 Queue builder ── preview / dry-run / loop / limit / interval

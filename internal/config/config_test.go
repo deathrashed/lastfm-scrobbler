@@ -9,6 +9,8 @@ import (
 
 func TestLoadReadsDotEnvAndEnvironmentOverrides(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	oldWD, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -106,6 +108,79 @@ func TestRememberEnvPathAndLoadFromPath(t *testing.T) {
 	}
 }
 
+func TestExplicitEnvironmentFileWinsBeforeItExists(t *testing.T) {
+	projectDir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, ".env"), []byte("LASTFM_USERNAME=project-user\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	explicit := filepath.Join(t.TempDir(), "new", "credentials.env")
+	t.Setenv("LASTFM_ENV_FILE", explicit)
+	t.Setenv("LASTFM_USERNAME", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.EnvPath != explicit || cfg.Username != "" {
+		t.Fatalf("cfg = %#v, want empty explicit credentials file", cfg)
+	}
+	if err := Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(explicit); err != nil {
+		t.Fatalf("explicit credentials file was not created: %v", err)
+	}
+}
+
+func TestRememberedEnvironmentFileWinsExistingProjectFile(t *testing.T) {
+	projectDir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, ".env"), []byte("LASTFM_USERNAME=project-user\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	remembered := filepath.Join(t.TempDir(), "remembered.env")
+	if err := os.WriteFile(remembered, []byte("LASTFM_USERNAME=remembered-user\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("LASTFM_ENV_FILE", "")
+	t.Setenv("LASTFM_PROFILE", "")
+	if err := RememberEnvPath(remembered); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.EnvPath != remembered || cfg.Username != "remembered-user" {
+		t.Fatalf("cfg = %#v, want remembered credentials file", cfg)
+	}
+}
+
+func TestPreferredEnvPathUsesUserConfigDirectory(t *testing.T) {
+	configHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	want := filepath.Join(configHome, "lastfm-scrobbler", ".env")
+	if got := preferredEnvPath(); got != want {
+		t.Fatalf("preferredEnvPath() = %q, want %q", got, want)
+	}
+}
+
 func TestLoadUsesProjectEnvAndHomeEnvForMissingValues(t *testing.T) {
 	projectDir := t.TempDir()
 	homeDir := t.TempDir()
@@ -123,6 +198,7 @@ func TestLoadUsesProjectEnvAndHomeEnvForMissingValues(t *testing.T) {
 	}
 	t.Setenv("HOME", homeDir)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("LASTFM_ENV_FILE", "")
 	t.Setenv("LASTFM_PROFILE", "")
 	for _, key := range []string{"API_KEY", "API_SECRET", "LASTFM_API_KEY", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET", "LASTFM_USERNAME", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY"} {
@@ -341,12 +417,6 @@ func TestLoadUsesProjectEnvWhenRememberedPathIsStale(t *testing.T) {
 		t.Setenv(key, "")
 	}
 	stalePath := filepath.Join(t.TempDir(), "old", ".env")
-	if err := os.MkdirAll(filepath.Dir(stalePath), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(stalePath, []byte("LASTFM_USERNAME=stale-user\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
 	if err := RememberEnvPath(stalePath); err != nil {
 		t.Fatal(err)
 	}

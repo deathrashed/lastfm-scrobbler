@@ -23,7 +23,7 @@ installed with `go install ...@latest`.
 | `scrobbler` / `scrobbler tui` | Open the Bubble Tea TUI. |
 | `scrobbler manual` | Load and scrobble one album. |
 | `scrobbler file` | Import albums from a list, playlist, or folder. |
-| `scrobbler discography` | List or scrobble an artist discography. |
+| `scrobbler discography` | List or scrobble albums from Last.fm's top-albums results. |
 | `scrobbler similar` | Print similar album suggestions. |
 | `scrobbler test` | Test Last.fm API access and authentication readiness. |
 | `scrobbler diagnostics` | Export a redacted diagnostics ZIP. |
@@ -77,7 +77,10 @@ folder. Import errors identify the specific entry that failed.
 The file command accepts the common options shown above, but does not accept
 manual-only `--artist` or `--album` flags.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Discography
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm top albums
+
+The command queries Last.fm's `artist.getTopAlbums` endpoint, limited to the
+available result window; it is not a canonical complete discography.
 
 Listing results without scrobbling:
 

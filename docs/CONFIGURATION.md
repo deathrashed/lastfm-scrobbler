@@ -1,8 +1,9 @@
 # <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="24" height="24" alt="Last.fm icon"> Configuration and credentials
 
 Configuration is shared by the TUI, headless CLI, Keyboard Maestro, and shell
-automation. Non-secret behavior lives alongside credentials in the project
-`.env`; the file is owner-only and ignored by Git.
+automation. Source-tree builds may use a project `.env`; installed binaries
+use `~/.config/lastfm-scrobbler/.env` by default. Credential files are
+owner-only and ignored by Git.
 
 <p align="center">
   <a href="../README.md">Overview</a> •
@@ -34,17 +35,13 @@ source, as described below.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> File precedence
 
-For normal `auto` mode, values are resolved in this order:
-
-1. Real process environment variables.
-2. The project-local `.env` next to the executable.
-3. Missing values from `~/.env`.
-4. A selected or remembered credentials file.
-5. macOS Keychain for missing secret values.
-6. Built-in defaults for non-secret settings.
-
-`LASTFM_ENV_FILE` forces a particular file. `LASTFM_PROFILE` selects a named
-profile. The Config screen can change and remember the credentials path.
+For normal `auto` mode, real process environment variables overlay values from
+the selected file. `LASTFM_ENV_FILE` is authoritative even when its file does
+not exist yet. An existing credentials path selected in Config is also used
+before automatic discovery. Otherwise source-tree project files are detected,
+installed binaries default to `~/.config/lastfm-scrobbler/.env`, and missing
+values may come from `~/.env`; missing secret values may then come from macOS
+Keychain. `LASTFM_PROFILE` selects a named profile.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm variables
 

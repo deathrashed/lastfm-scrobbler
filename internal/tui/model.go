@@ -52,6 +52,7 @@ type model struct {
 	headerURLHover bool
 	sessionCtx     context.Context
 	sessionCancel  context.CancelFunc
+	sessionID      uint64
 
 	modeChoice        string
 	modeIndex         int

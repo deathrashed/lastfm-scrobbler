@@ -4,8 +4,11 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/deathrashed/lastfm-scrobbler/internal/config"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
+	"github.com/deathrashed/lastfm-scrobbler/internal/sessionstore"
 )
 
 func TestNormalizeArgsAllowsFlagsAfterPositionals(t *testing.T) {
@@ -68,6 +71,30 @@ func TestBuildQueueAppliesLoopAndLimit(t *testing.T) {
 		t.Fatalf("unexpected queue ordering: %#v", queue)
 	}
 }
+
+func TestCLIQueueRecordsPreserveAlbumTrackAndLoopMetadata(t *testing.T) {
+	albums := sampleAlbums()
+	queue := buildQueue(albums, 2, 0)
+	record := recordFromQueue("manual", structConfig(), queue, commonOptions{loop: 2, interval: time.Second})
+	if len(record.Queue) != 8 {
+		t.Fatalf("queue length = %d, want 8", len(record.Queue))
+	}
+	want := []sessionstore.Track{
+		{AlbumIndex: 1, AlbumTotal: 2, TrackIndex: 1, TrackTotal: 2, LoopIndex: 1, LoopTotal: 2},
+		{AlbumIndex: 1, AlbumTotal: 2, TrackIndex: 2, TrackTotal: 2, LoopIndex: 1, LoopTotal: 2},
+		{AlbumIndex: 1, AlbumTotal: 2, TrackIndex: 1, TrackTotal: 2, LoopIndex: 2, LoopTotal: 2},
+		{AlbumIndex: 1, AlbumTotal: 2, TrackIndex: 2, TrackTotal: 2, LoopIndex: 2, LoopTotal: 2},
+		{AlbumIndex: 2, AlbumTotal: 2, TrackIndex: 1, TrackTotal: 2, LoopIndex: 1, LoopTotal: 2},
+	}
+	for index, expected := range want {
+		got := record.Queue[index]
+		if got.AlbumIndex != expected.AlbumIndex || got.AlbumTotal != expected.AlbumTotal || got.TrackIndex != expected.TrackIndex || got.TrackTotal != expected.TrackTotal || got.LoopIndex != expected.LoopIndex || got.LoopTotal != expected.LoopTotal {
+			t.Fatalf("queue[%d] metadata = %#v, want %#v", index, got, expected)
+		}
+	}
+}
+
+func structConfig() config.Config { return config.Config{Profile: "default"} }
 
 func sampleAlbums() []lastfm.Album {
 	return []lastfm.Album{

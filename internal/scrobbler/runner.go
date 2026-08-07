@@ -23,13 +23,14 @@ func RunOne(ctx context.Context, client lastfm.Client, track Track, options Opti
 	if attempts < 1 {
 		attempts = 1
 	}
+	timestamp := time.Now().Unix()
 	var err error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return attempt - 1, err
 		}
 		callCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-		err = client.Scrobble(callCtx, track.Artist, track.Title, track.Album, time.Now().Unix())
+		err = client.Scrobble(callCtx, track.Artist, track.Title, track.Album, timestamp)
 		cancel()
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return attempt, ctxErr

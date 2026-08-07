@@ -131,7 +131,7 @@ Manual examples:
   scrobbler manual "Slayer - Hell Awaits"
   scrobbler manual --artist Slayer --album "Hell Awaits" --loop 2
 
-Discography examples:
+Last.fm top-album examples:
   scrobbler discography "Demolition Hammer"            # list results
   scrobbler discography "Demolition Hammer" --all
   scrobbler discography "Demolition Hammer" --albums "Epidemic of Violence,Tortured Existence"
@@ -426,25 +426,43 @@ func recordFromQueue(command string, cfg config.Config, queue []queueTrack, opts
 	started := time.Now()
 	record := sessionstore.Record{ID: sessionstore.NewID(started), Mode: command, Profile: cfg.Profile, StartedAt: started, Status: "pending", Loop: opts.loop, Interval: opts.interval, Limit: strconv.Itoa(opts.limit)}
 	record.Queue = make([]sessionstore.Track, 0, len(queue))
-	for index, item := range queue {
-		record.Queue = append(record.Queue, sessionstore.Track{Artist: item.Artist, Title: item.Title, Album: item.Album, TrackIndex: index + 1, TrackTotal: len(queue), LoopTotal: opts.loop})
+	for _, item := range queue {
+		record.Queue = append(record.Queue, sessionstore.Track{
+			Artist: item.Artist, Title: item.Title, Album: item.Album,
+			AlbumIndex: item.AlbumIndex, AlbumTotal: item.AlbumTotal,
+			TrackIndex: item.TrackIndex, TrackTotal: item.TrackTotal,
+			LoopIndex: item.LoopIndex, LoopTotal: item.LoopTotal,
+		})
 	}
 	return record
 }
 
-type queueTrack struct{ Artist, Album, Title string }
+type queueTrack struct {
+	Artist, Album, Title string
+	AlbumIndex           int
+	AlbumTotal           int
+	TrackIndex           int
+	TrackTotal           int
+	LoopIndex            int
+	LoopTotal            int
+}
 
 func buildQueue(albums []lastfm.Album, loops, limit int) []queueTrack {
 	loops = max(1, loops)
 	var queue []queueTrack
-	for _, album := range albums {
+	for albumIndex, album := range albums {
 		tracks := album.Tracks
 		if limit > 0 && limit < len(tracks) {
 			tracks = tracks[:limit]
 		}
 		for loop := 0; loop < loops; loop++ {
-			for _, track := range tracks {
-				queue = append(queue, queueTrack{Artist: album.Artist, Album: album.Title, Title: track.Title})
+			for trackIndex, track := range tracks {
+				queue = append(queue, queueTrack{
+					Artist: album.Artist, Album: album.Title, Title: track.Title,
+					AlbumIndex: albumIndex + 1, AlbumTotal: len(albums),
+					TrackIndex: trackIndex + 1, TrackTotal: len(tracks),
+					LoopIndex: loop + 1, LoopTotal: loops,
+				})
 			}
 		}
 	}
@@ -627,7 +645,7 @@ var completionCommands = []completionCommand{
 	{Name: "tui", Description: "launch the terminal interface"},
 	{Name: "manual", Description: "scrobble one Artist - Album", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "artist", Description: "artist name", Value: true}, {Name: "album", Description: "album name", Value: true}}},
 	{Name: "file", Description: "import a list, playlist, or folder", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}}},
-	{Name: "discography", Description: "list or scrobble an artist discography", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "all", Description: "select all albums"}, {Name: "albums", Description: "album names", Value: true}, {Name: "first", Description: "first albums", Value: true}, {Name: "clean", Description: "remove noisy releases"}}},
+	{Name: "discography", Description: "list or scrobble Last.fm top albums", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "all", Description: "select all albums"}, {Name: "albums", Description: "album names", Value: true}, {Name: "first", Description: "first albums", Value: true}, {Name: "clean", Description: "remove noisy releases"}}},
 	{Name: "similar", Description: "list similar album suggestions", Flags: []completionFlag{{Name: "limit", Description: "result count", Value: true}, {Name: "json", Description: "JSON output"}}},
 	{Name: "test", Description: "test API and authentication", Flags: []completionFlag{{Name: "json", Description: "JSON output"}}},
 	{Name: "diagnostics", Description: "export a redacted support bundle", Flags: []completionFlag{{Name: "json", Description: "JSON output"}}},
