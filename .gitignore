@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+
+# Builds
+bin/
+dist/
+
+# Generated
+*.log
+*.zip
+coverage.out
+.codegraph
+
+# macOS
+.DS_Store

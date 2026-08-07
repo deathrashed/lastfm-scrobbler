@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="colorslurp.com">
+
+    <title>Last.fm</title>
+
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        a, a:link, a:visited, a:hover {
+            color: #3873f4;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: auto;
+            padding: 0 60px;
+        }
+
+        .header-stripes {
+            display: flex;
+        }
+
+        .header-stripe {
+            height: 4px;
+            flex: 1 1 0px;
+        }
+
+        .header {
+            padding: 50px 0;
+            background: #fafafa;
+        }
+
+        .header-title {
+            font-weight: bold;
+            font-size: 1.8rem;
+        }
+
+        .header-subtitle {
+            margin-top: 20px;
+        }
+
+        .colors {
+            margin: 50px auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill,minmax(160px, 1fr));
+            grid-gap: 30px;
+        }
+
+        .color-drop {
+            height: 80px;
+            border-radius: 10px;
+            box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        .color-value {
+            color: #6b6b6b;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        @media only screen and (max-width: 600px) {
+            html {
+                font-size: 15px;
+            }
+
+            .container {
+                padding: 0 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header-stripes">
+
+<div class="header-stripe" style="background: #ffffff;"></div>
+<div class="header-stripe" style="background: #f8211c;"></div>
+<div class="header-stripe" style="background: #e11e19;"></div>
+<div class="header-stripe" style="background: #cc1b17;"></div>
+<div class="header-stripe" style="background: #fa645d;"></div>
+<div class="header-stripe" style="background: #e25951;"></div>
+<div class="header-stripe" style="background: #d0524a;"></div>
+<div class="header-stripe" style="background: #f06059;"></div>
+<div class="header-stripe" style="background: #be7776;"></div>
+<div class="header-stripe" style="background: #736765;"></div>
+<div class="header-stripe" style="background: #565554;"></div>
+        </div>
+        <div class="header">
+            <div class="container">
+                <div class="header-title">Last.fm</div>
+                <div class="header-subtitle"></div>
+            </div>
+        </div>
+        <div class="container colors">
+
+<div class="color">
+    <div class="color-drop" style="background: #ffffff;"></div>
+    <div class="color-name">White</div>
+    <div class="color-value">#ffffff</div>
+    <div class="color-value">RGB 255, 255, 255</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #f8211c;"></div>
+    <div class="color-name">Torch Red</div>
+    <div class="color-value">#f8211c</div>
+    <div class="color-value">RGB 248, 33, 28</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #e11e19;"></div>
+    <div class="color-name">Alizarin Crimson</div>
+    <div class="color-value">#e11e19</div>
+    <div class="color-value">RGB 225, 30, 25</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #cc1b17;"></div>
+    <div class="color-name">Thunderbird</div>
+    <div class="color-value">#cc1b17</div>
+    <div class="color-value">RGB 204, 27, 23</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #fa645d;"></div>
+    <div class="color-name">Carnation</div>
+    <div class="color-value">#fa645d</div>
+    <div class="color-value">RGB 250, 100, 93</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #e25951;"></div>
+    <div class="color-name">Mandy</div>
+    <div class="color-value">#e25951</div>
+    <div class="color-value">RGB 226, 89, 81</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #d0524a;"></div>
+    <div class="color-name">Chestnut Rose</div>
+    <div class="color-value">#d0524a</div>
+    <div class="color-value">RGB 208, 82, 74</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #f06059;"></div>
+    <div class="color-name">Burnt Sienna</div>
+    <div class="color-value">#f06059</div>
+    <div class="color-value">RGB 240, 96, 89</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #be7776;"></div>
+    <div class="color-name">Old Rose</div>
+    <div class="color-value">#be7776</div>
+    <div class="color-value">RGB 190, 119, 118</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #736765;"></div>
+    <div class="color-name">Sandstone</div>
+    <div class="color-value">#736765</div>
+    <div class="color-value">RGB 115, 103, 101</div>
+</div>
+<div class="color">
+    <div class="color-drop" style="background: #565554;"></div>
+    <div class="color-name">Chicago</div>
+    <div class="color-value">#565554</div>
+    <div class="color-value">RGB 86, 85, 84</div>
+</div>
+        </div>
+    </div>
+</body>
+</html>
