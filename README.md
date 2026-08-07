@@ -192,10 +192,13 @@ gallery follows the recommended walkthrough order.
       <p align="center"><strong>13. Manual complete</strong><br><sub>Review the finished session</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/14-config-advanced.png"><img src="assets/screenshots/14-config-advanced.png" alt="Last.fm Scrobbler advanced configuration"></a>
-      <p align="center"><strong>14. Advanced config</strong><br><sub>Reliability, diagnostics, and updates</sub></p>
+      <a href="assets/screenshots/14-manual-similar-albums.png"><img src="assets/screenshots/14-manual-similar-albums.png" alt="Last.fm Scrobbler similar albums"></a>
+      <p align="center"><strong>14. Similar albums</strong><br><sub>Discover related album suggestions</sub></p>
     </td>
-    <td valign="top"></td>
+    <td valign="top">
+      <a href="assets/screenshots/15-config-advanced.png"><img src="assets/screenshots/15-config-advanced.png" alt="Last.fm Scrobbler advanced configuration"></a>
+      <p align="center"><strong>15. Advanced config</strong><br><sub>Reliability, diagnostics, and updates</sub></p>
+    </td>
   </tr>
 </table>
 
