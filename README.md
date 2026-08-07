@@ -126,50 +126,76 @@ commit.
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
 
 The interface keeps the same Torch Red, fixed-width visual language across
-search, selection, configuration, recovery, and scrobbling workflows.
+search, selection, configuration, recovery, and scrobbling workflows. The
+gallery follows the recommended walkthrough order.
 
 <table>
   <tr>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/scrobbler8.png"><img src="assets/screenshots/scrobbler8.png" alt="Last.fm Scrobbler dashboard"></a>
-      <p align="center"><strong>Dashboard</strong><br><sub>Search • Select • Scrobble</sub></p>
+      <a href="assets/screenshots/1-dashboard-menu.png"><img src="assets/screenshots/1-dashboard-menu.png" alt="Last.fm Scrobbler dashboard menu"></a>
+      <p align="center"><strong>1. Dashboard</strong><br><sub>Search • Select • Scrobble</sub></p>
     </td>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/scrobbler7.png"><img src="assets/screenshots/scrobbler7.png" alt="Manual album track selection"></a>
-      <p align="center"><strong>Manual queue</strong><br><sub>Track selection and preview</sub></p>
+      <a href="assets/screenshots/2-info-menu.png"><img src="assets/screenshots/2-info-menu.png" alt="Last.fm Scrobbler Info menu"></a>
+      <p align="center"><strong>2. Info</strong><br><sub>Modes, automation, data, curation, and imports</sub></p>
     </td>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/scrobbler1.png"><img src="assets/screenshots/scrobbler1.png" alt="Discography album selection"></a>
-      <p align="center"><strong>Discography</strong><br><sub>Filter, clean, sort, and select</sub></p>
+      <a href="assets/screenshots/3-help-menu.png"><img src="assets/screenshots/3-help-menu.png" alt="Last.fm Scrobbler help menu"></a>
+      <p align="center"><strong>3. Help</strong><br><sub>Contextual controls at a glance</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/scrobbler2.png"><img src="assets/screenshots/scrobbler2.png" alt="Track selection screen"></a>
-      <p align="center"><strong>Track selection</strong><br><sub>Loops and album-level controls</sub></p>
+      <a href="assets/screenshots/4-config-menu.png"><img src="assets/screenshots/4-config-menu.png" alt="Last.fm Scrobbler configuration menu"></a>
+      <p align="center"><strong>4. Config</strong><br><sub>Settings and credentials</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/scrobbler4.png"><img src="assets/screenshots/scrobbler4.png" alt="Scrobble progress screen"></a>
-      <p align="center"><strong>Progress</strong><br><sub>ETA, totals, and cancellation</sub></p>
+      <a href="assets/screenshots/5-file-menu.png"><img src="assets/screenshots/5-file-menu.png" alt="Last.fm Scrobbler file import menu"></a>
+      <p align="center"><strong>5. File</strong><br><sub>Lists, playlists, and folders</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/scrobbler3.png"><img src="assets/screenshots/scrobbler3.png" alt="File import screen"></a>
-      <p align="center"><strong>File import</strong><br><sub>Lists, playlists, and folders</sub></p>
+      <a href="assets/screenshots/6-history.png"><img src="assets/screenshots/6-history.png" alt="Last.fm Scrobbler session history"></a>
+      <p align="center"><strong>6. History</strong><br><sub>Recovery, exports, and re-runs</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/scrobbler5.png"><img src="assets/screenshots/scrobbler5.png" alt="Configuration screen"></a>
-      <p align="center"><strong>Config</strong><br><sub>Settings and safe shortcuts</sub></p>
+      <a href="assets/screenshots/7-discography-search.png"><img src="assets/screenshots/7-discography-search.png" alt="Last.fm Scrobbler discography search"></a>
+      <p align="center"><strong>7. Discography search</strong><br><sub>Find an artist's albums</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/scrobbler6.png"><img src="assets/screenshots/scrobbler6.png" alt="Info screen"></a>
-      <p align="center"><strong>Info</strong><br><sub>Modes, imports, curation, and data</sub></p>
+      <a href="assets/screenshots/8-discography-filter.png"><img src="assets/screenshots/8-discography-filter.png" alt="Last.fm Scrobbler discography filter"></a>
+      <p align="center"><strong>8. Discography filter</strong><br><sub>Filter, clean, sort, and select</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/scrobbler0.png"><img src="assets/screenshots/scrobbler0.png" alt="TUI help overlay"></a>
-      <p align="center"><strong>Help overlay</strong><br><sub>Contextual controls at a glance</sub></p>
+      <a href="assets/screenshots/9-discography-progress.png"><img src="assets/screenshots/9-discography-progress.png" alt="Last.fm Scrobbler discography progress"></a>
+      <p align="center"><strong>9. Discography progress</strong><br><sub>Build and scrobble the queue</sub></p>
     </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/screenshots/10-manual-album-selection.png"><img src="assets/screenshots/10-manual-album-selection.png" alt="Last.fm Scrobbler manual album selection"></a>
+      <p align="center"><strong>10. Manual album selection</strong><br><sub>Choose tracks from an album</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/11-manual-album-preferences.png"><img src="assets/screenshots/11-manual-album-preferences.png" alt="Last.fm Scrobbler manual album preferences"></a>
+      <p align="center"><strong>11. Manual preferences</strong><br><sub>Adjust loops and queue options</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/12-manual-progress.png"><img src="assets/screenshots/12-manual-progress.png" alt="Last.fm Scrobbler manual scrobble progress"></a>
+      <p align="center"><strong>12. Manual progress</strong><br><sub>Track status and completion</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/screenshots/13-manual-complete.png"><img src="assets/screenshots/13-manual-complete.png" alt="Last.fm Scrobbler completed manual scrobble"></a>
+      <p align="center"><strong>13. Manual complete</strong><br><sub>Review the finished session</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/14-config-advanced.png"><img src="assets/screenshots/14-config-advanced.png" alt="Last.fm Scrobbler advanced configuration"></a>
+      <p align="center"><strong>14. Advanced config</strong><br><sub>Reliability, diagnostics, and updates</sub></p>
+    </td>
+    <td valign="top"></td>
   </tr>
 </table>
 

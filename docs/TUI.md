@@ -34,6 +34,19 @@ without a subcommand to open it.
 | `C` | Configuration. |
 | `I` | In-app Info and documentation. |
 
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Info
+
+The Info page is a compact reference for the main workflows and local data
+used by the application. Move between sections with `←` and `→`:
+
+| Section | Covers |
+| --- | --- |
+| **Modes** | Manual entry, discography curation, file imports, and similar albums. |
+| **Automation** | Headless CLI commands, connection tests, completions, mouse support, and update checks. |
+| **Data** | History, recovery, profiles, diagnostics, and local storage. |
+| **Curation** | Track selection, loop controls, saved-queue editing, and exports. |
+| **Imports** | TXT, CSV, TSV, JSON, M3U/M3U8, album folders, artist folders, and the native picker. |
+
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Manual
 
 Enter `Artist - Album`, choose a matching Last.fm result when necessary, then
