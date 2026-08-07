@@ -51,7 +51,7 @@ jobs:
             tar -C "${package_dir}" -czf "dist/scrobbler-${VERSION}-${platform}-${arch}.tar.gz" .
             rm -rf "${package_dir}"
           done
-          sha256sum dist/* > dist/checksums.txt
+          (cd dist && sha256sum scrobbler-* > checksums.txt)
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
