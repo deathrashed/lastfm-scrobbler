@@ -16,6 +16,19 @@
   scrobbling Last.fm album queues.
 </p>
 
+### Install
+
+**macOS with Homebrew**
+
+```bash
+brew install deathrashed/tap/scrobbler
+```
+
+**Other platforms**
+
+Download a prebuilt binary for macOS, Linux, or Windows from
+[GitHub Releases](https://github.com/deathrashed/lastfm-scrobbler/releases/latest).
+
 <p align="center">
   <a href="#features">Features</a> •
   <a href="#installation--build">Installation</a> •
@@ -29,7 +42,8 @@
 
 The visual system is deliberately consistent across every screen:
 
-- 67-column minimum layout with a 127-column outer cap and bounded, centered working panels on wide terminals
+- responsive terminal layout that live-resizes from 67 to 127 columns, then remains centered on wider terminals
+- bounded responsive working panels that expand where useful without stretching natural-size controls
 - white structural borders
 - Last.fm Torch Red (`#f8211c`) active controls
 - centered panels and footer hints
@@ -37,12 +51,31 @@ The visual system is deliberately consistent across every screen:
 - Nerd Font icons with plain-text fallbacks where practical
 
 The TUI requires at least 67 terminal columns. Compact Header is a user
-setting, not an automatic narrow-terminal fallback. It normally uses a compact
-four-line header; Manual and Discography add one centered `ARTIST ❯` metadata
-row after an artist has been resolved. Full-header profile URLs highlight on
-hover and open on click; compact mode has no profile URL. Optional Now Playing
-reads current or recent activity in the full header only and never submits
-playback state.
+setting, not an automatic narrow-terminal fallback. Working surfaces expand
+selectively: result and track lists show more text, filters and paths gain
+useful width, taller terminals show more rows, natural-size cards and controls
+retain their proportions, and mouse hitboxes follow the live geometry. It
+normally uses a compact four-line header; Manual and Discography add one
+centered `ARTIST ❯` metadata row after an artist has been resolved. Full-header
+profile URLs highlight on hover and open on click; compact mode has no profile
+URL. Optional Now Playing reads current or recent activity in the full header
+only and never submits playback state.
+
+<details>
+<summary><strong>Responsive terminal layout</strong></summary>
+
+The TUI has a 67-column minimum and live-resizes up to a 127-column outer
+layout. On wider terminals the application remains centered.
+
+Working surfaces expand selectively:
+
+- result and track lists show more text
+- filters and paths gain useful width
+- taller terminals show additional result rows
+- cards and compact controls retain natural proportions
+- mouse hitboxes follow the live geometry
+
+</details>
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Features
 
@@ -53,7 +86,7 @@ playback state.
 | **Import workflows** | Load TXT, CSV, TSV, JSON, M3U/M3U8 playlists, album folders, or artist folders. |
 | **Recovery** | Keep history, resume interrupted queues, edit saved sessions, or perform exact re-runs. |
 | **Automation** | Use stable JSON-capable CLI commands from Keyboard Maestro, shell scripts, and launch agents. |
-| **Terminal UI** | A centered 67–127-column Bubble Tea interface with live resize, Torch Red active controls, and mouse support. |
+| **Terminal UI** | A responsive Bubble Tea interface that live-resizes from 67–127 columns, centers itself on wider terminals, adapts list/panel widths and heights, and supports mouse input. |
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Installation & Build
 
@@ -71,7 +104,6 @@ Homebrew package do not require Go; Go 1.24.2 or newer is only required for
 ### Homebrew (macOS)
 
 ```bash
-brew tap deathrashed/tap
 brew install deathrashed/tap/scrobbler
 scrobbler --version
 ```
