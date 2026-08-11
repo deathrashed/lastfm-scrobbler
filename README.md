@@ -51,15 +51,12 @@ The visual system is deliberately consistent across every screen:
 - Nerd Font icons with plain-text fallbacks where practical
 
 The TUI requires at least 67 terminal columns. Compact Header is a user
-setting, not an automatic narrow-terminal fallback. Working surfaces expand
-selectively: result and track lists show more text, filters and paths gain
-useful width, taller terminals show more rows, natural-size cards and controls
-retain their proportions, and mouse hitboxes follow the live geometry. It
-normally uses a compact four-line header; Manual and Discography add one
-centered `ARTIST ❯` metadata row after an artist has been resolved. Full-header
-profile URLs highlight on hover and open on click; compact mode has no profile
-URL. Optional Now Playing reads current or recent activity in the full header
-only and never submits playback state.
+setting, not an automatic narrow-terminal fallback. It normally uses a
+compact four-line header; Manual and Discography add one centered `ARTIST ❯`
+metadata row after an artist has been resolved. Full-header profile URLs
+highlight on hover and open on click; compact mode has no profile URL. Optional
+Now Playing reads current or recent activity in the full header only and never
+submits playback state.
 
 <details>
 <summary><strong>Responsive terminal layout</strong></summary>
