@@ -52,7 +52,7 @@ func IsCommand(args []string) bool {
 		return false
 	}
 	switch args[0] {
-	case "tui", "manual", "file", "discography", "similar", "test", "diagnostics", "check-update", "completion", "version", "help", "--help", "-h", "--version":
+	case "tui", "setup", "manual", "file", "discography", "similar", "test", "diagnostics", "check-update", "completion", "version", "help", "--help", "-h", "--version":
 		return true
 	default:
 		return strings.HasPrefix(args[0], "-")
@@ -66,6 +66,8 @@ func Run(args []string, cfg config.Config, client lastfm.Client, stdout, stderr 
 	command := args[0]
 	arguments := args[1:]
 	switch command {
+	case "setup":
+		return -1
 	case "help", "--help", "-h":
 		PrintHelp(stdout)
 		return 0
@@ -110,6 +112,7 @@ func PrintHelp(w io.Writer) {
 
 Usage:
   scrobbler                         Launch the styled TUI
+  scrobbler setup                   Run the first-time setup wizard
   scrobbler manual [options]        Scrobble one Artist - Album
   scrobbler file [options] PATH     Load TXT/CSV/TSV/JSON/M3U/M3U8/folders
   scrobbler discography [options] ARTIST
@@ -643,6 +646,7 @@ type completionCommand struct {
 
 var completionCommands = []completionCommand{
 	{Name: "tui", Description: "launch the terminal interface"},
+	{Name: "setup", Description: "run the first-time setup wizard"},
 	{Name: "manual", Description: "scrobble one Artist - Album", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "artist", Description: "artist name", Value: true}, {Name: "album", Description: "album name", Value: true}}},
 	{Name: "file", Description: "import a list, playlist, or folder", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}}},
 	{Name: "discography", Description: "list or scrobble Last.fm top albums", Flags: []completionFlag{{Name: "loop", Description: "album loops", Value: true}, {Name: "limit", Description: "tracks per album", Value: true}, {Name: "interval", Description: "delay", Value: true}, {Name: "dry-run", Description: "do not scrobble"}, {Name: "json", Description: "JSON output"}, {Name: "all", Description: "select all albums"}, {Name: "albums", Description: "album names", Value: true}, {Name: "first", Description: "first albums", Value: true}, {Name: "clean", Description: "remove noisy releases"}}},

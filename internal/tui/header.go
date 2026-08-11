@@ -84,6 +84,11 @@ var compactHeaderSpecs = map[string]compactHeaderSpec{
 		Subtitle: "check the configured release source",
 		Icon:     theme.IconSettings,
 	},
+	"setup": {
+		Title:    "S E T U P",
+		Subtitle: "first-time configuration wizard",
+		Icon:     theme.IconSettings,
+	},
 }
 
 func RenderHeader(width int, stg stage, modeChoice, username, settingsLine string, compact bool) string {

@@ -12,6 +12,7 @@ import (
 	"github.com/deathrashed/lastfm-scrobbler/internal/connection"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
 	"github.com/deathrashed/lastfm-scrobbler/internal/sessionstore"
+	setupstate "github.com/deathrashed/lastfm-scrobbler/internal/setup"
 	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 	"github.com/deathrashed/lastfm-scrobbler/internal/updater"
 )
@@ -39,6 +40,7 @@ const (
 	stageConnectionTest
 	stageDiagnostics
 	stageUpdateCheck
+	stageSetup
 )
 
 type model struct {
@@ -126,6 +128,9 @@ type model struct {
 	historyCursor     int
 	historyStatus     string
 	err               error
+	setup             setupstate.State
+	setupInputs       [4]textinput.Model
+	setupOriginal     config.Config
 }
 
 type queuedTrack struct {
@@ -181,6 +186,31 @@ func New(cfg config.Config, client lastfm.Client) tea.Model {
 		m.interval = pending.Interval
 	}
 	return m
+}
+
+func NewSetup(cfg config.Config, client lastfm.Client) tea.Model {
+	m := New(cfg, client).(model)
+	m.stage = stageSetup
+	m.modeChoice = "setup"
+	m.setup = setupstate.NewState(cfg)
+	m.setupOriginal = cfg
+	m.cfg.MouseEnabled = true
+	for index := range m.setupInputs {
+		m.setupInputs[index] = newTextInput(1024, 48)
+	}
+	m.setupInputs[1].EchoMode = textinput.EchoPassword
+	m.setupInputs[1].EchoCharacter = '•'
+	m.setupInputs[3].EchoMode = textinput.EchoPassword
+	m.setupInputs[3].EchoCharacter = '•'
+	m.syncSetupInputs()
+	return m
+}
+
+func (m *model) syncSetupInputs() {
+	values := []string{m.setup.Account.Username, m.setup.Account.Password, m.setup.Account.APIKey, m.setup.Account.APISecret}
+	for index, value := range values {
+		m.setupInputs[index].SetValue(value)
+	}
 }
 
 func newTextInput(limit, width int) textinput.Model {

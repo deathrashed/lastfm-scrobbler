@@ -14,6 +14,11 @@ owner-only and ignored by Git.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Quick setup
 
+An unconfigured interactive launch opens the first-run wizard. The same wizard
+can be started explicitly with `scrobbler setup`. It keeps credentials,
+preferences, font installation, and terminal changes staged until **Apply**;
+leaving the wizard earlier does not write a partial configuration.
+
 ```bash
 cp .env.example .env
 chmod 600 .env
@@ -119,6 +124,11 @@ Credential sources:
 | `file` | Read credentials only from the selected environment file. |
 | `keychain` | Public values come from environment/file; secret values come from macOS Keychain. |
 
+The wizard only offers macOS Keychain on macOS, where the existing backend is
+implemented. Linux and Windows use the existing owner-only credentials file or
+environment-variable backends; no unimplemented Secret Service or Windows
+Credential Manager adapter is claimed.
+
 Environment and Keychain overrides are runtime values, not replacements for
 the values already stored in the credentials file. When the TUI saves an
 unrelated setting, the original file fallback is preserved. Explicitly editing
@@ -141,3 +151,18 @@ Session-key persistence follows the source:
   API keys.
 - Process environment variables can be exposed to child processes and system
   inspection tools; use Keychain or an owner-only file for long-lived secrets.
+
+## First-run font and terminal setup
+
+The wizard detects the operating-system family, architecture, terminal, and
+available package manager for context. Package managers are never required.
+The curated Nerd Font choices download official release-family archives from
+the Nerd Fonts latest release and install selected Mono font files at user
+scope. Linux refreshes the font cache when `fc-cache` is available; Windows
+registers installed files in the current-user font registry. No root or
+administrator privileges are required by the default paths.
+
+Automatic terminal configuration is currently implemented for detected
+Ghostty configuration files only, with a backup made before editing. Other
+terminals remain usable but are reported as manual setup; selecting a font
+does not silently edit arbitrary terminal configuration files.

@@ -22,6 +22,12 @@ func TestNormalizeArgsAllowsFlagsAfterPositionals(t *testing.T) {
 	}
 }
 
+func TestSetupIsRecognizedAsInteractiveCommand(t *testing.T) {
+	if !IsCommand([]string{"setup"}) {
+		t.Fatal("setup command is not recognized")
+	}
+}
+
 func TestCompletionsMatchCommandFlags(t *testing.T) {
 	zsh, _ := Completion("zsh")
 	bash, _ := Completion("bash")

@@ -21,6 +21,7 @@ installed with `go install ...@latest`.
 | Command | Purpose |
 | --- | --- |
 | `scrobbler` / `scrobbler tui` | Open the Bubble Tea TUI. |
+| `scrobbler setup` | Run the cross-platform first-run setup wizard. |
 | `scrobbler manual` | Load and scrobble one album. |
 | `scrobbler file` | Import albums from a list, playlist, or folder. |
 | `scrobbler discography` | List or scrobble albums from Last.fm's top-albums results. |

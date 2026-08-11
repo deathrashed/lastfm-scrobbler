@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/deathrashed/lastfm-scrobbler/internal/setup"
 )
 
 type mouseRegion struct {
@@ -110,6 +112,17 @@ func footerSpec(m model) [][]footerItem {
 				a("footer:i", "i", " info", "open the information guide"),
 				help(),
 			},
+		}
+	case stageSetup:
+		if m.setup.Page == setup.PageWelcome {
+			return [][]footerItem{{enter(" continue", "continue with setup")}, {esc(" skip", "skip setup without writing changes"), help()}}
+		}
+		if m.setup.Page == setup.PageComplete {
+			return [][]footerItem{{enter(" continue", "open the dashboard")}, {help()}}
+		}
+		return [][]footerItem{
+			{s("↑ ↓", " navigate"), enter(" continue", "continue with the current setup step")},
+			{esc(" previous", "return to the previous setup step"), help()},
 		}
 	case stageImportSource:
 		return [][]footerItem{
@@ -430,6 +443,8 @@ func (m model) screenRegions() []mouseRegion {
 		for i, width := range []int{19, 25, 18} {
 			regions = append(regions, mouseRegion{id: "dashboard:" + strconv.Itoa(i), x: []int{1, 21, 47}[i], y: bodyY, width: width, height: 3, message: keyMessage([]string{"m", "d", "f"}[i])})
 		}
+	case stageSetup:
+		regions = append(regions, setupScreenRegions(m, bodyY)...)
 	case stageSearch:
 		regions = append(regions, mouseRegion{id: "search:input", x: 1, y: bodyY, width: 65, height: 3})
 	case stageImportSource:

@@ -30,6 +30,14 @@ func (r Report) OK() bool {
 }
 
 func Test(ctx context.Context, cfg config.Config, client lastfm.Client) Report {
+	return test(ctx, cfg, client, true)
+}
+
+func TestWithoutPersistence(ctx context.Context, cfg config.Config, client lastfm.Client) Report {
+	return test(ctx, cfg, client, false)
+}
+
+func test(ctx context.Context, cfg config.Config, client lastfm.Client, persistSession bool) Report {
 	report := Report{}
 	apiKey := strings.TrimSpace(cfg.APIKey)
 	report.Items = append(report.Items, Item{Label: "API KEY", OK: apiKey != "", Detail: configured(apiKey)})
@@ -77,8 +85,10 @@ func Test(ctx context.Context, cfg config.Config, client lastfm.Client) Report {
 	if authErr != nil {
 		report.Items = append(report.Items, Item{Label: "AUTH", Detail: authErr.Error()})
 	} else {
-		if sessionClient, ok := client.(interface{ SessionKey() string }); ok {
-			_ = config.PersistSessionKey(cfg, sessionClient.SessionKey())
+		if persistSession {
+			if sessionClient, ok := client.(interface{ SessionKey() string }); ok {
+				_ = config.PersistSessionKey(cfg, sessionClient.SessionKey())
+			}
 		}
 		report.Items = append(report.Items, Item{Label: "AUTH", OK: true, Detail: "mobile session obtained with username + password"})
 	}

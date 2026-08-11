@@ -35,20 +35,40 @@ func main() {
 		runPlainMode(cfg, client)
 		return
 	}
+	setupRequested := len(args) > 0 && args[0] == "setup"
+	if setupRequested {
+		if os.Getenv("NO_TUI") == "1" || os.Getenv("TERM") == "dumb" {
+			fmt.Fprintln(os.Stderr, "setup requires an interactive terminal; run scrobbler setup in a TUI terminal")
+			os.Exit(2)
+		}
+		runTUI(tui.NewSetup(cfg, client), cfg, true)
+		return
+	}
 	if cli.IsCommand(args) {
 		code := cli.Run(args, cfg, client, os.Stdout, os.Stderr)
 		if code >= 0 {
 			os.Exit(code)
 		}
 	}
+	if config.NeedsSetup(cfg) {
+		if os.Getenv("NO_TUI") == "1" || os.Getenv("TERM") == "dumb" {
+			fmt.Fprintln(os.Stderr, "setup requires an interactive terminal; run scrobbler setup in a TUI terminal")
+			os.Exit(2)
+		}
+		runTUI(tui.NewSetup(cfg, client), cfg, true)
+		return
+	}
 	if os.Getenv("NO_TUI") == "1" || os.Getenv("TERM") == "dumb" {
 		runPlainMode(cfg, client)
 		return
 	}
 
-	m := tui.New(cfg, client)
+	runTUI(tui.New(cfg, client), cfg, false)
+}
+
+func runTUI(m tea.Model, cfg config.Config, forceMouse bool) {
 	options := []tea.ProgramOption{tea.WithAltScreen()}
-	if cfg.MouseEnabled {
+	if forceMouse || cfg.MouseEnabled {
 		options = append(options, tea.WithMouseAllMotion())
 	}
 	p := tea.NewProgram(m, options...)

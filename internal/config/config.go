@@ -54,6 +54,12 @@ type Config struct {
 // variables. LASTFM_ENV_FILE is the strongest file-location override.
 func Load() (Config, error) { return loadFromDiscoveredPath() }
 
+func NeedsSetup(cfg Config) bool {
+	return strings.TrimSpace(cfg.APIKey) == "" || strings.TrimSpace(cfg.APISecret) == "" ||
+		(strings.TrimSpace(cfg.SessionKey) == "" &&
+			(strings.TrimSpace(cfg.Username) == "" || strings.TrimSpace(cfg.Password) == ""))
+}
+
 // LoadFromPath loads one explicit credentials file while still allowing real
 // environment variables to override its values.
 func LoadFromPath(path string) (Config, error) {

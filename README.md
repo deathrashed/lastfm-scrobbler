@@ -5,10 +5,11 @@
 <h1 align="center">𝗟𝗔𝗦𝗧.𝗙𝗠 𝗦𝗖𝗥𝗢𝗕𝗕𝗟𝗘𝗥</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Last.fm-Torch%20Red-f8211c?style=for-the-badge&logo=last.fm&logoColor=white" alt="Last.fm">
+  <img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=white" alt="Last.fm">
   <img src="https://img.shields.io/badge/Go-1.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.24.2 or newer">
   <img src="https://img.shields.io/badge/License-WTFPL%202-f8211c?style=for-the-badge&logo=open-source-initiative&logoColor=white" alt="WTFPL 2 License">
 </p>
+
 
 <p align="center">
   A fixed-width terminal application for searching, curating, previewing, and
@@ -35,8 +36,10 @@ The visual system is deliberately consistent across every screen:
 - Nerd Font icons with plain-text fallbacks where practical
 
 The TUI requires at least 67 terminal columns. Compact Header is a user
-setting, not an automatic narrow-terminal fallback. Full-header profile URLs
-highlight on hover and open on click; compact mode has no profile URL.
+setting, not an automatic narrow-terminal fallback. It normally uses a compact
+four-line header; Manual and Discography add one centered `ARTIST ❯` metadata
+row after an artist has been resolved. Full-header profile URLs highlight on
+hover and open on click; compact mode has no profile URL.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Features
 
@@ -57,19 +60,22 @@ Requirements:
 - Internet access during the first build so Go can download Bubble Tea modules
 - A Nerd Font is recommended for the intended icons (any compatible Nerd Font works)
 
-### Optional Nerd Font setup
+### First-run setup
 
-The TUI uses Nerd Font glyphs for its icons. Configure your terminal to use an
-installed Nerd Font; the core workflows still work if a terminal displays an
-icon incorrectly. On macOS with Homebrew, an optional example is:
+On a new installation, `scrobbler` opens a cross-platform setup wizard before
+the dashboard. It collects Last.fm credentials, stores them in the selected
+credential source, chooses sensible scrobbling and interface defaults, tests
+the connection, and can optionally download an official Nerd Font release and
+install it at user scope. Run `scrobbler setup` later to review the wizard
+again; leaving it before **Apply** does not write credentials, font files, or
+terminal configuration.
 
-```bash
-brew install --cask font-jetbrains-mono-nerd-font
-```
-
-Then select `JetBrainsMono Nerd Font` (or another installed Nerd Font) in your
-terminal settings. The application does not install fonts automatically, and
-Nerd Fonts are not a mandatory Homebrew dependency.
+The wizard works on macOS, Linux, and Windows without requiring Homebrew,
+Chocolatey, Scoop, apt, dnf, or another package manager. It supports macOS
+Keychain where available and otherwise offers the existing credentials-file or
+environment-variable backends. Automatic terminal font configuration is
+limited to detected Ghostty configurations; other terminals receive manual
+instructions while font installation can still complete.
 
 Install the latest tagged command directly with Go:
 
@@ -94,7 +100,7 @@ go build \
   -o bin/scrobbler ./cmd/scrobbler
 ```
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Quick start
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Quick Start
 
 1. Create the project-local environment file:
 
@@ -126,6 +132,12 @@ go build \
    ./bin/scrobbler test
    ```
 
+For a new installation, replace the manual file setup with:
+
+```bash
+./bin/scrobbler setup
+```
+
 Source-tree builds can use the project-local `.env`. Installed binaries use
 `~/.config/lastfm-scrobbler/.env` by default. Values missing from an
 automatically discovered file may be read from `~/.env`. Set
@@ -144,86 +156,111 @@ file authoritative, including before it exists. `.env` is ignored by Git;
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
 
 The interface keeps the same Torch Red, fixed-width visual language across
-search, selection, settings, recovery, and scrobbling workflows. The
-gallery follows the recommended walkthrough order.
-
-> [!NOTE]
-> The unified Settings refactor changes the Dashboard, Info, Help, Settings,
-> History, and former Advanced views. The corresponding gallery screenshots
-> are retained as historical placeholders until fresh captures are added.
+search, selection, settings, recovery, and scrobbling workflows. The gallery
+uses current captures and follows the recommended walkthrough order.
 
 <table>
   <tr>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/1-dashboard-menu.png"><img src="assets/screenshots/1-dashboard-menu.png" alt="Last.fm Scrobbler dashboard menu"></a>
-      <p align="center"><strong>1. Dashboard</strong><br><sub>Search • Select • Scrobble</sub></p>
+      <a href="assets/screenshots/1-dashboard.png"><img src="assets/screenshots/1-dashboard.png" alt="Last.fm Scrobbler dashboard"></a>
+      <p align="center"><strong>Dashboard</strong><br><sub>Choose Manual, Discography, or File</sub></p>
     </td>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/2-info-menu.png"><img src="assets/screenshots/2-info-menu.png" alt="Last.fm Scrobbler Info menu"></a>
-      <p align="center"><strong>2. Info</strong><br><sub>Modes, automation, data, curation, and imports</sub></p>
+      <a href="assets/screenshots/2-manual-search.png"><img src="assets/screenshots/2-manual-search.png" alt="Last.fm Scrobbler Manual search"></a>
+      <p align="center"><strong>Manual search</strong><br><sub>Search by artist, album, or both</sub></p>
     </td>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/3-help-menu.png"><img src="assets/screenshots/3-help-menu.png" alt="Last.fm Scrobbler help menu"></a>
-      <p align="center"><strong>3. Help</strong><br><sub>Contextual controls at a glance</sub></p>
+      <a href="assets/screenshots/3-manual-results.png"><img src="assets/screenshots/3-manual-results.png" alt="Last.fm Scrobbler Manual search results"></a>
+      <p align="center"><strong>Manual results</strong><br><sub>Resolve the matching artist and album</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <p align="center"><strong>4. Settings</strong><br><sub>Account • Scrobbling • History • Tools • Interface • Profiles</sub><br><em>Screenshot refresh pending</em></p>
+      <a href="assets/screenshots/4-manual-select.png"><img src="assets/screenshots/4-manual-select.png" alt="Last.fm Scrobbler Manual track selection"></a>
+      <p align="center"><strong>Manual track selection</strong><br><sub>Select tracks with album-specific controls</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/5-file-menu.png"><img src="assets/screenshots/5-file-menu.png" alt="Last.fm Scrobbler file import menu"></a>
-      <p align="center"><strong>5. File</strong><br><sub>Lists, playlists, and folders</sub></p>
+      <a href="assets/screenshots/5-manual-queue.png"><img src="assets/screenshots/5-manual-queue.png" alt="Last.fm Scrobbler Manual queue preview"></a>
+      <p align="center"><strong>Manual queue</strong><br><sub>Review tracks, interval, loops, and ETA</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/6-history.png"><img src="assets/screenshots/6-history.png" alt="Last.fm Scrobbler session history"></a>
-      <p align="center"><strong>6. History</strong><br><sub>Recovery, exports, and re-runs</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <a href="assets/screenshots/7-discography-search.png"><img src="assets/screenshots/7-discography-search.png" alt="Last.fm Scrobbler discography search"></a>
-      <p align="center"><strong>7. Discography search</strong><br><sub>Find an artist's albums</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/8-discography-filter.png"><img src="assets/screenshots/8-discography-filter.png" alt="Last.fm Scrobbler discography filter"></a>
-      <p align="center"><strong>8. Discography filter</strong><br><sub>Filter, clean, sort, and select</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/9-discography-progress.png"><img src="assets/screenshots/9-discography-progress.png" alt="Last.fm Scrobbler discography progress"></a>
-      <p align="center"><strong>9. Discography progress</strong><br><sub>Build and scrobble the queue</sub></p>
+      <a href="assets/screenshots/6-manual-run.png"><img src="assets/screenshots/6-manual-run.png" alt="Last.fm Scrobbler Manual scrobble progress"></a>
+      <p align="center"><strong>Manual run</strong><br><sub>Watch track progress and ETA</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/10-manual-album-selection.png"><img src="assets/screenshots/10-manual-album-selection.png" alt="Last.fm Scrobbler manual album selection"></a>
-      <p align="center"><strong>10. Manual album selection</strong><br><sub>Choose tracks from an album</sub></p>
+      <a href="assets/screenshots/7-manual-done.png"><img src="assets/screenshots/7-manual-done.png" alt="Last.fm Scrobbler completed Manual scrobble"></a>
+      <p align="center"><strong>Manual complete</strong><br><sub>Confirm completion and rerun or export</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/11-manual-album-preferences.png"><img src="assets/screenshots/11-manual-album-preferences.png" alt="Last.fm Scrobbler manual album preferences"></a>
-      <p align="center"><strong>11. Manual preferences</strong><br><sub>Adjust loops and queue options</sub></p>
+      <a href="assets/screenshots/8-discography-search.png"><img src="assets/screenshots/8-discography-search.png" alt="Last.fm Scrobbler Discography search"></a>
+      <p align="center"><strong>Discography search</strong><br><sub>Resolve an artist before loading top albums</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/12-manual-progress.png"><img src="assets/screenshots/12-manual-progress.png" alt="Last.fm Scrobbler manual scrobble progress"></a>
-      <p align="center"><strong>12. Manual progress</strong><br><sub>Track status and completion</sub></p>
+      <a href="assets/screenshots/9-discography-filter.png"><img src="assets/screenshots/9-discography-filter.png" alt="Last.fm Scrobbler Discography filter"></a>
+      <p align="center"><strong>Discography filter</strong><br><sub>Filter top albums while browsing results</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/13-manual-complete.png"><img src="assets/screenshots/13-manual-complete.png" alt="Last.fm Scrobbler completed manual scrobble"></a>
-      <p align="center"><strong>13. Manual complete</strong><br><sub>Review the finished session</sub></p>
+      <a href="assets/screenshots/10-discography-select.png"><img src="assets/screenshots/10-discography-select.png" alt="Last.fm Scrobbler Discography track selection"></a>
+      <p align="center"><strong>Discography track selection</strong><br><sub>Select tracks across multiple albums</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/14-manual-similar-albums.png"><img src="assets/screenshots/14-manual-similar-albums.png" alt="Last.fm Scrobbler similar albums"></a>
-      <p align="center"><strong>14. Similar albums</strong><br><sub>Discover related album suggestions</sub></p>
+      <a href="assets/screenshots/11-discography-queue.png"><img src="assets/screenshots/11-discography-queue.png" alt="Last.fm Scrobbler Discography queue preview"></a>
+      <p align="center"><strong>Discography queue</strong><br><sub>Review selected album names and queue totals</sub></p>
     </td>
     <td valign="top">
-      <p align="center"><strong>15. Settings sections</strong><br><sub>Unified configuration and utilities</sub><br><em>Screenshot refresh pending</em></p>
+      <a href="assets/screenshots/12-discography-run.png"><img src="assets/screenshots/12-discography-run.png" alt="Last.fm Scrobbler Discography scrobble progress"></a>
+      <p align="center"><strong>Discography run</strong><br><sub>Track multi-album scrobble progress</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/screenshots/13-discography-similar-albums.png"><img src="assets/screenshots/13-discography-similar-albums.png" alt="Last.fm Scrobbler similar albums from Discography"></a>
+      <p align="center"><strong>Discography similar albums</strong><br><sub>Discover related albums based on the resolved artist</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/14-file-select.png"><img src="assets/screenshots/14-file-select.png" alt="Last.fm Scrobbler File source selection"></a>
+      <p align="center"><strong>File source selection</strong><br><sub>Choose a list, playlist, or folder source</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/15-file-path.png"><img src="assets/screenshots/15-file-path.png" alt="Last.fm Scrobbler File path input"></a>
+      <p align="center"><strong>File path</strong><br><sub>Enter or select an import path</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/screenshots/16-compact-header.png"><img src="assets/screenshots/16-compact-header.png" alt="Last.fm Scrobbler compact header"></a>
+      <p align="center"><strong>Compact header</strong><br><sub>Four-line header before artist resolution</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/17-compact-header-artist.png"><img src="assets/screenshots/17-compact-header-artist.png" alt="Last.fm Scrobbler compact header with artist context"></a>
+      <p align="center"><strong>Compact header with artist</strong><br><sub>Resolved artist metadata inside Manual</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/18-history.png"><img src="assets/screenshots/18-history.png" alt="Last.fm Scrobbler session history"></a>
+      <p align="center"><strong>History</strong><br><sub>Review, export, delete, or rerun sessions</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/screenshots/19-settings.png"><img src="assets/screenshots/19-settings.png" alt="Last.fm Scrobbler unified Settings"></a>
+      <p align="center"><strong>Settings</strong><br><sub>Six-section configuration and utilities shell</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/20-info.png"><img src="assets/screenshots/20-info.png" alt="Last.fm Scrobbler Info reference"></a>
+      <p align="center"><strong>Info</strong><br><sub>Workflows, controls, data, and imports</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/21-help.png"><img src="assets/screenshots/21-help.png" alt="Last.fm Scrobbler Help screen"></a>
+      <p align="center"><strong>Help</strong><br><sub>Keyboard and mouse controls with clickable close</sub></p>
     </td>
   </tr>
 </table>
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Main TUI workflows
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Main TUI Workflows
 
 ### Manual
 
@@ -263,7 +300,7 @@ saved queue for editing before it runs again. `Shift+R` performs an exact
 re-run without editing. An interrupted active queue is offered for resume at
 the next launch.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> TUI controls
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> TUI Controls
 
 | Context | Controls |
 | --- | --- |
@@ -276,7 +313,7 @@ When a text field is focused, printable characters are passed to the field so
 usernames, passwords, API keys, paths, and filters can contain normal letters
 without triggering navigation shortcuts.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Settings interface
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Settings Interface
 
 Press `S` from the Dashboard to open Settings. The six sections share one fixed
 65-cell navigation grid:

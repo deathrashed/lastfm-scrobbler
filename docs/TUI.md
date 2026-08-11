@@ -7,8 +7,28 @@ Run `scrobbler` without a subcommand to open it.
 The UI requires a terminal at least 67 columns wide. Compact Header is enabled
 only by `SCROBBLE_COMPACT_HEADER` or **Settings → Interface → Compact Header**;
 it does not switch on automatically for narrow terminals. Compact mode uses a
-fixed four-line header, while the full header retains the profile URL and
-artwork.
+four-line header until Manual or Discography has resolved an artist; then it
+adds one centered `ARTIST ❯ NAME` metadata row without changing the 67-cell
+width. The full header retains the profile URL, artwork, and its existing
+attached artist badge.
+
+## First-run setup wizard
+
+An unconfigured interactive launch opens the setup wizard. Run `scrobbler
+setup` to start it explicitly later. The flow covers system detection, a
+curated optional Nerd Font selection, Last.fm account credentials, supported
+credential storage, recommended scrobbling defaults, interface preferences,
+review, and Apply/Connection Test. The review page is always before the first
+persistent write. Escaping or quitting earlier leaves the real configuration,
+font directory, and terminal configuration untouched.
+
+The wizard is cross-platform on macOS, Linux, and Windows. It uses the
+existing macOS Keychain backend only where available, and otherwise offers
+credentials-file or environment-variable storage. Nerd Fonts are downloaded
+from official latest-release family archives and installed at user scope.
+Ghostty is the only terminal with an automatic font configuration adapter at
+present; unsupported terminals are reported as manual setup rather than being
+edited heuristically.
 
 ## Nerd Font icons
 
@@ -22,8 +42,9 @@ brew install --cask font-jetbrains-mono-nerd-font
 
 Then select `JetBrainsMono Nerd Font` (or another installed Nerd Font) in your
 terminal settings. Core functionality remains available if an icon renders
-incorrectly. The application does not download fonts, and a Nerd Font is not a
-mandatory Homebrew dependency.
+incorrectly. The setup wizard can download an official release archive without
+requiring Homebrew or another package manager, and a Nerd Font remains
+optional.
 
 <p align="center">
   <a href="../README.md">Overview</a> •

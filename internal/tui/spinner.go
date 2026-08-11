@@ -28,5 +28,6 @@ func (m model) spinnerActive() bool {
 		m.connectionTesting ||
 		m.diagnosticsBusy ||
 		m.updateChecking ||
+		m.setup.Applying ||
 		m.stage == stageScrobbling
 }

@@ -157,6 +157,8 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateDiagnostics(msg)
 		case stageUpdateCheck:
 			return m.updateUpdateCheck(msg)
+		case stageSetup:
+			return m.updateSetup(msg)
 		}
 	case tea.MouseMsg:
 		if !m.cfg.MouseEnabled {
@@ -1782,6 +1784,8 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m.updateModelKey(region.message)
 		case region.id == "update:action":
 			return m.updateModelKey(region.message)
+		case strings.HasPrefix(region.id, "setup:"):
+			return m.updateSetupMouse(region)
 		case strings.HasPrefix(region.id, "results:"):
 			m.resultsCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "results:"))
 			return m, nil
@@ -1891,6 +1895,8 @@ func (m model) mouseMove(delta int) (tea.Model, tea.Cmd) {
 		}
 	case stageInfo:
 		m.infoIndex = (m.infoIndex + delta + 5) % 5
+	case stageSetup:
+		return m.setupMouseMove(delta)
 	}
 	return m, nil
 }
