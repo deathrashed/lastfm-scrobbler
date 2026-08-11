@@ -1,10 +1,13 @@
 # <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="24" height="24" alt="Last.fm icon"> TUI controls and workflows
 
-The Bubble Tea interface uses a responsive 67–127-cell layout with Torch Red
-active controls, centered panels, contextual footer hints, and optional mouse
-support. At 67 columns it retains the approved compact design. Between 67 and
-127 it grows content panels and spreads natural-width cards; above 127 the
-application remains 127 cells wide and centers itself. Terminal resizing
+The Bubble Tea interface uses a responsive 67–127-cell application with Torch
+Red active controls, centered panels, contextual footer hints, and optional
+mouse support. At 67 columns it retains the approved compact design. As the
+terminal grows, the outer header can expand to 127 cells while dense working
+surfaces grow only as far as they remain visually cohesive (currently 103
+cells) and stay centered inside the application. Natural-width navigation
+cards use bounded spacing rather than stretching to the edges. Above 127 cells
+the application remains 127 cells wide and centers itself. Terminal resizing
 updates rendered geometry and mouse regions live. Run `scrobbler` without a
 subcommand to open it.
 
@@ -12,8 +15,8 @@ The UI requires a terminal at least 67 columns wide. Compact Header is enabled
 only by `SCROBBLE_COMPACT_HEADER` or **Settings → Interface → Compact Header**;
 it does not switch on automatically for narrow terminals. Compact mode uses a
 four-line header until Manual or Discography has resolved an artist; then it
-adds one centered `ARTIST ❯ NAME` metadata row without changing the 67-cell
-width. The full header retains the profile URL, artwork, and its existing
+adds one centered `ARTIST ❯ NAME` metadata row inside the responsive working
+surface. The full header retains the profile URL, artwork, and its existing
 attached artist badge.
 
 ## First-run setup wizard
@@ -86,15 +89,26 @@ Compact Header intentionally has no URL hit area.
 | `I` | In-app Info and documentation. |
 | `R` | Last Session, for an exact rerun or edit-first rerun. |
 
+The Dashboard footer currently reads:
+
+```text
+enter select • → ↑ navigate ↓ ← • s settings
+i info • h history • m d quick f q • r rerun • ? help
+```
+
+Profiles are opened through **Settings → Profiles**, not a Dashboard shortcut.
+
 ### Full-header activity
 
 **Settings → Interface → Now Playing** is enabled by default and applies only
 to the full header. The TUI reads one item through Last.fm's
 [`user.getRecentTracks`](https://www.last.fm/api/show/user.getRecentTracks)
-method, showing an animated volume icon while the API marks a track as
-currently playing and a static icon for the most recent scrobble otherwise.
-Loading, no-history, and unavailable states keep the same reserved row. The
-display refreshes about every 30 seconds and never submits playback state.
+method. While this display is enabled, the profile URL is promoted into the
+attached top badge above the activity row. A current track uses the animated
+volume sequence, while the most recent non-playing scrobble uses a distinct
+static history icon. Loading, no-history, and unavailable states keep the same
+reserved activity row. The display refreshes about every 30 seconds and never
+submits playback state.
 Compact Header deliberately remains activity-free; it only adds its approved
 Manual or Discography artist row after an artist is resolved.
 

@@ -26,36 +26,76 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Race tests
+        run: go test -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
       - name: Build release binaries
         env:
           VERSION: ${{ github.ref_name }}
           COMMIT: ${{ github.sha }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
           mkdir -p dist
-          go build -buildvcs=false -o /tmp/scrobbler-completion ./cmd/scrobbler
-          for target in darwin/arm64 darwin/amd64; do
-            GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
+
+          # Completion scripts are generated once from a host-native binary.
+          # Never execute a cross-compiled release binary on the Linux runner.
+          host_binary="${RUNNER_TEMP}/scrobbler-completion"
+          CGO_ENABLED=0 go build -buildvcs=false -o "${host_binary}" ./cmd/scrobbler
+
+          for target in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64; do
+            platform="${target%/*}"
+            arch="${target#*/}"
+            extension=""
+            archive_extension="tar.gz"
+            package_binary="scrobbler"
+            if [ "${platform}" = windows ]; then
+              extension=".exe"
+              archive_extension="zip"
+              package_binary="scrobbler.exe"
+            fi
+
+            binary="dist/scrobbler-${platform}-${arch}${extension}"
+            GOOS="${platform}" GOARCH="${arch}" CGO_ENABLED=0 \
               go build -buildvcs=false \
               -ldflags "-X github.com/deathrashed/lastfm-scrobbler/internal/version.Version=${VERSION} -X github.com/deathrashed/lastfm-scrobbler/internal/version.Commit=${COMMIT} -X github.com/deathrashed/lastfm-scrobbler/internal/version.Repository=${REPOSITORY}" \
-              -o "dist/scrobbler-${target%/*}-${target#*/}" ./cmd/scrobbler
+              -o "${binary}" ./cmd/scrobbler
 
-            platform=${target%/*}
-            arch=${target#*/}
             package_dir="dist/package-${platform}-${arch}"
             mkdir -p "${package_dir}/completions"
-            cp "dist/scrobbler-${platform}-${arch}" "${package_dir}/scrobbler"
+            cp "${binary}" "${package_dir}/${package_binary}"
             cp LICENSE "${package_dir}/LICENSE"
-            /tmp/scrobbler-completion completion zsh > "${package_dir}/completions/_scrobbler"
-            /tmp/scrobbler-completion completion fish > "${package_dir}/completions/scrobbler.fish"
-            /tmp/scrobbler-completion completion bash > "${package_dir}/completions/scrobbler.bash"
-            tar -C "${package_dir}" -czf "dist/scrobbler-${VERSION}-${platform}-${arch}.tar.gz" .
+            "${host_binary}" completion zsh > "${package_dir}/completions/_scrobbler"
+            "${host_binary}" completion bash > "${package_dir}/completions/scrobbler.bash"
+            "${host_binary}" completion fish > "${package_dir}/completions/scrobbler.fish"
+            "${host_binary}" completion powershell > "${package_dir}/completions/scrobbler.ps1"
+
+            archive="dist/scrobbler-${VERSION}-${platform}-${arch}.${archive_extension}"
+            if [ "${platform}" = windows ]; then
+              (cd "${package_dir}" && zip -q -r "../$(basename "${archive}")" .)
+              unzip -tq "${archive}"
+            else
+              tar -C "${package_dir}" -czf "${archive}" .
+              tar -tzf "${archive}" >/dev/null
+            fi
+            test -s "${archive}"
+            test -s "${package_dir}/completions/_scrobbler"
+            test -s "${package_dir}/completions/scrobbler.bash"
+            test -s "${package_dir}/completions/scrobbler.fish"
+            test -s "${package_dir}/completions/scrobbler.ps1"
             rm -rf "${package_dir}"
           done
+
+          # Run from dist so checksums contain release basenames, not paths.
           (cd dist && sha256sum scrobbler-* > checksums.txt)
+          test -s dist/checksums.txt
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: docs/RELEASE_NOTES_v1.1.0.md
+          generate_release_notes: false
           files: dist/*

@@ -51,9 +51,10 @@ for official builds.
 ## Now Playing is unavailable
 
 Now Playing is a full-header-only convenience display. Check **Settings →
-Interface → Now Playing** and verify that the configured Last.fm credentials
-can authenticate. A temporary `user.getRecentTracks` failure is shown as
-unavailable without interrupting Manual, Discography, File, or scrobbling.
+Interface → Now Playing**, confirm a Last.fm username and API key are
+configured, and verify network access to Last.fm. A temporary
+`user.getRecentTracks` failure is shown as unavailable without interrupting
+Manual, Discography, File, or scrobbling.
 
 ## File imports fail
 
