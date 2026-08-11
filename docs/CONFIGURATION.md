@@ -14,10 +14,13 @@ owner-only and ignored by Git.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Quick setup
 
-An unconfigured interactive launch opens the first-run wizard. The same wizard
-can be started explicitly with `scrobbler setup`. It keeps credentials,
+Launch an unconfigured installation to open the first-run wizard. The same
+wizard can be started explicitly with `scrobbler setup`. It keeps credentials,
 preferences, font installation, and terminal changes staged until **Apply**;
 leaving the wizard earlier does not write a partial configuration.
+
+For a source-tree build, a project `.env` remains available as an advanced
+manual alternative:
 
 ```bash
 cp .env.example .env
@@ -40,13 +43,15 @@ source, as described below.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> File precedence
 
-For normal `auto` mode, real process environment variables overlay values from
-the selected file. `LASTFM_ENV_FILE` is authoritative even when its file does
-not exist yet. An existing credentials path selected in **Settings → Account** is also used
-before automatic discovery. Otherwise source-tree project files are detected,
-installed binaries default to `~/.config/lastfm-scrobbler/.env`, and missing
-values may come from `~/.env`; missing secret values may then come from macOS
-Keychain. `LASTFM_PROFILE` selects a named profile.
+For normal `auto` mode, `LASTFM_ENV_FILE` is authoritative even when its file
+does not exist yet. An existing credentials path selected in **Settings →
+Account** is used before automatic discovery. Otherwise the resolver checks the
+checkout-root `.env` for the conventional `<checkout>/bin/scrobbler` source
+binary, then current-working-directory compatibility locations, then
+`~/.config/lastfm-scrobbler/.env` for installed or release binaries. During
+automatic discovery, missing values may come from `~/.env`; real process
+environment variables overlay file values, and missing secret values may then
+come from macOS Keychain. `LASTFM_PROFILE` selects a named profile.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> TUI Settings sections
 

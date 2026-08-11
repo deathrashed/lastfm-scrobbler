@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=white" alt="Last.fm">
-  <img src="https://img.shields.io/badge/Go-1.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.24.2 or newer">
+  <img src="https://img.shields.io/badge/Go-source%20builds%201.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.24.2 or newer for source builds">
   <img src="https://img.shields.io/badge/License-WTFPL%202-f8211c?style=for-the-badge&logo=open-source-initiative&logoColor=white" alt="WTFPL 2 License">
 </p>
 
@@ -20,6 +20,7 @@
   <a href="#features">Features</a> •
   <a href="#installation--build">Installation</a> •
   <a href="#quick-start">Quick start</a> •
+  <a href="#documentation">Documentation</a> •
   <a href="#screenshots">Screenshots</a> •
   <a href="#headless-cli">CLI</a> •
   <a href="#credentials">Configuration</a> •
@@ -28,7 +29,7 @@
 
 The visual system is deliberately consistent across every screen:
 
-- 67-column minimum layout with a 127-column outer cap and centered 103-cell working surfaces at the wide end
+- 67-column minimum layout with a 127-column outer cap and bounded, centered working panels on wide terminals
 - white structural borders
 - Last.fm Torch Red (`#f8211c`) active controls
 - centered panels and footer hints
@@ -56,116 +57,182 @@ playback state.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Installation & Build
 
-Requirements:
+Choose the distribution that fits your platform. Release binaries and the
+Homebrew package do not require Go; Go 1.24.2 or newer is only required for
+`go install` and source builds.
 
-- Go 1.24.2 or newer
-- Internet access during the first build so Go can download Bubble Tea modules
-- A Nerd Font is recommended for the intended icons (any compatible Nerd Font works)
+| Method | Platforms | What it provides |
+| --- | --- | --- |
+| [Homebrew](#homebrew-macos) | macOS Apple Silicon and Intel | Managed binary plus Zsh, Bash, and Fish completions |
+| [GitHub Releases](#github-release-binaries) | macOS Apple Silicon/Intel, Linux x86_64/ARM64, Windows x64 | Prebuilt archives, `LICENSE`, and four generated completions |
+| [Go install](#go-install-and-source-build) | macOS, Linux, Windows | A source/module install using the current tagged module |
+| [Source build](#go-install-and-source-build) | macOS, Linux, Windows | A checkout build for development or maintainers |
 
-### First-run setup
+### Homebrew (macOS)
 
-On a new installation, `scrobbler` opens a cross-platform setup wizard before
-the dashboard. It collects Last.fm credentials, stores them in the selected
-credential source, chooses sensible scrobbling and interface defaults, tests
-the connection, and can optionally download an official Nerd Font release and
-install it at user scope. Run `scrobbler setup` later to review the wizard
-again; leaving it before **Apply** does not write credentials, font files, or
-terminal configuration.
+```bash
+brew tap deathrashed/tap
+brew install deathrashed/tap/scrobbler
+scrobbler --version
+```
 
-The wizard works on macOS, Linux, and Windows without requiring Homebrew,
-Chocolatey, Scoop, apt, dnf, or another package manager. It supports macOS
-Keychain where available and otherwise offers the existing credentials-file or
-environment-variable backends. Automatic terminal font configuration is
-limited to detected Ghostty configurations; other terminals receive manual
-instructions while font installation can still complete.
+The formula installs the `scrobbler` binary and Zsh, Bash, and Fish
+completions. PowerShell completion remains available through the binary's
+completion generator or the TUI completion installer.
 
-Install the latest tagged command directly with Go:
+### GitHub release binaries
+
+Download [Last.fm Scrobbler v1.1.0](https://github.com/deathrashed/lastfm-scrobbler/releases/tag/v1.1.0),
+verify the matching entry in `checksums.txt`, and put the executable on your
+PATH:
+
+| Platform | Archive |
+| --- | --- |
+| macOS Apple Silicon | `scrobbler-v1.1.0-darwin-arm64.tar.gz` |
+| macOS Intel | `scrobbler-v1.1.0-darwin-amd64.tar.gz` |
+| Linux x86_64 | `scrobbler-v1.1.0-linux-amd64.tar.gz` |
+| Linux ARM64 | `scrobbler-v1.1.0-linux-arm64.tar.gz` |
+| Windows x64 | `scrobbler-v1.1.0-windows-amd64.zip` |
+
+Unix archives contain `scrobbler`, `LICENSE`, and all four completion files.
+The Windows archive contains `scrobbler.exe`, `LICENSE`, and the same
+completion files. No package manager or Go installation is required.
+
+### Go install and source build
+
+Go 1.24.2 or newer is required for these paths. `go install` is a module/source
+installation, not a prebuilt release archive:
 
 ```bash
 go install github.com/deathrashed/lastfm-scrobbler/cmd/scrobbler@latest
 ```
 
+To build a checkout:
+
 ```bash
-cd /path/to/lastfm-scrobbler
+git clone https://github.com/deathrashed/lastfm-scrobbler.git
+cd lastfm-scrobbler
 mkdir -p bin
 go build -buildvcs=false -o bin/scrobbler ./cmd/scrobbler
-./bin/scrobbler
 ```
 
-A versioned release build can inject source information for update checking:
+For a build with explicit version metadata, keep the values variable so the
+command remains correct after the next release:
 
 ```bash
-go build \
-  -ldflags "-X github.com/deathrashed/lastfm-scrobbler/internal/version.Version=v1.1.0 \
-            -X github.com/deathrashed/lastfm-scrobbler/internal/version.Commit=$(git rev-parse --short HEAD) \
+VERSION=${VERSION:-development}
+COMMIT=$(git rev-parse --verify HEAD)
+go build -buildvcs=false \
+  -ldflags "-X github.com/deathrashed/lastfm-scrobbler/internal/version.Version=$VERSION \
+            -X github.com/deathrashed/lastfm-scrobbler/internal/version.Commit=$COMMIT \
             -X github.com/deathrashed/lastfm-scrobbler/internal/version.Repository=deathrashed/lastfm-scrobbler" \
   -o bin/scrobbler ./cmd/scrobbler
 ```
 
+A Nerd Font is recommended for the intended icons. Internet access is needed
+for the first source build so Go can download modules.
+
+### First-run setup
+
+After installing a release binary, Homebrew package, or source build, launch:
+
+```bash
+scrobbler
+```
+
+When no usable configuration exists, the cross-platform first-run wizard
+opens before the Dashboard. It collects Last.fm credentials, lets you choose
+the credential source, stages scrobbling and interface defaults, optionally
+installs a user-scope Nerd Font, and applies changes only after **Review →
+Apply**. Canceling earlier leaves credentials, font files, and terminal
+configuration untouched. Run `scrobbler setup` later to review it again.
+
+The wizard works on macOS, Linux, and Windows without requiring Homebrew,
+Chocolatey, Scoop, apt, dnf, or another package manager. It supports macOS
+Keychain where available and otherwise offers owner-only credentials-file or
+environment-variable backends. Automatic terminal font configuration is
+limited to detected Ghostty configurations; other terminals receive manual
+instructions while font installation can still complete.
+
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Quick Start
 
-1. Create the project-local environment file:
+1. Install `scrobbler` with [Homebrew](#homebrew-macos), a [release
+   archive](#github-release-binaries), or [Go/source](#go-install-and-source-build).
 
-   ```bash
-   cp .env.example .env
-   chmod 600 .env
-   ```
+2. Launch it:
 
-2. Add an API key and secret, then choose either a Last.fm password or an
-   existing session key:
+```bash
+scrobbler
+```
 
-   ```env
-   API_KEY=your-lastfm-api-key
-   API_SECRET=your-lastfm-api-secret
-   LASTFM_USERNAME=your-username
-   LASTFM_SESSION_KEY=your-session-key
-   ```
-
-3. Build and launch:
-
-   ```bash
-   go build -buildvcs=false -o bin/scrobbler ./cmd/scrobbler
-   ./bin/scrobbler
-   ```
+3. Complete the first-run wizard. Enter your Last.fm credentials, choose the
+   credential source, review the proposed settings, and select **Apply**.
 
 4. Verify the connection without submitting a scrobble:
 
    ```bash
-   ./bin/scrobbler test
+   scrobbler test --json
    ```
 
-For a new installation, replace the manual file setup with:
+For a source-tree build, the manual `.env` path remains available as an
+advanced alternative:
 
 ```bash
-./bin/scrobbler setup
+cp .env.example .env
+chmod 600 .env
+go build -buildvcs=false -o bin/scrobbler ./cmd/scrobbler
+./bin/scrobbler
 ```
 
-Source-tree builds can use the project-local `.env`. Installed binaries use
-`~/.config/lastfm-scrobbler/.env` by default. Values missing from an
-automatically discovered file may be read from `~/.env`. Set
-`LASTFM_ENV_FILE=/absolute/path/to/file.env` to make a specific credentials
-file authoritative, including before it exists. `.env` is ignored by Git;
-`.env.example` is the safe template to commit.
+See [Credentials](#credentials) for the exact source-tree, installed-binary,
+environment, remembered-path, and Keychain resolution rules.
 
 > [!TIP]
-> Use `./bin/scrobbler test --json` after setup. It checks Last.fm access and
+> Use `scrobbler test --json` after setup. It checks Last.fm access and
 > authentication readiness without submitting a scrobble.
 
 > [!WARNING]
 > Keep `.env`, `~/.env`, and exported credentials files private. Use the
 > redacted diagnostics bundle when sharing troubleshooting information.
 
+## Documentation
+
+The README gives the short path from installation to a working scrobble. The
+full guides cover the details without making the main page a wall of text:
+
+| Guide | Covers |
+| --- | --- |
+| [Installation](docs/INSTALLATION.md) | Release binaries, Homebrew, Go installs, and source builds |
+| [Setup wizard](docs/SETUP.md) | Review/Apply flow, platform detection, fonts, and credential choices |
+| [TUI controls and workflows](docs/TUI.md) | Screens, navigation, responsive layout, mouse behavior, and recovery |
+| [CLI reference](docs/CLI.md) | Commands, flags, JSON output, and automation-safe behavior |
+| [Configuration and credentials](docs/CONFIGURATION.md) | Environment files, profiles, Keychain, defaults, and precedence |
+| [Shell completions](docs/COMPLETIONS.md) | Zsh, Bash, Fish, PowerShell, generation, and installation |
+| [File imports](docs/FILE-IMPORTS.md) | TXT, CSV, TSV, JSON, M3U/M3U8, album folders, and artist folders |
+| [Platform support](docs/PLATFORMS.md) | macOS, Linux, Windows, pickers, fonts, and credential backends |
+| [Automation and Keyboard Maestro](docs/AUTOMATION.md) | JSON workflows, launch agents, and automation integration |
+| [Updates](docs/UPDATES.md) | Official GitHub Releases checks and custom update sources |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Configuration, connectivity, terminal, and diagnostics problems |
+| [v1.1.0 release notes](docs/RELEASE_NOTES_v1.1.0.md) | User-facing changes and supported release assets |
+| [Release checklist](docs/RELEASING.md) | Maintainer validation, packaging, checksums, and publishing |
+
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
 
 The interface keeps the same Torch Red, cell-aligned visual language across
 search, selection, settings, recovery, and scrobbling workflows. The gallery
 uses the current captures and follows the recommended walkthrough order.
-The Dashboard footer exposes `enter` selection, arrow-key navigation, `s`
-settings, `i` info, `h` history, `m`/`d` quick actions, `f`/`q` quit, `r`
-rerun, and `?` help; Profiles remain under Settings rather than on the
-Dashboard. The Info screen groups reference material into Modes, Automation,
-Data, Curation, and Imports. Settings is organized into Account, Scrobbling,
-History, Tools, Interface, and Profiles.
+The Dashboard footer is:
+
+```text
+enter select • → ↑ navigate ↓ ← • s settings
+i info • h history • m d quick f q • r rerun • ? help
+```
+
+Here `F` opens File, `Q` quits, and `M`/`D` are the two quick actions. Profiles
+remain under Settings rather than on the Dashboard. The Info screen groups
+reference material into Modes, Automation, Data, Curation, and Imports.
+Settings is organized into Account, Scrobbling, History, Tools, Interface, and
+Profiles.
 
 <table>
   <tr>
@@ -415,14 +482,25 @@ automatically for `environment`.
 
 ### Environment file precedence
 
-For normal `auto` mode, values are resolved in this order:
+File selection and value precedence are separate. For automatic file
+discovery, the application checks these locations in order:
 
-1. Real process environment variables.
-2. The project-local `.env` next to the executable.
-3. Missing values from `~/.env`.
-4. A selected or remembered credentials file.
-5. macOS Keychain for missing secret values.
-6. Built-in defaults for non-secret settings.
+1. `LASTFM_ENV_FILE`, when explicitly set.
+2. The remembered path from **Settings → Account → Credential Path**, when it
+   still exists.
+3. The checkout-root `.env` when running the conventional source-tree binary
+   at `<checkout>/bin/scrobbler`.
+4. A `.env` in the current working directory, then the compatibility `go/`
+   and parent-directory locations.
+5. `~/.config/lastfm-scrobbler/.env` for an installed or release binary.
+
+When automatic discovery is used, an existing `~/.env` fills only values
+missing from the selected file. An explicit `LASTFM_ENV_FILE` or remembered
+credentials path is loaded on its own. After file selection, real process
+environment variables overlay file values in `auto` mode; `file` and
+`environment` restrict credential reads as their names imply. `auto` fills
+missing secret values from macOS Keychain when available, and built-in defaults
+apply to non-secret settings.
 
 `LASTFM_ENV_FILE=/absolute/path/to/file.env` forces a specific file. **Settings →
 Account → Credential Path** can also change and remember the credentials path. `API_SECRET`,
@@ -579,7 +657,10 @@ Input
   └─ Keyboard Maestro, shell, or launch-agent wrapper
           │
           ▼
-Configuration ── project .env ── ~/.env fallback ── Keychain (optional)
+Configuration ── explicit/remembered path or source-tree/release default
+              ├─ process environment overlay
+              ├─ ~/.env missing-value fallback during automatic discovery
+              └─ macOS Keychain missing-secret fallback (optional)
           │
           ▼
 Last.fm client ── search / album tracks / Discography / similar albums
@@ -600,15 +681,19 @@ automation workflows behaviorally aligned.
 <details>
   <summary><strong>Credentials are saved to the wrong file</strong></summary>
 
-The default file is the project-local `.env` beside the executable. Check the
-current value in **Settings → Account → Credential Path**, or force a path explicitly:
+For the conventional source-tree binary at `<checkout>/bin/scrobbler`, the
+checkout-root `.env` is preferred. Installed and release binaries prefer
+`~/.config/lastfm-scrobbler/.env`, subject to an explicit `LASTFM_ENV_FILE`, a
+remembered path, or an existing `.env` in the current working directory. Check
+the current value in **Settings → Account → Credential Path**, or force a path explicitly:
 
 ```bash
 LASTFM_ENV_FILE=/absolute/path/to/file.env scrobbler test
 ```
 
-Older remembered paths are used only after the project-local file has been
-checked. `.env` is ignored by Git and should have owner-only permissions.
+`.env` is ignored by Git and should have owner-only permissions. See
+[Environment file precedence](#environment-file-precedence) for the complete
+discovery and overlay order.
 
 </details>
 
@@ -662,22 +747,6 @@ The project includes tests for Last.fm response parsing, configuration,
 imports, exports, history/recovery, queue construction, cell-aligned layouts,
 connection reports, diagnostics redaction, update parsing, and editable
 re-runs.
-
-## Project documentation
-
-- [CLI reference](docs/CLI.md)
-- [Automation and Keyboard Maestro](docs/AUTOMATION.md)
-- [Configuration and credentials](docs/CONFIGURATION.md)
-- [Installation](docs/INSTALLATION.md)
-- [Setup wizard](docs/SETUP.md)
-- [Shell completions](docs/COMPLETIONS.md)
-- [File imports](docs/FILE-IMPORTS.md)
-- [Platform support](docs/PLATFORMS.md)
-- [Updates](docs/UPDATES.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [TUI controls and workflows](docs/TUI.md)
-- [Release checklist](docs/RELEASING.md)
-- [Last.fm colour reference](docs/Last.fm-colors.html)
 
 ## License
 
