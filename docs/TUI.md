@@ -1,13 +1,29 @@
 # <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="24" height="24" alt="Last.fm icon"> TUI controls and workflows
 
 The Bubble Tea interface uses a fixed-width layout with Torch Red active
-controls, centered panels, footer hints, and mouse support. Run `scrobbler`
-without a subcommand to open it.
+controls, centered panels, contextual footer hints, and optional mouse support.
+Run `scrobbler` without a subcommand to open it.
 
-The UI requires a terminal at least 67 columns wide. Compact Header is only
-enabled by the `SCROBBLE_COMPACT_HEADER` setting; it does not switch on
-automatically for narrow terminals. Compact mode uses a fixed four-line header,
-while the full header retains the profile URL and artwork.
+The UI requires a terminal at least 67 columns wide. Compact Header is enabled
+only by `SCROBBLE_COMPACT_HEADER` or **Settings → Interface → Compact Header**;
+it does not switch on automatically for narrow terminals. Compact mode uses a
+fixed four-line header, while the full header retains the profile URL and
+artwork.
+
+## Nerd Font icons
+
+A Nerd Font is recommended for the intended TUI appearance because the screens
+use Nerd Font glyphs for icons. Any compatible Nerd Font is acceptable. On
+macOS with Homebrew, one optional choice is:
+
+```bash
+brew install --cask font-jetbrains-mono-nerd-font
+```
+
+Then select `JetBrainsMono Nerd Font` (or another installed Nerd Font) in your
+terminal settings. Core functionality remains available if an icon renders
+incorrectly. The application does not download fonts, and a Nerd Font is not a
+mandatory Homebrew dependency.
 
 <p align="center">
   <a href="../README.md">Overview</a> •
@@ -20,12 +36,18 @@ while the full header retains the profile URL and artwork.
 
 | Key | Action |
 | --- | --- |
-| `↑ ↓ ← →` / `J K` | Navigate lists and tabs. |
+| `↑ ↓ ← →` / `J K` | Navigate the active list, grid, or tabs. |
 | `Enter` | Confirm, save, open, or continue. |
 | `Esc` | Go back or cancel. |
 | `Q` / `Ctrl+C` | Quit. Active sessions cancel promptly and retain recovery state. |
-| `?` | Open the contextual help overlay. |
-| Mouse wheel | Navigate long lists when mouse support is enabled. |
+| `?` | Open the contextual Help overlay. |
+| Mouse wheel | Navigate the active list/section when Mouse Support is enabled. |
+
+When Mouse Support is enabled, visible section boxes, tabs, cards, list rows,
+editable areas, action panels, footer actions, and the Help close hint accept
+mouse input. Keyboard controls remain available everywhere. The full-header
+Last.fm URL is Torch Red at rest, turns white on hover, and opens when clicked;
+Compact Header intentionally has no URL hit area.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Dashboard
 
@@ -34,44 +56,159 @@ while the full header retains the profile URL and artwork.
 | `M` | Manual album entry. |
 | `D` | Last.fm top albums for an artist. |
 | `F` | File, playlist, or folder import. |
-| `H` | Session history and recovery. |
-| `P` | Saved profiles. |
-| `C` | Configuration. |
+| `H` | History inside the Settings shell. |
+| `P` | Profiles inside the Settings shell. |
+| `S` | Settings, opening on Scrobbling. |
 | `I` | In-app Info and documentation. |
+
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Settings
+
+Settings replaces the former Config/Advanced split with six first-class
+sections. The two rows use the same fixed `19 / 25 / 19` geometry and together
+fit the 65-cell content width exactly:
+
+```text
+╭─────────────────╮ ╭───────────────────────╮ ╭─────────────────╮
+│  A C C O U N T  │•│  S C R O B B L I N G  │•│  H I S T O R Y  │
+╰─────────────────╯ ╰───────────────────────╯ ╰─────────────────╯
+╭─────────────────╮ ╭───────────────────────╮ ╭─────────────────╮
+│    T O O L S    │•│   I N T E R F A C E   │•│ P R O F I L E S │
+╰─────────────────╯ ╰───────────────────────╯ ╰─────────────────╯
+```
+
+Each section changes the main header title and subtitle. Account, Scrobbling,
+Tools, and Interface show an overview list plus a detail/editor panel for the
+selected row. History and Profiles preserve their existing list/action
+workflows inside the same navigation shell.
+
+| Section | Contents |
+| --- | --- |
+| **Account** | Last.fm username/password, API key/secret, credential source, credential path. |
+| **Scrobbling** | Loop, interval, retry count/delay, duplicate guard, Clean Top Albums. |
+| **History** | Saved sessions, edit/exact re-runs, export, delete. |
+| **Tools** | Export directory, update URL, connection test, diagnostics, update check. |
+| **Interface** | Notifications, Compact Header, Mouse Support. |
+| **Profiles** | Load, create, save, and delete named profiles. |
+
+### Keyboard focus
+
+Settings has two explicit keyboard focus zones: the six-section grid and the
+current section content.
+
+- `Tab` or `Shift+Tab` from content focuses the section grid.
+- `↑ ↓ ← →` in the grid changes section spatially.
+- `Enter` or `Tab` on the grid returns focus to that section's content.
+- `↑` from the first content row returns to the section grid.
+- `↑` / `↓` inside content moves through rows.
+- `←` / `→` adjusts toggles/choices; in text fields it retains normal cursor
+  movement when no setting adjustment applies.
+- `Enter` saves an editable value or opens/runs the selected action.
+- `Esc` returns to the Dashboard.
+
+Mouse users can click a section box or row directly. Clicking a toggle/choice
+control changes it; clicking text content focuses the editor; clicking an
+action panel invokes the same action as its keyboard control.
+
+### Interaction colors
+
+Rows use a deliberately restrained hierarchy:
+
+- **Idle row:** title white, row `❯` Torch Red, value muted (`#736765`).
+- **Keyboard-focused row:** leading `❯` and title Torch Red; row arrow and value
+  white.
+- **Mouse-hovered row:** title Torch Red; row arrow/value white without moving
+  the keyboard cursor.
+
+Navigation cards (Settings sections, File sources, and Info tabs) use a distinct
+state language:
+
+- **Idle card:** white border, muted label.
+- **Hovered card:** white border, Torch Red label.
+- **Selected card:** Torch Red border, bold white label.
+
+Text-input borders stay white while editing. Focus is communicated by a Torch
+Red label, white `❯`, and the text input's blinking Torch Red cursor. Torch Red
+borders are therefore reserved for selected cards/actions and real attention
+states rather than ordinary typing.
+
+Multi-select lists use `○` for unselected and `●` for selected items, with a
+leading `❯` for keyboard focus. Asynchronous Last.fm/diagnostic/update work uses
+the custom Last.fm bounce spinner ` ∙ ∙ → ∙  ∙ → ∙ ∙  → ∙  ∙`.
+
+Interactive footer actions expose contextual mouse help. Hover a footer action
+to show a concise white description below the controls; when the explanation
+names the current album, that dynamic album name is highlighted in Torch Red.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Info
 
-The Info page is a compact reference for the main workflows and local data
-used by the application. Move between sections with `←` and `→`:
+The Info page is a compact reference for the main workflows and local data.
+Move between sections with `←` and `→`, click a tab, or use the mouse wheel:
 
 | Section | Covers |
 | --- | --- |
-| **Modes** | Manual entry, Last.fm top-album curation, file imports, and similar albums. |
-| **Automation** | Headless CLI commands, connection tests, completions, mouse support, and update checks. |
-| **Data** | History, recovery, profiles, diagnostics, and local storage. |
-| **Curation** | Track selection, loop controls, saved-queue editing, and exports. |
-| **Imports** | TXT, CSV, TSV, JSON, M3U/M3U8, album folders, artist folders, and the native picker. |
+| **Modes** | Manual entry, Last.fm top-album curation, file imports, similar albums. |
+| **Automation** | Headless CLI, Settings, connection tests, completions, mouse, updates. |
+| **Data** | History, recovery, Profiles, Account credentials, local storage. |
+| **Curation** | Track selection, loop controls, saved-queue editing, exports. |
+| **Imports** | TXT, CSV, TSV, JSON, M3U/M3U8, album/artist folders, native picker. |
+
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Help
+
+Press `?` where Help is available. Close it with `?`, `Esc`, or `Enter`.
+With Mouse Support enabled, hover the final `close` hint to turn it white and
+click it to return to the underlying screen.
+
+Help advertises `S` for Settings on the Dashboard and no longer requires
+separate Advanced or credentials-path shortcuts.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Manual
 
-Enter `Artist - Album`, choose a matching Last.fm result when necessary, then
+Search by artist, album, or both, choose a matching Last.fm result when necessary, then
 select tracks and preview the queue before starting the scrobble.
+
+Once an artist has been resolved, the full header grows a centered artist badge
+beneath `M A N U A L`; its width follows the artist name while remaining inside
+the fixed 67-column layout. The search-result list attaches a `RESULTS` count to
+its lower-right border instead of showing a misleading multiselect counter. The
+track-selection list attaches its `SELECTED` counter the same way.
 
 | Key | Action |
 | --- | --- |
 | `Enter` | Search or continue. |
 | `Space` | Toggle a track. |
 | `A` | Select all or select none. |
-| `-` / `+` | Change the global album loop. |
-| `[` / `]` | Change the current-album loop. |
+| `-` / `+` | Change the current album loop while selecting tracks. |
+| Mouse footer `- interval +` | Decrease or increase the delay between track scrobbles. |
+| Mouse footer `↑ navigate ↓` | Move directly through the track list. |
 | `E` | Export the queue. |
 | `S` | Find similar albums. |
+
+The track-selection footer is also a mouse control surface:
+
+```text
+space check • s similar • a all • enter continue
+    - interval + • ↑ navigate ↓ • - loop +
+```
+
+Click the individual `-`, `+`, `↑`, or `↓` symbols to adjust the value or move
+the track cursor directly. In multi-album top-album workflows, `- loop +`
+changes the loop count for the album containing the current track.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm top albums
 
 Search an artist, filter or sort the returned top albums, clean obvious
 duplicate editions, select albums, and load their tracks into one queue. This
 is a Last.fm top-albums result, not a canonical complete discography.
+
+After the artist is resolved, the full header carries the same dynamic artist
+badge used by Manual. The album chooser is one integrated component: `SORT`,
+`FILTER`, and `CLEAN` controls attach to its top border, while `RESULTS` and
+`SELECTED` counts attach to the bottom. Short filter text stays in the compact
+center control; editing or a filter too long to fit expands a connected wide
+filter field beneath it. Multi-album track selection shows a `TASK` summary plus
+the current `ALBUM` and its loop count. The preview queue lists the first five
+queued album titles in order (with `… N more` when needed) before the centered
+ALBUMS/TRACKS, INTERVAL/SCROBBLES, and ETA/LOOP summary cards.
 
 | Key | Action |
 | --- | --- |
@@ -80,7 +217,7 @@ is a Last.fm top-albums result, not a canonical complete discography.
 | `/` or `F` | Filter album titles. |
 | `C` | Toggle duplicate/reissue cleanup. |
 | `S` | Change sorting mode. |
-| `-` / `+` | Change the global loop. |
+| `-` / `+` | Change the current album loop. |
 | `Enter` | Load selected albums. |
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> File import
@@ -89,42 +226,31 @@ The File page supports TXT, CSV, TSV, JSON, M3U/M3U8, one album folder, or an
 artist folder containing album folders. Press `O` to open the native picker,
 then `Enter` to import the selected path.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Completion and history
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> History, recovery, and Profiles
 
-After a queue finishes or is cancelled:
+`H` and `P` from the Dashboard open History or Profiles directly while retaining
+the Settings section grid.
+
+History controls:
 
 | Key | Action |
 | --- | --- |
-| `R` | Edit a saved queue before re-running it. |
+| `Enter` / `R` | Edit a saved queue before re-running it. |
 | `Shift+R` | Perform an exact re-run without editing. |
-| `E` | Export a queue or history entry. |
-| `S` | Find similar albums. |
-| `H` | Return to History. |
+| `E` | Export the selected history entry. |
+| `D` | Delete the selected history entry. |
+| `Tab` | Focus the Settings section grid. |
+| `Esc` | Return to the Dashboard. |
+
+Profiles controls:
+
+| Key | Action |
+| --- | --- |
+| `Enter` | Load the selected profile. |
+| `N` | Create a profile. |
+| `S` | Save the selected profile. |
+| `D` | Delete the selected profile. |
+| `Tab` | Focus the Settings section grid. |
 | `Esc` | Return to the Dashboard. |
 
 Interrupted active queues are offered for resume at the next launch.
-
-With the full header, the Last.fm profile URL is both an OSC 8 hyperlink and a
-mouse target. Moving over it highlights the URL and clicking opens it. Compact
-Header intentionally has no URL or URL hit area.
-
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Config
-
-The first row contains direct values. The second row opens larger tools.
-
-| Key | Action |
-| --- | --- |
-| `←` / `→` | Move within the current row. |
-| `↑` / `↓` | Change rows. |
-| `Tab` / `Shift+Tab` | Move between username/password or key/secret fields. |
-| `Enter` | Save an editable field or open a utility. |
-| `Ctrl+P` | Open the credentials path editor. |
-| `Ctrl+G` | Open Advanced. |
-| `Ctrl+O` | Open Info. |
-
-When a text field is focused, printable characters are sent to the field. This
-means usernames, passwords, API keys, paths, and filters can contain letters
-such as `a`, `h`, `p`, and `i` without activating navigation.
-
-Advanced includes connection testing, diagnostics, update checking, retry
-settings, duplicate protection, notifications, exports, and mouse support.

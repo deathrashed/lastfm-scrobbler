@@ -42,7 +42,7 @@ highlight on hover and open on click; compact mode has no profile URL.
 
 | Area | What it provides |
 | --- | --- |
-| **Manual scrobbling** | Resolve an `Artist - Album`, choose tracks, preview the queue, and scrobble with configurable loops and intervals. |
+| **Manual scrobbling** | Search by artist, album, or both, choose tracks, preview the queue, and scrobble with configurable loops and intervals. |
 | **Top-album curation** | Filter, sort, clean, select, and queue albums returned by Last.fm's top-albums endpoint. |
 | **Import workflows** | Load TXT, CSV, TSV, JSON, M3U/M3U8 playlists, album folders, or artist folders. |
 | **Recovery** | Keep history, resume interrupted queues, edit saved sessions, or perform exact re-runs. |
@@ -55,7 +55,21 @@ Requirements:
 
 - Go 1.24.2 or newer
 - Internet access during the first build so Go can download Bubble Tea modules
-- A Nerd Font for the intended icons
+- A Nerd Font is recommended for the intended icons (any compatible Nerd Font works)
+
+### Optional Nerd Font setup
+
+The TUI uses Nerd Font glyphs for its icons. Configure your terminal to use an
+installed Nerd Font; the core workflows still work if a terminal displays an
+icon incorrectly. On macOS with Homebrew, an optional example is:
+
+```bash
+brew install --cask font-jetbrains-mono-nerd-font
+```
+
+Then select `JetBrainsMono Nerd Font` (or another installed Nerd Font) in your
+terminal settings. The application does not install fonts automatically, and
+Nerd Fonts are not a mandatory Homebrew dependency.
 
 Install the latest tagged command directly with Go:
 
@@ -130,8 +144,13 @@ file authoritative, including before it exists. `.env` is ignored by Git;
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
 
 The interface keeps the same Torch Red, fixed-width visual language across
-search, selection, configuration, recovery, and scrobbling workflows. The
+search, selection, settings, recovery, and scrobbling workflows. The
 gallery follows the recommended walkthrough order.
+
+> [!NOTE]
+> The unified Settings refactor changes the Dashboard, Info, Help, Settings,
+> History, and former Advanced views. The corresponding gallery screenshots
+> are retained as historical placeholders until fresh captures are added.
 
 <table>
   <tr>
@@ -150,8 +169,7 @@ gallery follows the recommended walkthrough order.
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/4-config-menu.png"><img src="assets/screenshots/4-config-menu.png" alt="Last.fm Scrobbler configuration menu"></a>
-      <p align="center"><strong>4. Config</strong><br><sub>Settings and credentials</sub></p>
+      <p align="center"><strong>4. Settings</strong><br><sub>Account • Scrobbling • History • Tools • Interface • Profiles</sub><br><em>Screenshot refresh pending</em></p>
     </td>
     <td valign="top">
       <a href="assets/screenshots/5-file-menu.png"><img src="assets/screenshots/5-file-menu.png" alt="Last.fm Scrobbler file import menu"></a>
@@ -200,8 +218,7 @@ gallery follows the recommended walkthrough order.
       <p align="center"><strong>14. Similar albums</strong><br><sub>Discover related album suggestions</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/15-config-advanced.png"><img src="assets/screenshots/15-config-advanced.png" alt="Last.fm Scrobbler advanced configuration"></a>
-      <p align="center"><strong>15. Advanced config</strong><br><sub>Reliability, diagnostics, and updates</sub></p>
+      <p align="center"><strong>15. Settings sections</strong><br><sub>Unified configuration and utilities</sub><br><em>Screenshot refresh pending</em></p>
     </td>
   </tr>
 </table>
@@ -210,15 +227,18 @@ gallery follows the recommended walkthrough order.
 
 ### Manual
 
-Enter `Artist - Album`, select the correct search result when necessary, choose
-individual tracks, adjust global or per-album loops, inspect the dry-run
-preview, and start scrobbling.
+Search by artist, album, or both, select the correct result when necessary, choose
+individual tracks, adjust loops and interval controls, inspect the dry-run
+preview, and start scrobbling. Manual result lists show a compact attached
+`RESULTS` count rather than a multiselect counter.
 
 ### Last.fm top albums
 
 Search an artist, filter and sort the returned albums, hide obvious reissues or
-duplicates, select any combination, load their tracks, and build one queue.
-Long top-album results and track lists include scroll indicators.
+duplicates, select any combination, load their tracks, and build one queue. The
+album chooser integrates `SORT`, `FILTER`, and `CLEAN` into the top border with
+`RESULTS` and `SELECTED` attached below; long filters expand into a connected
+wide input. Long top-album results and track lists include scroll indicators.
 
 ### File and folder import
 
@@ -248,44 +268,61 @@ the next launch.
 | Context | Controls |
 | --- | --- |
 | **Global** | Arrow keys or `J/K` navigate, `Enter` confirms, `Esc` goes back, `Q` or `Ctrl+C` quits, and `?` opens help. |
-| **Dashboard** | `M` Manual, `D` Discography, `F` File, `H` History, `P` Profiles, `C` Config, `I` Info. |
-| **Track selection** | `Space` toggles a track, `A` selects all, `-/+` changes loops, `Enter` previews, `S` finds similar albums. |
-| **Config** | Arrows navigate, `Tab` changes fields, `Enter` saves or opens, `Ctrl+P` edits the credentials path, `Ctrl+G` opens Advanced, and `Ctrl+O` opens Info. |
+| **Dashboard** | `M` Manual, `D` Discography, `F` File, `H` History, `P` Profiles, `S` Settings, `I` Info. |
+| **Track selection** | `Space` toggles a track, `A` selects all, `-/+` changes the current album loop, `Enter` continues, `S` finds similar albums; mouse footer controls also adjust interval and navigation directly. |
+| **Settings** | `Tab` moves between section navigation and section content; arrows navigate the active zone; `Enter` saves, opens, or runs the selected item. |
 
 When a text field is focused, printable characters are passed to the field so
 usernames, passwords, API keys, paths, and filters can contain normal letters
 without triggering navigation shortcuts.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Configuration interface
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Settings interface
 
-Config uses two centered rows:
+Press `S` from the Dashboard to open Settings. The six sections share one fixed
+65-cell navigation grid:
 
 ```text
-L O O P • I N T E R V A L • U S E R N A M E • A P I
-A D V A N C E D • H I S T O R Y • P R O F I L E S
+╭─────────────────╮ ╭───────────────────────╮ ╭─────────────────╮
+│  A C C O U N T  │•│  S C R O B B L I N G  │•│  H I S T O R Y  │
+╰─────────────────╯ ╰───────────────────────╯ ╰─────────────────╯
+╭─────────────────╮ ╭───────────────────────╮ ╭─────────────────╮
+│    T O O L S    │•│   I N T E R F A C E   │•│ P R O F I L E S │
+╰─────────────────╯ ╰───────────────────────╯ ╰─────────────────╯
 ```
 
-Advanced contains:
+The sections are grouped by purpose:
 
-- retry count and delay
-- duplicate-scrobble guard
-- completion notifications
-- compact header
-- discography cleanup
-- export directory
-- credential source
-- mouse support
-- update URL
-- connection test
-- diagnostics bundle
-- update checker
+- **Account** — Last.fm username/password, API key/secret, credential source,
+  and credential path.
+- **Scrobbling** — loop, interval, retries, duplicate guard, and top-album
+  cleanup.
+- **History** — saved sessions, edit/exact re-runs, export, and delete.
+- **Tools** — export directory, update URL, connection test, diagnostics, and
+  update checking.
+- **Interface** — notifications, Compact Header, and Mouse Support.
+- **Profiles** — load, create, save, and delete named profiles.
+
+Settings has two keyboard focus zones. `Tab` or `Shift+Tab` moves from section
+content to the six-section grid; arrow keys then choose a section, and `Enter`
+or `Tab` returns to its content. Pressing `Up` from the first content row also
+returns to the section grid. Mouse users can click a section or setting row
+directly.
+
+Settings rows deliberately use a quieter color hierarchy: idle labels are
+white, the `❯` accent is Torch Red, and values are muted. The focused row uses
+a leading `❯`, turns its label Torch Red, and turns the row arrow/value white;
+mouse hover uses the same red-label emphasis without moving keyboard focus.
+
+Navigation cards use a separate state language: idle labels are muted, hover
+turns the label Torch Red, and the selected card uses a Torch Red border with
+bold white text. Text inputs keep a white structural border and show focus with
+a red label, white arrow, and blinking red cursor rather than a red input box.
 
 The Connection Test validates the public API and checks authentication
-readiness without sending a scrobble. Username/password mode can obtain a
-mobile session; an existing session key is reported as configured and is
-validated by the first signed write. Diagnostics creates a ZIP with runtime details,
-redacted configuration, a history summary, and the tail of the application
-log. Passwords, API secrets, session keys, and complete API keys are excluded.
+readiness without sending a scrobble. Diagnostics creates a ZIP with runtime
+details, redacted configuration, a history summary, and the tail of the
+application log. Passwords, API secrets, session keys, and complete API keys
+are excluded.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Credentials
 
@@ -338,8 +375,8 @@ For normal `auto` mode, values are resolved in this order:
 5. macOS Keychain for missing secret values.
 6. Built-in defaults for non-secret settings.
 
-`LASTFM_ENV_FILE=/absolute/path/to/file.env` forces a specific file. The Config
-screen can also change and remember the credentials path. `API_SECRET`,
+`LASTFM_ENV_FILE=/absolute/path/to/file.env` forces a specific file. **Settings →
+Account → Credential Path** can also change and remember the credentials path. `API_SECRET`,
 `LASTFM_API_SECRET`, and `LASTFM_SHARED_SECRET` are accepted as aliases.
 
 Credential files are written with owner-only permissions and are ignored by
@@ -413,16 +450,20 @@ scrobbler completion fish > ~/.config/fish/completions/scrobbler.fish
 
 ## Mouse support
 
-Mouse support is enabled by default and can be disabled in Advanced or with
+Mouse support is enabled by default and can be disabled in **Settings → Interface** or with
 `SCROBBLE_MOUSE=false`.
 
-- click Dashboard modes, File import sources, and Config tabs
-- use the mouse wheel to navigate results, top-album lists, tracks, History,
-  Profiles, and Advanced
+- click Dashboard modes, File import sources, Settings sections and rows
+- use the mouse wheel to navigate results, top-album lists, tracks, Settings,
+  History, and Profiles
+- click Info tabs, action cards, editable fields, the Help close hint, and contextual footer actions
+- hover feedback turns interactive card/list text Torch Red while preserving
+  keyboard selection; full-header profile URLs are red at rest and white while
+  hovered
 - keyboard controls remain available everywhere
 
-With the full header, moving over the Last.fm URL changes it to Torch Red and
-clicking opens it. Compact Header does not expose a URL target.
+With the full header, the Last.fm URL is Torch Red at rest, turns white on
+hover, and opens when clicked. Compact Header does not expose a URL target.
 
 Bubble Tea mouse capture can interfere with normal terminal text selection in
 some terminals. Disable the setting when native selection is more important.
@@ -494,7 +535,7 @@ automation workflows behaviorally aligned.
   <summary><strong>Credentials are saved to the wrong file</strong></summary>
 
 The default file is the project-local `.env` beside the executable. Check the
-current value in Config → Credentials Path, or force a path explicitly:
+current value in **Settings → Account → Credential Path**, or force a path explicitly:
 
 ```bash
 LASTFM_ENV_FILE=/absolute/path/to/file.env scrobbler test

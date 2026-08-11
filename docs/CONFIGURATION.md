@@ -37,11 +37,24 @@ source, as described below.
 
 For normal `auto` mode, real process environment variables overlay values from
 the selected file. `LASTFM_ENV_FILE` is authoritative even when its file does
-not exist yet. An existing credentials path selected in Config is also used
+not exist yet. An existing credentials path selected in **Settings → Account** is also used
 before automatic discovery. Otherwise source-tree project files are detected,
 installed binaries default to `~/.config/lastfm-scrobbler/.env`, and missing
 values may come from `~/.env`; missing secret values may then come from macOS
 Keychain. `LASTFM_PROFILE` selects a named profile.
+
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> TUI Settings sections
+
+The TUI exposes configuration through **Settings** (`S` from the Dashboard):
+
+- **Account** — username/password, API key/secret, credential source/path.
+- **Scrobbling** — loop, interval, retry behavior, duplicate guard, top-album cleanup.
+- **Tools** — export directory, update URL, connection test, diagnostics, updates.
+- **Interface** — notifications, Compact Header, Mouse Support.
+- **History** and **Profiles** share the same Settings shell but retain their existing data/actions.
+
+Moving these values between TUI sections does not change their environment
+variable names, config-file format, or precedence rules.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm variables
 
@@ -88,6 +101,9 @@ SCROBBLE_MOUSE=true
 SCROBBLER_UPDATE_URL=
 ```
 
+`SCROBBLE_CLEAN_DISCOGRAPHY` is retained as the compatibility/environment
+variable name; the TUI labels this setting **Clean Top Albums**.
+
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Profiles and Keychain
 
 Profiles are stored below `~/.config/lastfm-scrobbler/profiles/` and can be
@@ -104,7 +120,7 @@ Credential sources:
 | `keychain` | Public values come from environment/file; secret values come from macOS Keychain. |
 
 Environment and Keychain overrides are runtime values, not replacements for
-the values already stored in the credentials file. When Config saves an
+the values already stored in the credentials file. When the TUI saves an
 unrelated setting, the original file fallback is preserved. Explicitly editing
 a credential field marks the new value as intentional.
 

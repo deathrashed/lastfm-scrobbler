@@ -21,58 +21,10 @@ func (m model) View() string {
 		return theme.ErrorStyle.Render("Terminal too narrow\nLast.fm Scrobbler requires at least 67 columns.")
 	}
 
-	var body string
-	if m.helpVisible {
-		body = renderHelpView(m)
-	} else {
-		switch m.stage {
-		case stageInput:
-			body = renderInputView(m)
-		case stageImportSource:
-			body = renderImportSourceView(m)
-		case stageSearch:
-			body = renderSearchView(m)
-		case stageResults:
-			body = renderResultsView(m)
-		case stageDiscographySelect:
-			body = renderDiscographySelectView(m)
-		case stageTrackSelect:
-			body = renderTrackSelectView(m)
-		case stagePreview:
-			body = renderPreviewView(m)
-		case stageConfig:
-			body = renderConfigView(m)
-		case stageAdvancedConfig:
-			body = renderAdvancedConfigView(m)
-		case stageEnvPath:
-			body = renderEnvPathView(m)
-		case stageScrobbling:
-			body = renderScrobblingView(m)
-		case stageDone:
-			body = renderDoneView(m)
-		case stageHistory:
-			body = renderHistoryView(m)
-		case stageRecovery:
-			body = renderRecoveryView(m)
-		case stageSimilarSelect:
-			body = renderSimilarSelectView(m)
-		case stageProfiles:
-			body = renderProfilesView(m)
-		case stageProfileName:
-			body = renderProfileNameView(m)
-		case stageInfo:
-			body = renderInfoView(m)
-		case stageConnectionTest:
-			body = renderConnectionTestView(m)
-		case stageDiagnostics:
-			body = renderDiagnosticsView(m)
-		case stageUpdateCheck:
-			body = renderUpdateCheckView(m)
-		}
-	}
+	body := m.renderBody()
 
 	parts := []string{
-		RenderHeaderWithHover(m.width, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.cfg.CompactHeader, m.headerURLHover),
+		RenderHeaderWithHoverArtist(m.width, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.cfg.CompactHeader, m.headerURLHover, m.headerArtist()),
 		body,
 	}
 	if !m.helpVisible {
@@ -84,90 +36,123 @@ func (m model) View() string {
 	return strings.Join(parts, "\n")
 }
 
+func (m model) renderBody() string {
+	if m.helpVisible {
+		return renderHelpView(m)
+	}
+	var body string
+	switch m.stage {
+	case stageInput:
+		body = renderInputView(m)
+	case stageImportSource:
+		body = renderImportSourceView(m)
+	case stageSearch:
+		body = renderSearchView(m)
+	case stageResults:
+		body = renderResultsView(m)
+	case stageDiscographySelect:
+		body = renderDiscographySelectView(m)
+	case stageTrackSelect:
+		body = renderTrackSelectView(m)
+	case stagePreview:
+		body = renderPreviewView(m)
+	case stageConfig:
+		body = renderSettingsView(m)
+	case stageEnvPath:
+		body = renderEnvPathView(m)
+	case stageScrobbling:
+		body = renderScrobblingView(m)
+	case stageDone:
+		body = renderDoneView(m)
+	case stageHistory:
+		body = renderSettingsShell(m, renderHistoryView(m))
+	case stageRecovery:
+		body = renderRecoveryView(m)
+	case stageSimilarSelect:
+		body = renderSimilarSelectView(m)
+	case stageProfiles:
+		body = renderSettingsShell(m, renderProfilesView(m))
+	case stageProfileName:
+		body = renderProfileNameView(m)
+	case stageInfo:
+		body = renderInfoView(m)
+	case stageConnectionTest:
+		body = renderConnectionTestView(m)
+	case stageDiagnostics:
+		body = renderDiagnosticsView(m)
+	case stageUpdateCheck:
+		body = renderUpdateCheckView(m)
+	}
+	return body
+}
+
 func hintKey(value string) string  { return theme.KeyStyle.Render(value) }
 func hintSep() string              { return theme.SepStyle.Render(" • ") }
 func hintText(value string) string { return theme.MutedStyle.Render(value) }
 func hint(parts ...string) string  { return strings.Join(parts, "") }
 
 func renderFooter(m model) string {
-	switch m.stage {
-	case stageInput:
-		lineOne := hint(hintKey("→ ↑ ↓ ←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" select"), hintSep(), hintKey("M-D-F"), hintText(" quick"))
-		lineTwo := hint(hintKey("h"), hintText(" history"), hintSep(), hintKey("p"), hintText(" profiles"), hintSep(), hintKey("c"), hintText(" config"), hintSep(), hintKey("i"), hintText(" info"), hintSep(), hintKey("?"), hintText(" help"))
-		return lineOne + "\n" + lineTwo
-	case stageImportSource:
-		lineOne := hint(hintKey("→ ↑ ↓ ←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" choose"))
-		lineTwo := hint(hintKey("o"), hintText(" picker"), hintSep(), hintKey("esc"), hintText(" menu"), hintSep(), hintKey("?"), hintText(" help"))
-		return lineOne + "\n" + lineTwo
-	case stageSearch:
-		extra := ""
-		if m.modeChoice == "file" {
-			extra = hint(hintSep(), hintKey("o"), hintText(" picker"))
+	spec := footerSpec(m)
+	// Footer geometry is deliberately stable: action rows never change height
+	// when the mouse enters or leaves an item. Two reserved help rows sit below
+	// the controls on every screen, so hover descriptions cannot displace or
+	// hide a second action row.
+	lines := make([]string, 0, len(spec)+2)
+	for _, items := range spec {
+		hoverGroup := ""
+		for _, item := range items {
+			if item.interactive && item.id == m.hoverRegion {
+				hoverGroup = item.group
+				break
+			}
 		}
-		return hint(hintKey("enter"), hintText(" continue"), extra, hintSep(), hintKey("esc"), hintText(" back"), hintSep(), hintKey("ctrl+c"), hintText(" quit"))
-	case stageResults:
-		return hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" select"), hintSep(), hintKey("s"), hintText(" similar"), hintSep(), hintKey("esc"), hintText(" back"))
-	case stageDiscographySelect:
-		if m.discographyFiltering {
-			return hint(hintKey("type"), hintText(" filter"), hintSep(), hintKey("enter"), hintText(" apply"), hintSep(), hintKey("esc"), hintText(" cancel"))
+		parts := make([]string, 0, len(items)*2-1)
+		for index, item := range items {
+			if index > 0 && !item.tight {
+				parts = append(parts, hintSep())
+			}
+
+			key := hintKey(item.key)
+			label := hintText(item.label)
+			if item.group != "" && hoverGroup == item.group {
+				if item.interactive && item.id == m.hoverRegion {
+					key = theme.SelectedModeStyle.Render(item.key)
+				} else if !item.interactive {
+					label = theme.AccentTextStyle.Render(item.label)
+				}
+			} else if item.interactive && item.id == m.hoverRegion {
+				label = theme.PrimaryTextStyle.Render(item.label)
+			}
+			parts = append(parts, hint(key, label))
 		}
-		lineOne := hint(hintKey("space"), hintText(" check"), hintSep(), hintKey("a"), hintText(" all"), hintSep(), hintKey("c"), hintText(" clean"), hintSep(), hintKey("/"), hintText(" filter"), hintSep(), hintKey("s"), hintText(" sort"))
-		lineTwo := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" continue"))
-		return lineOne + "\n" + lineTwo
-	case stageTrackSelect:
-		lineOne := hint(hintKey("space"), hintText(" check"), hintSep(), hintKey("a"), hintText(" all"), hintSep(), hintKey("-/+"), hintText(" loop"), hintSep(), hintKey("[/]"), hintText(" album loop"))
-		lineTwo := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" preview"), hintSep(), hintKey("s"), hintText(" similar"))
-		return lineOne + "\n" + lineTwo
-	case stagePreview:
-		return hint(hintKey("enter"), hintText(" start"), hintSep(), hintKey("e"), hintText(" export"), hintSep(), hintKey("s"), hintText(" similar"), hintSep(), hintKey("esc"), hintText(" edit"), hintSep(), hintKey("?"), hintText(" help"))
-	case stageConfig:
-		action := "save"
-		if m.configIndex >= 4 {
-			action = "open"
-		}
-		lineOne := hint(hintKey("→ ↑ ↓ ←"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" "+action), hintSep(), hintKey("tab"), hintText(" field"), hintSep(), hintKey("esc"), hintText(" back"))
-		lineTwo := hint(hintKey("ctrl+p"), hintText(" credentials path"), hintSep(), hintKey("ctrl+g"), hintText(" advanced"), hintSep(), hintKey("ctrl+o"), hintText(" info"))
-		return lineOne + "\n" + lineTwo
-	case stageAdvancedConfig:
-		action := "save"
-		if advancedAction(m.advancedIndex) {
-			action = "open"
-		}
-		lineOne := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("← →"), hintText(" toggle"), hintSep(), hintKey("enter"), hintText(" "+action))
-		lineTwo := hint(hintKey("o"), hintText(" folder"), hintSep(), hintKey("esc"), hintText(" back"))
-		return lineOne + "\n" + lineTwo
-	case stageEnvPath:
-		return hint(hintKey("enter"), hintText(" save"), hintSep(), hintKey("o"), hintText(" picker"), hintSep(), hintKey("esc"), hintText(" back"))
-	case stageScrobbling:
-		return hint(hintKey("esc"), hintText(" cancel"), hintSep(), hintKey("q"), hintText(" quit + resume later"))
-	case stageDone:
-		lineOne := hint(hintKey("enter"), hintText(" another"), hintSep(), hintKey("r"), hintText(" edit + re-run"), hintSep(), hintKey("R"), hintText(" exact re-run"), hintSep(), hintKey("e"), hintText(" export"))
-		lineTwo := hint(hintKey("s"), hintText(" similar"), hintSep(), hintKey("h"), hintText(" history"), hintSep(), hintKey("esc"), hintText(" menu"), hintSep(), hintKey("q"), hintText(" quit"))
-		return lineOne + "\n" + lineTwo
-	case stageHistory:
-		lineOne := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter/r"), hintText(" edit + re-run"), hintSep(), hintKey("R"), hintText(" exact re-run"))
-		lineTwo := hint(hintKey("e"), hintText(" export"), hintSep(), hintKey("d"), hintText(" delete"), hintSep(), hintKey("esc"), hintText(" menu"))
-		return lineOne + "\n" + lineTwo
-	case stageRecovery:
-		return hint(hintKey("enter"), hintText(" resume"), hintSep(), hintKey("r"), hintText(" restart"), hintSep(), hintKey("d"), hintText(" discard"), hintSep(), hintKey("q"), hintText(" quit"))
-	case stageSimilarSelect:
-		return hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" load"), hintSep(), hintKey("esc"), hintText(" back"))
-	case stageProfiles:
-		lineOne := hint(hintKey("↑ ↓"), hintText(" navigate"), hintSep(), hintKey("enter"), hintText(" load"), hintSep(), hintKey("n"), hintText(" new"), hintSep(), hintKey("s"), hintText(" save"))
-		lineTwo := hint(hintKey("d"), hintText(" delete"), hintSep(), hintKey("esc"), hintText(" menu"))
-		return lineOne + "\n" + lineTwo
-	case stageProfileName:
-		return hint(hintKey("enter"), hintText(" create"), hintSep(), hintKey("esc"), hintText(" back"))
-	case stageInfo:
-		return hint(hintKey("← →"), hintText(" section"), hintSep(), hintKey("esc"), hintText(" back"), hintSep(), hintKey("?"), hintText(" quick help"), hintSep(), hintKey("q"), hintText(" quit"))
-	case stageConnectionTest:
-		return hint(hintKey("r"), hintText(" re-test"), hintSep(), hintKey("esc"), hintText(" advanced"), hintSep(), hintKey("q"), hintText(" quit"))
-	case stageDiagnostics:
-		return hint(hintKey("enter"), hintText(" export"), hintSep(), hintKey("o"), hintText(" open folder"), hintSep(), hintKey("esc"), hintText(" advanced"), hintSep(), hintKey("q"), hintText(" quit"))
-	case stageUpdateCheck:
-		return hint(hintKey("r"), hintText(" check again"), hintSep(), hintKey("o"), hintText(" open release"), hintSep(), hintKey("esc"), hintText(" advanced"), hintSep(), hintKey("q"), hintText(" quit"))
+		lines = append(lines, strings.Join(parts, ""))
 	}
-	return ""
+
+	description, accent := footerHoverDescription(m, spec)
+	descriptionLine := ""
+	accentLine := ""
+	if description != "" {
+		descriptionLine = theme.PrimaryTextStyle.Render(truncateToWidth(description, headerContentWidth))
+	}
+	if accent != "" {
+		accentLine = theme.AccentTextStyle.Render(truncateToWidth(accent, headerContentWidth))
+	}
+	lines = append(lines, descriptionLine, accentLine)
+	return strings.Join(lines, "\n")
+}
+
+func footerHoverDescription(m model, spec [][]footerItem) (string, string) {
+	if !strings.HasPrefix(m.hoverRegion, "footer:") {
+		return "", ""
+	}
+	for _, items := range spec {
+		for _, item := range items {
+			if item.id == m.hoverRegion {
+				return item.description, item.descriptionAccent
+			}
+		}
+	}
+	return "", ""
 }
 
 func centerToHeader(value string) string {
@@ -199,18 +184,22 @@ func renderExactBox(label string, totalWidth int, selected bool) string {
 }
 
 func renderDashboardBox(label string, totalWidth int, selected bool) string {
-	return renderExactBoxWithMnemonic(label, totalWidth, selected, true)
+	return renderExactBoxWithMnemonicHover(label, totalWidth, selected, true, false)
 }
 
 func renderExactBoxWithMnemonic(label string, totalWidth int, selected, mnemonic bool) string {
+	return renderExactBoxWithMnemonicHover(label, totalWidth, selected, mnemonic, false)
+}
+
+func renderExactBoxWithMnemonicHover(label string, totalWidth int, selected, mnemonic, hovered bool) string {
 	border := theme.BorderStyle
-	if selected {
+	if selected || hovered {
 		border = theme.InnerBorderStyle
 	}
 	innerWidth := maxInt(1, totalWidth-2)
 	labelStyle := theme.ModeStyle
 	mnemonicStyle := labelStyle
-	if selected {
+	if selected || hovered {
 		labelStyle = theme.SelectedModeStyle
 		mnemonicStyle = labelStyle
 	}
@@ -232,18 +221,45 @@ func renderExactBoxWithMnemonic(label string, totalWidth int, selected, mnemonic
 	}, "\n")
 }
 
-func renderTextBox(label, value, placeholder string, totalWidth int, active bool) string {
+// renderChoiceBox is the shared card language for section/source choosers:
+// muted when idle, Torch Red text on hover, and a Torch Red border with bold
+// white text when selected. Hover never changes keyboard selection.
+func renderChoiceBox(label string, totalWidth int, selected, hovered bool) string {
 	border := theme.BorderStyle
-	if active {
+	labelStyle := theme.SecondaryTextStyle
+	switch {
+	case selected:
 		border = theme.InnerBorderStyle
+		labelStyle = theme.SelectedModeStyle
+	case hovered:
+		labelStyle = theme.AccentTextStyle
 	}
+	innerWidth := maxInt(1, totalWidth-2)
+	return strings.Join([]string{
+		border.Render("╭" + strings.Repeat("─", innerWidth) + "╮"),
+		border.Render("│") + centerText(labelStyle.Render(label), innerWidth) + border.Render("│"),
+		border.Render("╰" + strings.Repeat("─", innerWidth) + "╯"),
+	}, "\n")
+}
+
+func renderTextBox(label, value, placeholder string, totalWidth int, active bool) string {
+	// A red border is reserved for selected navigation/actions and validation
+	// errors. Text editing keeps the structural border white and communicates
+	// focus through the label/arrow plus the textinput's blinking cursor.
+	border := theme.BorderStyle
 	innerWidth := maxInt(4, totalWidth-2)
 	contentWidth := maxInt(1, innerWidth-2)
 	shown := value
 	if strings.TrimSpace(stripANSI(value)) == "" {
 		shown = theme.MutedStyle.Render(placeholder)
 	}
-	prefix := theme.KeyStyle.Render(label + " ❯ ")
+	labelStyle := theme.RowLabelStyle
+	arrowStyle := theme.RowArrowStyle
+	if active {
+		labelStyle = theme.FocusedRowLabelStyle
+		arrowStyle = theme.FocusedRowArrowStyle
+	}
+	prefix := labelStyle.Render(label+" ") + arrowStyle.Render("❯ ")
 	available := maxInt(1, contentWidth-lipgloss.Width(prefix))
 	shown = fitStyled(shown, available)
 	return renderPanelBox([]string{prefix + shown}, totalWidth, border)
@@ -271,16 +287,17 @@ func renderInfoBox(label, value, right string, totalWidth int, active bool) stri
 	for index, line := range wrapped {
 		var content string
 		if index == 0 {
-			content = theme.KeyStyle.Render(prefixPlain) + theme.AlbumStyle.Render(line)
+			prefix := theme.SummaryLabelStyle.Render(label+" ") + theme.SummaryArrowStyle.Render("❯ ")
+			content = prefix + theme.PrimaryTextStyle.Render(line)
 		} else {
-			content = strings.Repeat(" ", prefixWidth) + theme.AlbumStyle.Render(line)
+			content = strings.Repeat(" ", prefixWidth) + theme.PrimaryTextStyle.Render(line)
 		}
 		if index == len(wrapped)-1 && right != "" {
 			remaining := contentWidth - lipgloss.Width(content) - lipgloss.Width(right)
 			if remaining < 1 {
 				remaining = 1
 			}
-			content += strings.Repeat(" ", remaining) + theme.MutedStyle.Render(right)
+			content += strings.Repeat(" ", remaining) + theme.SummaryMetaStyle.Render(right)
 		}
 		lines = append(lines, fitStyled(content, contentWidth))
 	}
@@ -372,9 +389,151 @@ func ansiSequenceEnd(value string, start int) int {
 }
 
 func renderSelectedBadge(selected, total int) string {
-	text := fmt.Sprintf("  SELECTED ❯   %d / %d  ", selected, total)
-	width := maxInt(26, lipgloss.Width(text)+2)
-	return renderExactBox(text, width, false)
+	content := renderSelectedContent(selected, total)
+	width := maxInt(26, lipgloss.Width(content)+6)
+	return renderPanelBox([]string{centerText(content, width-4)}, width, theme.BorderStyle)
+}
+
+func renderSelectedContent(selected, total int) string {
+	return theme.SummaryLabelStyle.Render("SELECTED ") +
+		theme.SummaryArrowStyle.Render("❯") + "   " +
+		theme.AccentTextStyle.Render(fmt.Sprintf("%d", selected)) + " " +
+		theme.MutedStyle.Render("/") + " " +
+		theme.AccentTextStyle.Render(fmt.Sprintf("%d", total))
+}
+
+func renderCountContent(label string, value int) string {
+	return theme.SummaryLabelStyle.Render(label+" ") +
+		theme.SummaryArrowStyle.Render("❯") + "  " +
+		theme.AccentTextStyle.Render(fmt.Sprintf("%d", value))
+}
+
+func renderPanelBoxWithBadgeAttachment(lines []string, totalWidth int, content string, border lipgloss.Style) string {
+	innerWidth := maxInt(4, totalWidth-2)
+	contentWidth := maxInt(1, innerWidth-2)
+	out := []string{border.Render("╭" + strings.Repeat("─", innerWidth) + "╮")}
+	for _, line := range lines {
+		line = fitStyled(line, contentWidth)
+		out = append(out, border.Render("│")+" "+padRight(line, contentWidth)+" "+border.Render("│"))
+	}
+
+	badgeWidth := maxInt(18, lipgloss.Width(content)+4)
+	badgeWidth = minInt(badgeWidth, totalWidth-10)
+	badgeInner := badgeWidth - 2
+	rightTail := 4
+	leftDash := totalWidth - 4 - badgeInner - rightTail
+	if leftDash < 4 {
+		leftDash = 4
+		rightTail = maxInt(1, totalWidth-4-badgeInner-leftDash)
+	}
+
+	badgeTop := border.Render("╭" + strings.Repeat("─", badgeInner) + "╮")
+	topRightSpaces := maxInt(0, innerWidth-leftDash-badgeWidth)
+	out = append(out,
+		border.Render("│")+strings.Repeat(" ", leftDash)+badgeTop+strings.Repeat(" ", topRightSpaces)+border.Render("│"),
+	)
+
+	badgeMiddle := centerText(content, badgeInner)
+	out = append(out,
+		border.Render("╰"+strings.Repeat("─", leftDash)+"┤")+
+			badgeMiddle+
+			border.Render("├"+strings.Repeat("─", rightTail)+"╯"),
+	)
+
+	badgeBottom := border.Render("╰" + strings.Repeat("─", badgeInner) + "╯")
+	bottom := strings.Repeat(" ", leftDash+1) + badgeBottom
+	bottom += strings.Repeat(" ", maxInt(0, totalWidth-lipgloss.Width(bottom)))
+	out = append(out, bottom)
+	return strings.Join(out, "\n")
+}
+
+func renderPanelBoxWithTwoBadgeAttachments(lines []string, totalWidth int, leftContent, rightContent string, border lipgloss.Style) string {
+	innerWidth := maxInt(4, totalWidth-2)
+	contentWidth := maxInt(1, innerWidth-2)
+	out := []string{border.Render("╭" + strings.Repeat("─", innerWidth) + "╮")}
+	for _, line := range lines {
+		line = fitStyled(line, contentWidth)
+		out = append(out, border.Render("│")+" "+padRight(line, contentWidth)+" "+border.Render("│"))
+	}
+
+	leftWidth := maxInt(18, lipgloss.Width(leftContent)+4)
+	rightWidth := maxInt(18, lipgloss.Width(rightContent)+4)
+	gap := 1
+	groupWidth := leftWidth + gap + rightWidth
+	if groupWidth > innerWidth-8 {
+		over := groupWidth - (innerWidth - 8)
+		trimLeft := over / 2
+		trimRight := over - trimLeft
+		leftWidth = maxInt(14, leftWidth-trimLeft)
+		rightWidth = maxInt(14, rightWidth-trimRight)
+		groupWidth = leftWidth + gap + rightWidth
+	}
+	leftDash := maxInt(4, (totalWidth-2-groupWidth)/2)
+	rightDash := maxInt(4, totalWidth-2-groupWidth-leftDash)
+	if 1+leftDash+groupWidth+rightDash+1 != totalWidth {
+		rightDash = maxInt(1, totalWidth-2-groupWidth-leftDash)
+	}
+
+	leftTop := border.Render("╭" + strings.Repeat("─", leftWidth-2) + "╮")
+	rightTop := border.Render("╭" + strings.Repeat("─", rightWidth-2) + "╮")
+	topGroup := leftTop + " " + rightTop
+	insideRight := maxInt(0, innerWidth-leftDash-lipgloss.Width(topGroup))
+	out = append(out, border.Render("│")+strings.Repeat(" ", leftDash)+topGroup+strings.Repeat(" ", insideRight)+border.Render("│"))
+
+	leftMiddle := border.Render("┤") + centerText(leftContent, leftWidth-2) + border.Render("├")
+	rightMiddle := border.Render("┤") + centerText(rightContent, rightWidth-2) + border.Render("├")
+	out = append(out,
+		border.Render("╰"+strings.Repeat("─", leftDash))+
+			leftMiddle+border.Render("─")+rightMiddle+
+			border.Render(strings.Repeat("─", rightDash)+"╯"),
+	)
+
+	leftBottom := border.Render("╰" + strings.Repeat("─", leftWidth-2) + "╯")
+	rightBottom := border.Render("╰" + strings.Repeat("─", rightWidth-2) + "╯")
+	bottom := strings.Repeat(" ", leftDash+1) + leftBottom + " " + rightBottom
+	bottom += strings.Repeat(" ", maxInt(0, totalWidth-lipgloss.Width(bottom)))
+	out = append(out, bottom)
+	return strings.Join(out, "\n")
+}
+
+func renderPanelBoxWithSelectedAttachment(lines []string, totalWidth, selected, total int, border lipgloss.Style) string {
+	innerWidth := maxInt(4, totalWidth-2)
+	contentWidth := maxInt(1, innerWidth-2)
+	out := []string{border.Render("╭" + strings.Repeat("─", innerWidth) + "╮")}
+	for _, line := range lines {
+		line = fitStyled(line, contentWidth)
+		out = append(out, border.Render("│")+" "+padRight(line, contentWidth)+" "+border.Render("│"))
+	}
+
+	content := renderSelectedContent(selected, total)
+	badgeWidth := maxInt(24, lipgloss.Width(content)+4)
+	badgeWidth = minInt(badgeWidth, totalWidth-10)
+	badgeInner := badgeWidth - 2
+	rightTail := 4
+	leftDash := totalWidth - 4 - badgeInner - rightTail
+	if leftDash < 4 {
+		leftDash = 4
+		rightTail = maxInt(1, totalWidth-4-badgeInner-leftDash)
+	}
+
+	badgeTop := border.Render("╭" + strings.Repeat("─", badgeInner) + "╮")
+	topRightSpaces := maxInt(0, innerWidth-leftDash-badgeWidth)
+	out = append(out,
+		border.Render("│")+strings.Repeat(" ", leftDash)+badgeTop+strings.Repeat(" ", topRightSpaces)+border.Render("│"),
+	)
+
+	badgeMiddle := centerText(content, badgeInner)
+	out = append(out,
+		border.Render("╰"+strings.Repeat("─", leftDash)+"┤")+
+			badgeMiddle+
+			border.Render("├"+strings.Repeat("─", rightTail)+"╯"),
+	)
+
+	badgeBottom := border.Render("╰" + strings.Repeat("─", badgeInner) + "╯")
+	bottom := strings.Repeat(" ", leftDash+1) + badgeBottom
+	bottom += strings.Repeat(" ", maxInt(0, totalWidth-lipgloss.Width(bottom)))
+	out = append(out, bottom)
+	return strings.Join(out, "\n")
 }
 
 func wrapWithLastReserve(text string, width, reserve int) []string {

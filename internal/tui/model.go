@@ -12,6 +12,7 @@ import (
 	"github.com/deathrashed/lastfm-scrobbler/internal/connection"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
 	"github.com/deathrashed/lastfm-scrobbler/internal/sessionstore"
+	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 	"github.com/deathrashed/lastfm-scrobbler/internal/updater"
 )
 
@@ -26,7 +27,6 @@ const (
 	stageTrackSelect
 	stagePreview
 	stageConfig
-	stageAdvancedConfig
 	stageEnvPath
 	stageScrobbling
 	stageDone
@@ -50,6 +50,7 @@ type model struct {
 	width, height  int
 	helpVisible    bool
 	headerURLHover bool
+	hoverRegion    string
 	sessionCtx     context.Context
 	sessionCancel  context.CancelFunc
 	sessionID      uint64
@@ -98,14 +99,14 @@ type model struct {
 	trackSelected map[int]bool
 	albumLoops    map[int]int
 
-	configIndex      int
-	configFieldIndex int
-	configInput      textinput.Model
-	configStatus     string
-	envInput         textinput.Model
-	envStatus        string
-	advancedIndex    int
-	advancedEditing  bool
+	settingsSection settingsSection
+	settingsFocus   settingsFocus
+	settingsRow     int
+
+	configInput  textinput.Model
+	configStatus string
+	envInput     textinput.Model
+	envStatus    string
 
 	profiles      []string
 	profileCursor int
@@ -152,6 +153,8 @@ func New(cfg config.Config, client lastfm.Client) tea.Model {
 		interval: cfg.DefaultInterval, discographySelected: map[int]bool{},
 		trackSelected: map[int]bool{}, albumLoops: map[int]int{},
 		discographyClean: cfg.CleanDiscography,
+		settingsSection:  settingsScrobbling,
+		settingsFocus:    settingsFocusContent,
 		history:          history, pending: pending, profiles: profiles,
 	}
 	if m.loopCount < 1 {
@@ -167,7 +170,7 @@ func New(cfg config.Config, client lastfm.Client) tea.Model {
 	m.configInput = newTextInput(1024, 44)
 	m.envInput = newTextInput(1024, 48)
 	m.spinner = spinner.New()
-	m.spinner.Spinner = spinner.Dot
+	m.spinner.Spinner = lastFMSpinner()
 
 	if pending != nil && len(pending.Queue) > 0 {
 		m.stage = stageRecovery
@@ -185,6 +188,9 @@ func newTextInput(limit, width int) textinput.Model {
 	input.Prompt = ""
 	input.CharLimit = limit
 	input.Width = width
+	input.TextStyle = theme.PrimaryTextStyle
+	input.PlaceholderStyle = theme.SecondaryTextStyle
+	input.Cursor.Style = theme.AccentTextStyle
 	return input
 }
 

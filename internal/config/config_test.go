@@ -7,7 +7,27 @@ import (
 	"time"
 )
 
+func clearConfigEnvironment(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"API_KEY", "API_SECRET", "LASTFM_API_KEY", "LASTFM_API_SECRET", "LASTFM_SHARED_SECRET",
+		"LASTFM_USERNAME", "LASTFM_USER", "LASTFM_PASSWORD", "LASTFM_SESSION_KEY", "SESSION_KEY",
+		"LASTFM_ENV_FILE", "LASTFM_PROFILE", "SCROBBLE_PROFILE",
+		"LASTFM_CREDENTIAL_SOURCE", "SCROBBLE_CREDENTIAL_SOURCE",
+		"SCROBBLE_INTERVAL", "INTERVAL", "SCROBBLE_LIMIT", "LIMIT",
+		"SCROBBLE_LOOP", "LOOP_COUNT", "LOOP", "SCROBBLE_RETRIES", "RETRY_COUNT",
+		"SCROBBLE_RETRY_DELAY", "RETRY_DELAY", "SCROBBLE_DUPLICATE_GUARD", "DUPLICATE_GUARD",
+		"SCROBBLE_NOTIFY", "NOTIFY", "SCROBBLE_COMPACT_HEADER", "COMPACT_HEADER",
+		"SCROBBLE_CLEAN_DISCOGRAPHY", "CLEAN_DISCOGRAPHY",
+		"SCROBBLE_EXPORT_DIR", "EXPORT_DIR", "SCROBBLE_MOUSE", "MOUSE_ENABLED",
+		"SCROBBLER_UPDATE_URL", "SCROBBLE_UPDATE_URL",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
 func TestLoadReadsDotEnvAndEnvironmentOverrides(t *testing.T) {
+	clearConfigEnvironment(t)
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
@@ -39,7 +59,7 @@ func TestLoadReadsDotEnvAndEnvironmentOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.APIKey != "environment-key" || cfg.APISecret != "file-secret" || cfg.Username != "file-user" || cfg.Password != "file-pass" {
-		t.Fatalf("cfg = %#v", cfg)
+		t.Fatal("credential precedence mismatch")
 	}
 	if cfg.DefaultInterval != 3*time.Second || cfg.DefaultLoop != 2 {
 		t.Fatalf("defaults = %s, %d", cfg.DefaultInterval, cfg.DefaultLoop)
@@ -76,11 +96,12 @@ func TestSaveUsesLoadedEnvPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if loaded["LASTFM_USERNAME"] != "deathrashed" || loaded["SCROBBLE_LOOP"] != "3" {
-		t.Fatalf("loaded = %#v", loaded)
+		t.Fatal("saved configuration did not preserve expected username/loop values")
 	}
 }
 
 func TestRememberEnvPathAndLoadFromPath(t *testing.T) {
+	clearConfigEnvironment(t)
 	configHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", configHome)
 	t.Setenv("XDG_DATA_HOME", configHome)
@@ -104,11 +125,12 @@ func TestRememberEnvPathAndLoadFromPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.EnvPath != path || cfg.SessionKey != "session" {
-		t.Fatalf("cfg = %#v", cfg)
+		t.Fatal("credential precedence mismatch")
 	}
 }
 
 func TestExplicitEnvironmentFileWinsBeforeItExists(t *testing.T) {
+	clearConfigEnvironment(t)
 	projectDir := t.TempDir()
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -129,7 +151,7 @@ func TestExplicitEnvironmentFileWinsBeforeItExists(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.EnvPath != explicit || cfg.Username != "" {
-		t.Fatalf("cfg = %#v, want empty explicit credentials file", cfg)
+		t.Fatalf("explicit credentials selection mismatch: EnvPath=%q UsernameEmpty=%t", cfg.EnvPath, cfg.Username == "")
 	}
 	if err := Save(cfg); err != nil {
 		t.Fatal(err)
@@ -140,6 +162,7 @@ func TestExplicitEnvironmentFileWinsBeforeItExists(t *testing.T) {
 }
 
 func TestRememberedEnvironmentFileWinsExistingProjectFile(t *testing.T) {
+	clearConfigEnvironment(t)
 	projectDir := t.TempDir()
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -168,7 +191,7 @@ func TestRememberedEnvironmentFileWinsExistingProjectFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.EnvPath != remembered || cfg.Username != "remembered-user" {
-		t.Fatalf("cfg = %#v, want remembered credentials file", cfg)
+		t.Fatalf("remembered credentials selection mismatch: EnvPath=%q UsernameMatch=%t", cfg.EnvPath, cfg.Username == "remembered-user")
 	}
 }
 
@@ -182,6 +205,7 @@ func TestPreferredEnvPathUsesUserConfigDirectory(t *testing.T) {
 }
 
 func TestLoadUsesProjectEnvAndHomeEnvForMissingValues(t *testing.T) {
+	clearConfigEnvironment(t)
 	projectDir := t.TempDir()
 	homeDir := t.TempDir()
 	oldWD, err := os.Getwd()
@@ -226,11 +250,12 @@ func TestLoadUsesProjectEnvAndHomeEnvForMissingValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resolvedEnvPath != resolvedExpectedPath || cfg.APIKey != "project-key" || cfg.Username != "project-user" || cfg.APISecret != "home-secret" || cfg.Password != "home-pass" {
-		t.Fatalf("cfg = %#v", cfg)
+		t.Fatal("credential precedence mismatch")
 	}
 }
 
 func TestLoadFromPathSupportsLastFMSharedSecret(t *testing.T) {
+	clearConfigEnvironment(t)
 	path := filepath.Join(t.TempDir(), ".env")
 	if err := os.WriteFile(path, []byte("LASTFM_SHARED_SECRET=shared-secret\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -244,11 +269,12 @@ func TestLoadFromPathSupportsLastFMSharedSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.APISecret != "shared-secret" {
-		t.Fatalf("APISecret = %q", cfg.APISecret)
+		t.Fatal("LASTFM_SHARED_SECRET was not loaded into APISecret")
 	}
 }
 
 func TestCredentialSourceEnvironmentDoesNotFallBackToFile(t *testing.T) {
+	clearConfigEnvironment(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")
 	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=environment\nAPI_KEY=file-key\nAPI_SECRET=file-secret\nLASTFM_USERNAME=file-user\n"), 0600); err != nil {
@@ -267,11 +293,12 @@ func TestCredentialSourceEnvironmentDoesNotFallBackToFile(t *testing.T) {
 		t.Fatalf("APIKey = %q", cfg.APIKey)
 	}
 	if cfg.APISecret != "" || cfg.Username != "" {
-		t.Fatalf("environment source fell back to file: %#v", cfg)
+		t.Fatalf("environment source fell back to file: APISecretEmpty=%t UsernameEmpty=%t", cfg.APISecret == "", cfg.Username == "")
 	}
 }
 
 func TestCredentialSourceFileIgnoresEnvironmentCredentialOverrides(t *testing.T) {
+	clearConfigEnvironment(t)
 	path := filepath.Join(t.TempDir(), ".env")
 	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=file\nAPI_KEY=file-key\nLASTFM_USERNAME=file-user\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -286,7 +313,7 @@ func TestCredentialSourceFileIgnoresEnvironmentCredentialOverrides(t *testing.T)
 		t.Fatal(err)
 	}
 	if cfg.APIKey != "file-key" || cfg.Username != "file-user" {
-		t.Fatalf("cfg = %#v", cfg)
+		t.Fatal("credential precedence mismatch")
 	}
 }
 
@@ -308,6 +335,7 @@ func TestSaveDoesNotPersistEnvironmentCredentials(t *testing.T) {
 }
 
 func TestSavePreservesAutoEnvironmentFallbacks(t *testing.T) {
+	clearConfigEnvironment(t)
 	path := filepath.Join(t.TempDir(), ".env")
 	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=auto\nAPI_KEY=file-key\nAPI_SECRET=file-secret\nLASTFM_USERNAME=file-user\nLASTFM_PASSWORD=file-pass\nLASTFM_SESSION_KEY=file-session\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -343,6 +371,7 @@ func TestSavePreservesAutoEnvironmentFallbacks(t *testing.T) {
 }
 
 func TestSavePreservesAutoKeychainFallbacks(t *testing.T) {
+	clearConfigEnvironment(t)
 	path := filepath.Join(t.TempDir(), ".env")
 	if err := os.WriteFile(path, []byte("LASTFM_CREDENTIAL_SOURCE=auto\nAPI_SECRET=file-secret\nLASTFM_PASSWORD=file-pass\nLASTFM_SESSION_KEY=file-session\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -397,6 +426,7 @@ func TestEditedAutoCredentialsPersistToFile(t *testing.T) {
 }
 
 func TestLoadUsesProjectEnvWhenRememberedPathIsStale(t *testing.T) {
+	clearConfigEnvironment(t)
 	projectDir := t.TempDir()
 	oldWD, err := os.Getwd()
 	if err != nil {

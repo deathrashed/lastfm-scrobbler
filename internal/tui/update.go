@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
@@ -133,9 +132,7 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		case stagePreview:
 			return m.updatePreview(msg)
 		case stageConfig:
-			return m.updateConfig(msg)
-		case stageAdvancedConfig:
-			return m.updateAdvancedConfig(msg)
+			return m.updateSettings(msg)
 		case stageEnvPath:
 			return m.updateEnvPath(msg)
 		case stageScrobbling:
@@ -173,6 +170,9 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
+		if !m.spinnerActive() {
+			return m, nil
+		}
 		return m, cmd
 	case searchResultMsg:
 		m.searching = false
@@ -231,6 +231,7 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.stage != stagePreview || msg.sessionID != m.sessionID || m.sessionCtx == nil || m.sessionCtx.Err() != nil {
 			return m, nil
 		}
+		m.searching = false
 		if msg.err != nil {
 			m.err = msg.err
 			m.stage = stagePreview
@@ -319,19 +320,24 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.envInput.Focus()
 		case "export":
 			m.cfg.ExportDir = msg.path
-			m.loadAdvancedField()
-			return m, m.configInput.Focus()
+			if m.stage == stageConfig && m.currentSettingsSection() == settingsTools {
+				m.loadSettingsField()
+				return m, m.configInput.Focus()
+			}
+			return m, nil
 		}
 	}
 	return m, nil
 }
 
 func (m model) helpAllowed() bool {
-	if m.discographyFiltering || m.advancedEditing {
+	if m.discographyFiltering {
 		return false
 	}
 	switch m.stage {
-	case stageSearch, stageConfig, stageEnvPath, stageProfileName:
+	case stageConfig:
+		return m.settingsFocus == settingsFocusSections || !m.settingsRowEditable()
+	case stageSearch, stageEnvPath, stageProfileName:
 		return false
 	default:
 		return true
@@ -359,17 +365,12 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.activateMode(1)
 	case "f":
 		return m.activateMode(2)
-	case "c":
-		return m.openConfig()
+	case "s":
+		return m.openSettings()
 	case "h":
-		m.stage = stageHistory
-		m.modeChoice = "history"
-		m.historyCursor = 0
-		m.historyStatus = ""
+		return m.openSettingsSection(settingsHistory, settingsFocusContent)
 	case "p":
-		m.stage = stageProfiles
-		m.modeChoice = "profiles"
-		m.profileCursor = indexOf(m.profiles, m.cfg.Profile)
+		return m.openSettingsSection(settingsProfiles, settingsFocusContent)
 	case "i":
 		m.stage = stageInfo
 		m.modeChoice = "info"
@@ -420,7 +421,7 @@ func (m model) activateMode(i int) (tea.Model, tea.Cmd) {
 	case "discography":
 		m.searchInput.Placeholder = "Artist name..."
 	default:
-		m.searchInput.Placeholder = "Artist - Album..."
+		m.searchInput.Placeholder = "Artist, Album, or Both..."
 	}
 	if m.stage == stageSearch {
 		return m, m.searchInput.Focus()
@@ -646,6 +647,7 @@ func (m model) updateDiscographySelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.discographyCursor = 0
 	case "/", "f":
 		m.discographyFiltering = true
+		m.filterInput.Width = discographyFilterContentWidth
 		m.filterInput.SetValue(m.discographyFilter)
 		m.filterInput.CursorEnd()
 		return m, m.filterInput.Focus()
@@ -774,17 +776,9 @@ func (m model) updateTrackSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		m.selectAllTracks(m.selectedTrackCount() != n)
 	case "+", "=":
-		m.loopCount++
-		for album := range m.albumLoops {
-			m.albumLoops[album] = m.loopCount
-		}
+		m.adjustTrackLoop(1)
 	case "-":
-		if m.loopCount > 1 {
-			m.loopCount--
-			for album := range m.albumLoops {
-				m.albumLoops[album] = m.loopCount
-			}
-		}
+		m.adjustTrackLoop(-1)
 	case "]":
 		if n > 0 {
 			album := refs[m.trackCursor].AlbumIndex
@@ -830,6 +824,32 @@ func (m model) updateTrackSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	m.err = nil
 	return m, nil
+}
+
+func (m *model) adjustTrackLoop(delta int) {
+	if delta == 0 {
+		return
+	}
+	refs := m.flattenedTracks()
+	if len(refs) > 0 && (m.modeChoice == "discography" || len(m.selectedAlbums) > 1) {
+		album := refs[minInt(maxInt(m.trackCursor, 0), len(refs)-1)].AlbumIndex
+		m.albumLoops[album] = maxInt(1, m.loopForAlbum(album)+delta)
+		return
+	}
+	m.loopCount = maxInt(1, m.loopCount+delta)
+	for album := range m.albumLoops {
+		m.albumLoops[album] = m.loopCount
+	}
+}
+
+func (m *model) adjustTrackInterval(delta time.Duration) {
+	if delta == 0 {
+		return
+	}
+	m.interval += delta
+	if m.interval < 0 {
+		m.interval = 0
+	}
 }
 
 func (m *model) buildScrobbleQueue() {
@@ -1095,230 +1115,6 @@ func (m *model) cancelScrobbleSession() {
 	m.err = nil
 }
 
-func (m model) openConfig() (tea.Model, tea.Cmd) {
-	m.stage = stageConfig
-	m.modeChoice = "config"
-	m.returnStage = stageInput
-	m.configIndex = 0
-	m.configFieldIndex = 0
-	m.configStatus = ""
-	m.loadConfigField()
-	return m, m.configInput.Focus()
-}
-
-func (m *model) configFieldCount() int {
-	switch m.configIndex {
-	case 0, 1:
-		return 1
-	case 2, 3:
-		return 2
-	default:
-		return 0
-	}
-}
-
-func (m model) configEditable() bool { return m.configIndex >= 0 && m.configIndex < 4 }
-
-func configLabel(index, field int) string {
-	switch index {
-	case 0:
-		return "LOOP"
-	case 1:
-		return "INTERVAL"
-	case 2:
-		if field == 0 {
-			return "LASTFM USERNAME"
-		}
-		return "LASTFM PASSWORD"
-	case 3:
-		if field == 0 {
-			return "API KEY"
-		}
-		return "API SECRET"
-	}
-	return "VALUE"
-}
-
-func (m *model) loadConfigField() {
-	if !m.configEditable() {
-		m.configInput.Blur()
-		return
-	}
-	m.configInput.EchoMode = textinput.EchoNormal
-	m.configInput.EchoCharacter = '•'
-	label := configLabel(m.configIndex, m.configFieldIndex)
-	// The view renders the cursor itself. Keeping the Bubbles input narrow
-	// prevents its padded viewport from ever escaping the fixed panel width.
-	m.configInput.Width = maxInt(8, 54-len([]rune(label)))
-	switch m.configIndex {
-	case 0:
-		m.configInput.SetValue(strconv.Itoa(m.cfg.DefaultLoop))
-	case 1:
-		m.configInput.SetValue(strings.TrimSuffix(m.cfg.DefaultInterval.String(), "s"))
-	case 2:
-		if m.configFieldIndex == 0 {
-			m.configInput.SetValue(m.cfg.Username)
-		} else {
-			m.configInput.SetValue(m.cfg.Password)
-			m.configInput.EchoMode = textinput.EchoPassword
-		}
-	case 3:
-		if m.configFieldIndex == 0 {
-			m.configInput.SetValue(m.cfg.APIKey)
-		} else {
-			m.configInput.SetValue(m.cfg.APISecret)
-			m.configInput.EchoMode = textinput.EchoPassword
-		}
-	}
-	m.configInput.CursorEnd()
-}
-
-func (m *model) commitConfigField() {
-	if !m.configEditable() {
-		return
-	}
-	value := strings.TrimSpace(m.configInput.Value())
-	switch m.configIndex {
-	case 0:
-		if number, err := strconv.Atoi(value); err == nil && number > 0 {
-			m.cfg.DefaultLoop = number
-			m.loopCount = number
-		}
-	case 1:
-		if duration, err := time.ParseDuration(value); err == nil {
-			m.cfg.DefaultInterval = duration
-			m.interval = duration
-		} else if seconds, err := strconv.ParseFloat(value, 64); err == nil {
-			m.cfg.DefaultInterval = time.Duration(seconds * float64(time.Second))
-			m.interval = m.cfg.DefaultInterval
-		}
-	case 2:
-		if m.configFieldIndex == 0 {
-			m.cfg.MarkCredentialEdited("username")
-			m.cfg.Username = value
-		} else {
-			m.cfg.MarkCredentialEdited("password")
-			m.cfg.Password = value
-		}
-	case 3:
-		if m.configFieldIndex == 0 {
-			m.cfg.MarkCredentialEdited("api_key")
-			m.cfg.APIKey = value
-		} else {
-			m.cfg.MarkCredentialEdited("api_secret")
-			m.cfg.APISecret = value
-		}
-	}
-}
-
-func configHorizontal(index, delta int) int {
-	rowStart, rowLength := 0, 4
-	if index >= 4 {
-		rowStart, rowLength = 4, 3
-	}
-	column := index - rowStart
-	column = (column + delta + rowLength) % rowLength
-	return rowStart + column
-}
-
-func configVertical(index int) int {
-	if index < 4 {
-		return 4 + minInt(index, 2)
-	}
-	return index - 4
-}
-
-func (m model) selectConfigTab(index int) (tea.Model, tea.Cmd) {
-	m.commitConfigField()
-	m.configIndex = index
-	m.configFieldIndex = 0
-	m.configStatus = ""
-	m.loadConfigField()
-	if m.configEditable() {
-		return m, m.configInput.Focus()
-	}
-	m.configInput.Blur()
-	return m, nil
-}
-
-func (m model) openConfigUtility() (tea.Model, tea.Cmd) {
-	switch m.configIndex {
-	case 4:
-		return m.openAdvancedConfig()
-	case 5:
-		m.stage = stageHistory
-		m.modeChoice = "history"
-		m.returnStage = stageConfig
-		m.historyCursor = 0
-		m.historyStatus = ""
-		return m, nil
-	case 6:
-		m.stage = stageProfiles
-		m.modeChoice = "profiles"
-		m.returnStage = stageConfig
-		m.profileCursor = indexOf(m.profiles, m.cfg.Profile)
-		return m, nil
-	}
-	return m, nil
-}
-
-func (m model) updateConfig(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "left":
-		return m.selectConfigTab(configHorizontal(m.configIndex, -1))
-	case "right":
-		return m.selectConfigTab(configHorizontal(m.configIndex, 1))
-	case "up", "down":
-		return m.selectConfigTab(configVertical(m.configIndex))
-	case "tab", "shift+tab":
-		if m.configFieldCount() > 1 {
-			m.commitConfigField()
-			delta := 1
-			if msg.String() == "shift+tab" {
-				delta = -1
-			}
-			m.configFieldIndex = (m.configFieldIndex + delta + m.configFieldCount()) % m.configFieldCount()
-			m.loadConfigField()
-			return m, m.configInput.Focus()
-		}
-	case "enter":
-		if m.configEditable() {
-			m.commitConfigField()
-			return m.saveConfig()
-		}
-		return m.openConfigUtility()
-	case "ctrl+p":
-		m.commitConfigField()
-		return m.openEnvPath()
-	case "ctrl+g":
-		m.commitConfigField()
-		return m.openAdvancedConfig()
-	case "ctrl+o":
-		m.commitConfigField()
-		m.stage = stageInfo
-		m.modeChoice = "info"
-		m.returnStage = stageConfig
-		m.infoIndex = 0
-		m.configInput.Blur()
-		return m, nil
-	case "esc":
-		m.commitConfigField()
-		m.stage = stageInput
-		m.modeChoice = ""
-		m.returnStage = stageInput
-		m.configInput.Blur()
-		return m, nil
-	case "ctrl+c":
-		return m, tea.Quit
-	}
-	if !m.configEditable() {
-		return m, nil
-	}
-	var cmd tea.Cmd
-	m.configInput, cmd = m.configInput.Update(msg)
-	return m, cmd
-}
-
 func (m model) saveConfig() (tea.Model, tea.Cmd) {
 	if err := config.Save(m.cfg); err != nil {
 		m.err = err
@@ -1332,106 +1128,11 @@ func (m model) saveConfig() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) openAdvancedConfig() (tea.Model, tea.Cmd) {
-	m.stage = stageAdvancedConfig
-	m.modeChoice = "advanced"
-	m.advancedIndex = 0
-	m.advancedEditing = false
-	m.configStatus = ""
-	m.loadAdvancedField()
-	return m, m.configInput.Focus()
-}
-
-var advancedLabels = []string{
-	"RETRY COUNT", "RETRY DELAY", "DUPLICATE GUARD", "NOTIFICATIONS",
-	"COMPACT HEADER", "CLEAN DISCOGRAPHY", "EXPORT DIR", "CREDENTIAL SOURCE",
-	"MOUSE SUPPORT", "UPDATE URL", "CONNECTION TEST", "DIAGNOSTICS BUNDLE", "CHECK FOR UPDATES",
-}
-
-func advancedEditable(index int) bool { return index >= 0 && index < 10 }
-func advancedAction(index int) bool   { return index >= 10 && index < len(advancedLabels) }
-
-func (m *model) loadAdvancedField() {
-	if !advancedEditable(m.advancedIndex) {
-		m.configInput.SetValue("")
-		m.configInput.Blur()
-		return
-	}
-	m.configInput.EchoMode = textinput.EchoNormal
-	m.configInput.Width = maxInt(12, 57-len([]rune(advancedLabels[m.advancedIndex])))
-	switch m.advancedIndex {
-	case 0:
-		m.configInput.SetValue(strconv.Itoa(m.cfg.RetryCount))
-	case 1:
-		m.configInput.SetValue(m.cfg.RetryDelay.String())
-	case 2:
-		m.configInput.SetValue(m.cfg.DuplicateGuard.String())
-	case 3:
-		m.configInput.SetValue(boolWord(m.cfg.Notify))
-	case 4:
-		m.configInput.SetValue(boolWord(m.cfg.CompactHeader))
-	case 5:
-		m.configInput.SetValue(boolWord(m.cfg.CleanDiscography))
-	case 6:
-		m.configInput.SetValue(m.cfg.ExportDir)
-	case 7:
-		m.configInput.SetValue(m.cfg.CredentialSource)
-	case 8:
-		m.configInput.SetValue(boolWord(m.cfg.MouseEnabled))
-	case 9:
-		m.configInput.SetValue(m.cfg.UpdateURL)
-	}
-	m.configInput.CursorEnd()
-}
-
 func boolWord(value bool) string {
 	if value {
 		return "on"
 	}
 	return "off"
-}
-
-func (m *model) commitAdvancedField() {
-	if !advancedEditable(m.advancedIndex) {
-		return
-	}
-	value := strings.TrimSpace(m.configInput.Value())
-	switch m.advancedIndex {
-	case 0:
-		if number, err := strconv.Atoi(value); err == nil && number >= 0 {
-			m.cfg.RetryCount = number
-		}
-	case 1:
-		if duration, err := time.ParseDuration(value); err == nil && duration >= 0 {
-			m.cfg.RetryDelay = duration
-		}
-	case 2:
-		if value == "0" || value == "off" {
-			m.cfg.DuplicateGuard = 0
-		} else if duration, err := time.ParseDuration(value); err == nil && duration >= 0 {
-			m.cfg.DuplicateGuard = duration
-		}
-	case 3:
-		m.cfg.Notify = parseToggle(value, m.cfg.Notify)
-	case 4:
-		m.cfg.CompactHeader = parseToggle(value, m.cfg.CompactHeader)
-	case 5:
-		m.cfg.CleanDiscography = parseToggle(value, m.cfg.CleanDiscography)
-		m.discographyClean = m.cfg.CleanDiscography
-	case 6:
-		if value != "" {
-			m.cfg.ExportDir = config.ExpandPath(value)
-		}
-	case 7:
-		source := strings.ToLower(value)
-		if source == "auto" || source == "file" || source == "environment" || source == "keychain" {
-			m.cfg.CredentialSource = source
-		}
-	case 8:
-		m.cfg.MouseEnabled = parseToggle(value, m.cfg.MouseEnabled)
-	case 9:
-		m.cfg.UpdateURL = value
-	}
 }
 
 func parseToggle(value string, fallback bool) bool {
@@ -1445,93 +1146,11 @@ func parseToggle(value string, fallback bool) bool {
 	}
 }
 
-func (m model) updateAdvancedConfig(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "up", "k":
-		m.commitAdvancedField()
-		m.advancedIndex = (m.advancedIndex + len(advancedLabels) - 1) % len(advancedLabels)
-		m.loadAdvancedField()
-		if advancedEditable(m.advancedIndex) {
-			return m, m.configInput.Focus()
-		}
-		return m, nil
-	case "down", "j":
-		m.commitAdvancedField()
-		m.advancedIndex = (m.advancedIndex + 1) % len(advancedLabels)
-		m.loadAdvancedField()
-		if advancedEditable(m.advancedIndex) {
-			return m, m.configInput.Focus()
-		}
-		return m, nil
-	case "left", "right", " ":
-		if !advancedEditable(m.advancedIndex) {
-			return m, nil
-		}
-		switch m.advancedIndex {
-		case 3:
-			m.cfg.Notify = !m.cfg.Notify
-		case 4:
-			m.cfg.CompactHeader = !m.cfg.CompactHeader
-		case 5:
-			m.cfg.CleanDiscography = !m.cfg.CleanDiscography
-			m.discographyClean = m.cfg.CleanDiscography
-		case 7:
-			sources := []string{"auto", "file", "environment", "keychain"}
-			index := indexOf(sources, m.cfg.CredentialSource)
-			if msg.String() == "left" {
-				index = (index + len(sources) - 1) % len(sources)
-			} else {
-				index = (index + 1) % len(sources)
-			}
-			m.cfg.CredentialSource = sources[index]
-		case 8:
-			m.cfg.MouseEnabled = !m.cfg.MouseEnabled
-		}
-		m.loadAdvancedField()
-		return m, m.configInput.Focus()
-	case "o":
-		if m.advancedIndex == 6 {
-			return m, pickFolderCmd("Choose an export folder", "export")
-		}
-	case "enter":
-		if advancedAction(m.advancedIndex) {
-			return m.openAdvancedAction()
-		}
-		m.commitAdvancedField()
-		return m.saveConfig()
-	case "esc":
-		m.commitAdvancedField()
-		m.stage = stageConfig
-		m.modeChoice = "config"
-		m.loadConfigField()
-		return m, m.configInput.Focus()
-	case "ctrl+c":
-		return m, tea.Quit
-	}
-	if !advancedEditable(m.advancedIndex) {
-		return m, nil
-	}
-	var cmd tea.Cmd
-	m.configInput, cmd = m.configInput.Update(msg)
-	return m, cmd
-}
-
-func (m model) openAdvancedAction() (tea.Model, tea.Cmd) {
-	switch m.advancedIndex {
-	case 10:
-		return m.openConnectionTest()
-	case 11:
-		return m.openDiagnostics()
-	case 12:
-		return m.openUpdateCheck()
-	}
-	return m, nil
-}
-
 func (m model) openConnectionTest() (tea.Model, tea.Cmd) {
 	m.stage = stageConnectionTest
 	m.modeChoice = "connection"
-	m.returnStage = stageAdvancedConfig
+	m.returnStage = stageConfig
+	m.settingsSection = settingsTools
 	m.connectionReport = connection.Report{}
 	m.connectionTesting = true
 	m.err = nil
@@ -1554,11 +1173,7 @@ func (m model) updateConnectionTest(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.err = nil
 		return m, tea.Batch(m.connectionTestCmd(), m.spinner.Tick)
 	case "esc":
-		m.stage = stageAdvancedConfig
-		m.modeChoice = "advanced"
-		m.advancedIndex = 10
-		m.loadAdvancedField()
-		return m, nil
+		return m.openSettingsSection(settingsTools, settingsFocusContent)
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
@@ -1568,7 +1183,8 @@ func (m model) updateConnectionTest(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) openDiagnostics() (tea.Model, tea.Cmd) {
 	m.stage = stageDiagnostics
 	m.modeChoice = "diagnostics"
-	m.returnStage = stageAdvancedConfig
+	m.returnStage = stageConfig
+	m.settingsSection = settingsTools
 	m.diagnosticsPath = ""
 	m.diagnosticsBusy = false
 	m.err = nil
@@ -1596,11 +1212,7 @@ func (m model) updateDiagnostics(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, openFolderCmd(filepath.Dir(m.diagnosticsPath))
 		}
 	case "esc":
-		m.stage = stageAdvancedConfig
-		m.modeChoice = "advanced"
-		m.advancedIndex = 11
-		m.loadAdvancedField()
-		return m, nil
+		return m.openSettingsSection(settingsTools, settingsFocusContent)
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
@@ -1610,7 +1222,8 @@ func (m model) updateDiagnostics(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) openUpdateCheck() (tea.Model, tea.Cmd) {
 	m.stage = stageUpdateCheck
 	m.modeChoice = "update"
-	m.returnStage = stageAdvancedConfig
+	m.returnStage = stageConfig
+	m.settingsSection = settingsTools
 	m.updateResult = updater.Result{}
 	m.updateChecking = true
 	m.err = nil
@@ -1637,11 +1250,7 @@ func (m model) updateUpdateCheck(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, openURLCmd(m.updateResult.URL)
 		}
 	case "esc":
-		m.stage = stageAdvancedConfig
-		m.modeChoice = "advanced"
-		m.advancedIndex = 12
-		m.loadAdvancedField()
-		return m, nil
+		return m.openSettingsSection(settingsTools, settingsFocusContent)
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
@@ -1651,6 +1260,8 @@ func (m model) updateUpdateCheck(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) openEnvPath() (tea.Model, tea.Cmd) {
 	m.stage = stageEnvPath
 	m.modeChoice = "env"
+	m.returnStage = stageConfig
+	m.settingsSection = settingsAccount
 	m.envStatus = ""
 	m.envInput.SetValue(m.cfg.EnvPath)
 	m.envInput.CursorEnd()
@@ -1691,11 +1302,8 @@ func (m model) updateEnvPath(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "o":
 		return m, pickPathCmd("Choose a credentials file", "env")
 	case "esc":
-		m.stage = stageConfig
-		m.modeChoice = "config"
 		m.envInput.Blur()
-		m.loadConfigField()
-		return m, m.configInput.Focus()
+		return m.openSettingsSection(settingsAccount, settingsFocusContent)
 	case "ctrl+c":
 		return m, tea.Quit
 	}
@@ -1748,8 +1356,7 @@ func (m model) updateDone(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.startSimilar(artist)
 		}
 	case "h":
-		m.stage = stageHistory
-		m.modeChoice = "history"
+		return m.openSettingsSection(settingsHistory, settingsFocusContent)
 	case "esc":
 		m.clearSessionSelection(true)
 		m.stage = stageInput
@@ -1783,15 +1390,23 @@ func (m *model) clearSessionSelection(clearDiscography bool) {
 }
 
 func (m model) updateHistory(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.settingsFocus == settingsFocusSections {
+		return m.updateSettingsGrid(msg)
+	}
 	n := len(m.history)
 	switch msg.String() {
+	case "tab", "shift+tab":
+		m.settingsFocus = settingsFocusSections
+		return m, nil
 	case "up", "k":
-		if n > 0 {
-			m.historyCursor = (m.historyCursor + n - 1) % n
+		if n == 0 || m.historyCursor == 0 {
+			m.settingsFocus = settingsFocusSections
+			return m, nil
 		}
+		m.historyCursor--
 	case "down", "j":
-		if n > 0 {
-			m.historyCursor = (m.historyCursor + 1) % n
+		if n > 0 && m.historyCursor < n-1 {
+			m.historyCursor++
 		}
 	case "enter", "r":
 		if n > 0 {
@@ -1822,15 +1437,7 @@ func (m model) updateHistory(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.historyStatus = "History entry deleted"
 		}
 	case "esc":
-		if m.returnStage == stageConfig {
-			m.stage = stageConfig
-			m.modeChoice = "config"
-			m.configIndex = 5
-			m.returnStage = stageInput
-		} else {
-			m.stage = stageInput
-			m.modeChoice = ""
-		}
+		return m.leaveSettings()
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
@@ -1860,7 +1467,7 @@ func (m model) updateRecovery(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.scrobbleIdx = minInt(m.pending.Completed, len(m.scrobbleQueue))
 		m.scrobbleStarted = m.pending.StartedAt
 		m.stage = stageScrobbling
-		return m, m.authenticateThenContinue()
+		return m, tea.Batch(m.authenticateThenContinue(), m.spinner.Tick)
 	case "r":
 		m.restoreRecord(*m.pending)
 		m.startScrobbleSession()
@@ -1868,7 +1475,7 @@ func (m model) updateRecovery(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.scrobbleStarted = time.Now()
 		m.stage = stageScrobbling
 		_ = m.store.SavePending(m.queueRecord("pending"))
-		return m, m.authenticateThenContinue()
+		return m, tea.Batch(m.authenticateThenContinue(), m.spinner.Tick)
 	case "d", "esc":
 		_ = m.store.ClearPending()
 		m.pending = nil
@@ -1920,15 +1527,23 @@ func (m model) updateSimilarSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateProfiles(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.settingsFocus == settingsFocusSections {
+		return m.updateSettingsGrid(msg)
+	}
 	n := len(m.profiles)
 	switch msg.String() {
+	case "tab", "shift+tab":
+		m.settingsFocus = settingsFocusSections
+		return m, nil
 	case "up", "k":
-		if n > 0 {
-			m.profileCursor = (m.profileCursor + n - 1) % n
+		if n == 0 || m.profileCursor == 0 {
+			m.settingsFocus = settingsFocusSections
+			return m, nil
 		}
+		m.profileCursor--
 	case "down", "j":
-		if n > 0 {
-			m.profileCursor = (m.profileCursor + 1) % n
+		if n > 0 && m.profileCursor < n-1 {
+			m.profileCursor++
 		}
 	case "enter":
 		if n > 0 {
@@ -1979,15 +1594,7 @@ func (m model) updateProfiles(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "esc":
-		if m.returnStage == stageConfig {
-			m.stage = stageConfig
-			m.modeChoice = "config"
-			m.configIndex = 6
-			m.returnStage = stageInput
-		} else {
-			m.stage = stageInput
-			m.modeChoice = ""
-		}
+		return m.leaveSettings()
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
@@ -2010,9 +1617,13 @@ func (m model) updateProfileName(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.profileStatus = "Created profile " + name
 		m.stage = stageProfiles
 		m.modeChoice = "profiles"
+		m.settingsSection = settingsProfiles
+		m.settingsFocus = settingsFocusContent
 	case "esc":
 		m.stage = stageProfiles
 		m.modeChoice = "profiles"
+		m.settingsSection = settingsProfiles
+		m.settingsFocus = settingsFocusContent
 	case "ctrl+c":
 		return m, tea.Quit
 	default:
@@ -2039,12 +1650,10 @@ func (m model) updateInfo(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.infoIndex = (m.infoIndex + 1) % 5
 	case "esc":
 		if m.returnStage == stageConfig {
-			m.stage = stageConfig
-			m.modeChoice = "config"
-		} else {
-			m.stage = stageInput
-			m.modeChoice = ""
+			return m.openSettingsSection(m.settingsSection, settingsFocusContent)
 		}
+		m.stage = stageInput
+		m.modeChoice = ""
 		m.returnStage = stageInput
 	case "q", "ctrl+c":
 		return m, tea.Quit
@@ -2101,6 +1710,13 @@ func (m model) headerURLContains(x, y int) bool {
 func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if msg.Action == tea.MouseActionMotion {
 		m.headerURLHover = m.headerURLContains(msg.X, msg.Y)
+		m.hoverRegion = ""
+		for _, region := range m.screenRegions() {
+			if region.contains(msg.X, msg.Y) {
+				m.hoverRegion = region.id
+				break
+			}
+		}
 		return m, nil
 	}
 	if msg.Button == tea.MouseButtonWheelUp {
@@ -2115,6 +1731,90 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	x, y := msg.X, msg.Y
 	if m.headerURLContains(x, y) {
 		return m, openHeaderURLCmd(lastfmURL(m.cfg.Username))
+	}
+	for _, region := range m.screenRegions() {
+		if !region.contains(x, y) {
+			continue
+		}
+		switch {
+		case region.id == "help:close":
+			m.helpVisible = false
+			m.hoverRegion = ""
+			return m, nil
+		case region.id == "footer:interval-down":
+			m.adjustTrackInterval(-time.Second)
+			return m, nil
+		case region.id == "footer:interval-up":
+			m.adjustTrackInterval(time.Second)
+			return m, nil
+		case region.id == "footer:loop-down":
+			m.adjustTrackLoop(-1)
+			return m, nil
+		case region.id == "footer:loop-up":
+			m.adjustTrackLoop(1)
+			return m, nil
+		case region.id == "footer:nav-up":
+			return m.updateModelKey(keyMessage("up"))
+		case region.id == "footer:nav-down":
+			return m.updateModelKey(keyMessage("down"))
+		case strings.HasPrefix(region.id, "footer:"):
+			return m.updateModelKey(region.message)
+		case strings.HasPrefix(region.id, "settings:"):
+			return m.updateSettingsMouseRegion(region)
+		case strings.HasPrefix(region.id, "info:tab:"):
+			m.infoIndex, _ = strconv.Atoi(strings.TrimPrefix(region.id, "info:tab:"))
+			return m, nil
+		case strings.HasPrefix(region.id, "dashboard:"):
+			index, _ := strconv.Atoi(strings.TrimPrefix(region.id, "dashboard:"))
+			return m.activateMode(index)
+		case strings.HasPrefix(region.id, "import:"):
+			m.importSourceIndex, _ = strconv.Atoi(strings.TrimPrefix(region.id, "import:"))
+			return m, nil
+		case region.id == "search:input":
+			return m, m.searchInput.Focus()
+		case region.id == "env:input":
+			return m, m.envInput.Focus()
+		case region.id == "profile:input":
+			return m, m.profileInput.Focus()
+		case region.id == "diagnostics:action":
+			return m.updateModelKey(region.message)
+		case region.id == "connection:action":
+			return m.updateModelKey(region.message)
+		case region.id == "update:action":
+			return m.updateModelKey(region.message)
+		case strings.HasPrefix(region.id, "results:"):
+			m.resultsCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "results:"))
+			return m, nil
+		case region.id == "discography:sort":
+			return m.updateModelKey(keyMessage("s"))
+		case region.id == "discography:clean":
+			return m.updateModelKey(keyMessage("c"))
+		case region.id == "discography:filter" || region.id == "discography:filter-input":
+			if !m.discographyFiltering {
+				return m.updateModelKey(keyMessage("/"))
+			}
+			m.filterInput.Width = discographyFilterContentWidth
+			return m, m.filterInput.Focus()
+		case strings.HasPrefix(region.id, "discography:"):
+			m.discographyCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "discography:"))
+			return m, nil
+		case strings.HasPrefix(region.id, "tracks:"):
+			m.trackCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "tracks:"))
+			return m, nil
+		case strings.HasPrefix(region.id, "similar:"):
+			m.similarCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "similar:"))
+			return m, nil
+		case strings.HasPrefix(region.id, "history:"):
+			m.historyCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "history:"))
+			m.settingsFocus = settingsFocusContent
+			return m, nil
+		case strings.HasPrefix(region.id, "profiles:"):
+			m.profileCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "profiles:"))
+			m.settingsFocus = settingsFocusContent
+			return m, nil
+		default:
+			return m.updateModelKey(region.message)
+		}
 	}
 	bodyY := y - m.headerHeight()
 	switch m.stage {
@@ -2131,62 +1831,23 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 	case stageImportSource:
 		switch {
-		case bodyY >= 0 && bodyY <= 2 && x >= 13 && x <= 32:
+		case bodyY >= 0 && bodyY <= 2 && x >= 12 && x < 34:
 			m.importSourceIndex = 0
-		case bodyY >= 0 && bodyY <= 2 && x >= 34 && x <= 52:
+		case bodyY >= 0 && bodyY <= 2 && x >= 35 && x < 54:
 			m.importSourceIndex = 1
-		case bodyY >= 3 && bodyY <= 5 && x >= 2 && x <= 32:
+		case bodyY >= 3 && bodyY <= 5 && x >= 5 && x < 32:
 			m.importSourceIndex = 2
-		case bodyY >= 3 && bodyY <= 5 && x >= 34 && x <= 64:
+		case bodyY >= 3 && bodyY <= 5 && x >= 33 && x < 62:
 			m.importSourceIndex = 3
 		default:
 			return m, nil
 		}
-	case stageConfig:
-		index := -1
-		if bodyY >= 0 && bodyY <= 2 {
-			switch {
-			case x >= 3 && x <= 13:
-				index = 0
-			case x >= 15 && x <= 33:
-				index = 1
-			case x >= 35 && x <= 53:
-				index = 2
-			case x >= 55 && x <= 63:
-				index = 3
-			}
-		} else if bodyY >= 3 && bodyY <= 5 {
-			switch {
-			case x >= 5 && x <= 23:
-				index = 4
-			case x >= 25 && x <= 41:
-				index = 5
-			case x >= 43 && x <= 61:
-				index = 6
-			}
-		}
-		if index >= 0 {
-			return m.selectConfigTab(index)
-		}
-	case stageAdvancedConfig:
-		row := bodyY - 1
-		maxRows := 11
-		if m.height > 0 {
-			maxRows = maxInt(7, minInt(13, m.height-19))
-		}
-		start := visibleStart(m.advancedIndex, len(advancedLabels), maxRows)
-		index := start + row
-		if row >= 0 && index >= 0 && index < len(advancedLabels) {
-			m.commitAdvancedField()
-			m.advancedIndex = index
-			m.loadAdvancedField()
-			if advancedEditable(index) {
-				return m, m.configInput.Focus()
-			}
-			return m, nil
-		}
 	}
 	return m, nil
+}
+
+func (m model) updateModelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	return updateModel(m, msg)
 }
 
 func (m model) mouseMove(delta int) (tea.Model, tea.Cmd) {
@@ -2209,15 +1870,11 @@ func (m model) mouseMove(delta int) (tea.Model, tea.Cmd) {
 			m.trackCursor = (m.trackCursor + delta + n) % n
 		}
 	case stageConfig:
-		return m.selectConfigTab(configHorizontal(m.configIndex, delta))
-	case stageAdvancedConfig:
-		m.commitAdvancedField()
-		m.advancedIndex = (m.advancedIndex + delta + len(advancedLabels)) % len(advancedLabels)
-		m.loadAdvancedField()
-		if advancedEditable(m.advancedIndex) {
-			return m, m.configInput.Focus()
-		}
+		return m.settingsMouseMove(delta)
 	case stageHistory:
+		if m.settingsFocus == settingsFocusSections {
+			return m.settingsMouseMove(delta)
+		}
 		if len(m.history) > 0 {
 			m.historyCursor = (m.historyCursor + delta + len(m.history)) % len(m.history)
 		}
@@ -2226,9 +1883,14 @@ func (m model) mouseMove(delta int) (tea.Model, tea.Cmd) {
 			m.similarCursor = (m.similarCursor + delta + len(m.similar)) % len(m.similar)
 		}
 	case stageProfiles:
+		if m.settingsFocus == settingsFocusSections {
+			return m.settingsMouseMove(delta)
+		}
 		if len(m.profiles) > 0 {
 			m.profileCursor = (m.profileCursor + delta + len(m.profiles)) % len(m.profiles)
 		}
+	case stageInfo:
+		m.infoIndex = (m.infoIndex + delta + 5) % 5
 	}
 	return m, nil
 }
