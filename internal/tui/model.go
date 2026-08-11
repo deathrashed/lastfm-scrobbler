@@ -33,6 +33,7 @@ const (
 	stageScrobbling
 	stageDone
 	stageHistory
+	stageLastSession
 	stageRecovery
 	stageSimilarSelect
 	stageProfiles
@@ -55,6 +56,10 @@ type model struct {
 	helpVisible    bool
 	headerURLHover bool
 	hoverRegion    string
+	activityState  activityState
+	activityTrack  lastfm.RecentTrack
+	activityFrame  int
+	activitySeq    uint64
 	sessionCtx     context.Context
 	sessionCancel  context.CancelFunc
 	sessionID      uint64
@@ -168,6 +173,8 @@ func New(cfg config.Config, client lastfm.Client) tea.Model {
 		settingsFocus:    settingsFocusContent,
 		history:          history, pending: pending, profiles: profiles,
 	}
+	m.activityState = activityLoading
+	m.activitySeq = 1
 	if m.loopCount < 1 {
 		m.loopCount = 1
 	}
@@ -230,5 +237,15 @@ func newTextInput(limit, width int) textinput.Model {
 	return input
 }
 
-func (m model) Init() tea.Cmd                           { return nil }
+func (m model) Init() tea.Cmd                           { return m.activityFetchCmd() }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return updateModel(m, msg) }
+
+func (m *model) restartActivity() tea.Cmd {
+	m.activitySeq++
+	m.activityFrame = 0
+	m.activityState = activityLoading
+	if !m.activityPollingEnabled() {
+		return nil
+	}
+	return m.activityFetchCmd()
+}

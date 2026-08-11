@@ -51,7 +51,7 @@ func clickRegion(t *testing.T, m model, id string) (model, tea.Cmd) {
 	t.Helper()
 	for _, region := range m.screenRegions() {
 		if region.id == id {
-			updated, cmd := m.updateMouse(tea.MouseMsg{X: region.x, Y: region.y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+			updated, cmd := m.updateMouse(tea.MouseMsg{X: m.appX() + region.x, Y: region.y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 			return updated.(model), cmd
 		}
 	}
@@ -307,25 +307,26 @@ func TestTallDiscographyRowsKeepMouseRegionsInSync(t *testing.T) {
 		discographyCursor:   0,
 		cfg:                 config.Config{MouseEnabled: true},
 	}
-	if got := discographyMaxRows(m); got != 16 {
-		t.Fatalf("discography max rows = %d, want 16", got)
+	if got := discographyMaxRows(m); got != m.visibleRows(20, 6, 32) {
+		t.Fatalf("discography max rows = %d, want %d", got, m.visibleRows(20, 6, 32))
 	}
 	found := false
+	wantIndex := minInt(len(m.discography), discographyMaxRows(m)) - 1
 	for _, region := range m.screenRegions() {
-		if region.id == "discography:15" {
+		if region.id == "discography:"+strconv.Itoa(wantIndex) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatal("16th visible Discography row has no mouse region")
+		t.Fatalf("last visible Discography row %d has no mouse region", wantIndex)
 	}
 }
 
 func TestSettingsRowsAndDetailAreMouseTargets(t *testing.T) {
 	m := settingsTestModel(t, settingsInterface, false)
-	updated, _ := clickRegion(t, m, "settings:row:2")
-	if updated.settingsRow != 2 || updated.settingsFocus != settingsFocusContent {
+	updated, _ := clickRegion(t, m, "settings:row:3")
+	if updated.settingsRow != 3 || updated.settingsFocus != settingsFocusContent {
 		t.Fatalf("row click selected row=%d focus=%d", updated.settingsRow, updated.settingsFocus)
 	}
 	beforeMouse := updated.cfg.MouseEnabled
@@ -528,11 +529,13 @@ func TestScrollableListRegionsTrackRenderedRowsAcrossHeaders(t *testing.T) {
 				rows++
 			}
 		}
-		if rows != 13 {
-			t.Fatalf("compact=%t visible result rows=%d, want 13", compact, rows)
+		maxRows := m.visibleRows(9, 6, 32)
+		if rows != minInt(maxRows, len(m.results)) {
+			t.Fatalf("compact=%t visible result rows=%d, want %d", compact, rows, minInt(maxRows, len(m.results)))
 		}
-		first := visibleStart(m.resultsCursor, len(m.results), 13)
-		for _, want := range []int{first, first + 6, first + 12} {
+		first := visibleStart(m.resultsCursor, len(m.results), maxRows)
+		last := minInt(len(m.results), first+maxRows)
+		for _, want := range []int{first, first + minInt(6, last-first-1), last - 1} {
 			id := "results:" + strconv.Itoa(want)
 			found := false
 			for _, region := range regions {
@@ -571,8 +574,10 @@ func TestHistoryAndProfilesRegionsAccountForSettingsGrid(t *testing.T) {
 				m.settingsSection = settingsProfiles
 			}
 			regions := m.screenRegions()
-			start := visibleStart(15, 30, 13)
-			for _, index := range []int{start, start + 6, start + 12} {
+			maxRows := m.visibleRows(10, 6, 32)
+			start := visibleStart(15, 30, maxRows)
+			last := minInt(30, start+maxRows)
+			for _, index := range []int{start, start + minInt(6, last-start-1), last - 1} {
 				id := prefix + ":" + strconv.Itoa(index)
 				found := false
 				for _, region := range regions {

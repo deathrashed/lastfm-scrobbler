@@ -23,14 +23,14 @@ func renderTrackSelectView(m model) string {
 		if m.modeChoice == "discography" && strings.TrimSpace(m.currentArtist()) != "" {
 			taskText = fmt.Sprintf("%s — %d selected albums", m.currentArtist(), len(m.selectedAlbums))
 		}
-		parts = append(parts, centerToHeader(renderInfoBox("TASK", taskText, fmt.Sprintf("(%d tracks)", total), 65, false)))
+		parts = append(parts, m.centerToApp(renderInfoBox("TASK", taskText, fmt.Sprintf("(%d tracks)", total), m.panelWidth(), false)))
 		if len(refs) > 0 {
 			ref := refs[minInt(m.trackCursor, len(refs)-1)]
 			albumText := ref.Album.Title
 			if m.modeChoice != "discography" {
 				albumText = ref.Album.Artist + " — " + ref.Album.Title
 			}
-			parts = append(parts, centerToHeader(renderInfoBox("ALBUM", albumText, fmt.Sprintf("%d", m.loopForAlbum(ref.AlbumIndex)), 65, false)))
+			parts = append(parts, m.centerToApp(renderInfoBox("ALBUM", albumText, fmt.Sprintf("%d", m.loopForAlbum(ref.AlbumIndex)), m.panelWidth(), false)))
 		}
 	} else {
 		album := m.selectedAlbum
@@ -41,18 +41,18 @@ func renderTrackSelectView(m model) string {
 		if m.modeChoice != "manual" && strings.TrimSpace(album.Artist) != "" {
 			albumText = album.Artist + " — " + album.Title
 		}
-		parts = append(parts, centerToHeader(renderInfoBox("ALBUM", albumText, fmt.Sprintf("(%d tracks)", total), 65, false)))
+		parts = append(parts, m.centerToApp(renderInfoBox("ALBUM", albumText, fmt.Sprintf("(%d tracks)", total), m.panelWidth(), false)))
 	}
 
-	parts = append(parts, centerToHeader(trackBox), "")
+	parts = append(parts, m.centerToApp(trackBox), "")
 	if m.exportStatus != "" {
-		parts = append(parts, centerToHeader(theme.SuccessStyle.Render(m.exportStatus)), "")
+		parts = append(parts, m.centerToApp(theme.SuccessStyle.Render(m.exportStatus)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
 func renderTrackList(m model, refs []trackRef, selected, total int) string {
-	const totalWidth = 65
+	totalWidth := m.panelWidth()
 	maxRows := trackListMaxRows(m)
 	if len(refs) == 0 {
 		return renderPanelBox([]string{theme.MutedStyle.Render("No tracks were returned for this album.")}, totalWidth, theme.BorderStyle)
@@ -114,14 +114,14 @@ func trackSelectListTopOffset(m model) int {
 		if m.modeChoice == "discography" && strings.TrimSpace(m.currentArtist()) != "" {
 			taskText = fmt.Sprintf("%s — %d selected albums", m.currentArtist(), len(m.selectedAlbums))
 		}
-		offset := renderedLineCount(renderInfoBox("TASK", taskText, fmt.Sprintf("(%d tracks)", len(refs)), 65, false))
+		offset := renderedLineCount(renderInfoBox("TASK", taskText, fmt.Sprintf("(%d tracks)", len(refs)), m.panelWidth(), false))
 		if len(refs) > 0 {
 			ref := refs[minInt(m.trackCursor, len(refs)-1)]
 			albumText := ref.Album.Title
 			if m.modeChoice != "discography" {
 				albumText = ref.Album.Artist + " — " + ref.Album.Title
 			}
-			offset += renderedLineCount(renderInfoBox("ALBUM", albumText, fmt.Sprintf("%d", m.loopForAlbum(ref.AlbumIndex)), 65, false))
+			offset += renderedLineCount(renderInfoBox("ALBUM", albumText, fmt.Sprintf("%d", m.loopForAlbum(ref.AlbumIndex)), m.panelWidth(), false))
 		}
 		return offset
 	}
@@ -133,7 +133,7 @@ func trackSelectListTopOffset(m model) int {
 	if m.modeChoice != "manual" && strings.TrimSpace(album.Artist) != "" {
 		albumText = album.Artist + " — " + album.Title
 	}
-	return renderedLineCount(renderInfoBox("ALBUM", albumText, fmt.Sprintf("(%d tracks)", len(refs)), 65, false))
+	return renderedLineCount(renderInfoBox("ALBUM", albumText, fmt.Sprintf("(%d tracks)", len(refs)), m.panelWidth(), false))
 }
 
 func renderedLineCount(value string) int {
@@ -144,17 +144,11 @@ func renderedLineCount(value string) int {
 }
 
 func trackListMaxRows(m model) int {
-	maxRows := 13
-	if m.height > 0 {
-		// Track selection has a dynamic artist header, one or two summary
-		// panels, the list's attached SELECTED badge, a trailing blank line,
-		// and a two-line footer. Derive the visible row budget from those
-		// actual pieces so tall artist/album names cannot push the footer off
-		// screen or desynchronise mouse hit regions.
-		available := m.height - m.headerHeight() - trackSelectListTopOffset(m) - 7
-		maxRows = maxInt(6, minInt(16, available))
+	available := m.height - m.headerHeight() - trackSelectListTopOffset(m) - 7
+	if m.height <= 0 {
+		return 32
 	}
-	return maxRows
+	return maxInt(6, minInt(32, available))
 }
 
 func renderScrobblingView(m model) string { return renderScrobbleStatus(m, false) }
@@ -168,29 +162,29 @@ func renderScrobbleStatus(m model, complete bool) string {
 	artistInHeader := strings.TrimSpace(m.headerArtist()) != ""
 	if hasItem && (m.modeChoice == "discography" || item.AlbumTotal > 1) {
 		if !artistInHeader {
-			sections = append(sections, centerToHeader(renderInfoBox("ARTIST", item.Artist, "", 65, false)))
+			sections = append(sections, m.centerToApp(renderInfoBox("ARTIST", item.Artist, "", m.panelWidth(), false)))
 		}
-		sections = append(sections, centerToHeader(renderInfoBox("ALBUM", item.Album, fmt.Sprintf("%d / %d", item.AlbumIndex, item.AlbumTotal), 65, false)))
+		sections = append(sections, m.centerToApp(renderInfoBox("ALBUM", item.Album, fmt.Sprintf("%d / %d", item.AlbumIndex, item.AlbumTotal), m.panelWidth(), false)))
 		trackTitle := item.Title
 		trackCount := fmt.Sprintf("%d / %d", item.TrackIndex, item.TrackTotal)
 		if complete {
 			trackTitle = "Complete"
 			trackCount = fmt.Sprintf("%d / %d", item.TrackTotal, item.TrackTotal)
 		}
-		sections = append(sections, centerToHeader(renderInfoBox("TRACK", trackTitle, trackCount, 65, false)))
+		sections = append(sections, m.centerToApp(renderInfoBox("TRACK", trackTitle, trackCount, m.panelWidth(), false)))
 	} else if hasItem {
 		albumText := item.Artist + " — " + item.Album
 		if artistInHeader {
 			albumText = item.Album
 		}
-		sections = append(sections, centerToHeader(renderInfoBox("ALBUM", albumText, "", 65, false)))
+		sections = append(sections, m.centerToApp(renderInfoBox("ALBUM", albumText, "", m.panelWidth(), false)))
 		status := item.Title
 		if complete {
 			status = "Complete"
 		}
-		sections = append(sections, centerToHeader(renderInfoBox("SCROBBLING", status, fmt.Sprintf("%d / %d", completed, total), 65, false)))
+		sections = append(sections, m.centerToApp(renderInfoBox("SCROBBLING", status, fmt.Sprintf("%d / %d", completed, total), m.panelWidth(), false)))
 	} else {
-		sections = append(sections, centerToHeader(renderInfoBox("SCROBBLING", "No tracks queued", "0 / 0", 65, false)))
+		sections = append(sections, m.centerToApp(renderInfoBox("SCROBBLING", "No tracks queued", "0 / 0", m.panelWidth(), false)))
 	}
 
 	percent := 0.0
@@ -201,21 +195,21 @@ func renderScrobbleStatus(m model, complete bool) string {
 		percent = 1
 		completed = total
 	}
-	sections = append(sections, centerToHeader(renderProgressBox(m, percent, complete)))
+	sections = append(sections, m.centerToApp(renderProgressBox(m, percent, complete)))
 	eta := "DONE"
 	if !complete {
 		eta = formatDuration(time.Duration(maxInt(0, total-completed)) * m.interval)
 	}
 	stats := joinThreeLineBoxes([]string{renderStatBox("ETA", eta, 19), renderStatBox("TOTAL", fmt.Sprintf("%d / %d", completed, total), 19)}, theme.SepStyle.Render("•"))
-	sections = append(sections, centerToHeader(stats), "")
+	sections = append(sections, m.centerToApp(stats), "")
 	if m.skippedDuplicates > 0 {
-		sections = append(sections, centerToHeader(theme.WarnStyle.Render(fmt.Sprintf("%d recent duplicate(s) skipped", m.skippedDuplicates))), "")
+		sections = append(sections, m.centerToApp(theme.WarnStyle.Render(fmt.Sprintf("%d recent duplicate(s) skipped", m.skippedDuplicates))), "")
 	}
 	if len(m.failures) > 0 {
-		sections = append(sections, centerToHeader(theme.WarnStyle.Render(fmt.Sprintf("%s %d scrobble(s) failed after retries", theme.IconError, len(m.failures)))), "")
+		sections = append(sections, m.centerToApp(theme.WarnStyle.Render(fmt.Sprintf("%s %d scrobble(s) failed after retries", theme.IconError, len(m.failures)))), "")
 	}
 	if complete && m.exportStatus != "" {
-		sections = append(sections, centerToHeader(theme.SuccessStyle.Render(m.exportStatus)), "")
+		sections = append(sections, m.centerToApp(theme.SuccessStyle.Render(m.exportStatus)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
@@ -235,7 +229,7 @@ func (m model) displayQueueItem(complete bool) (queuedTrack, bool) {
 }
 
 func renderProgressBox(m model, percent float64, complete bool) string {
-	const totalWidth = 65
+	totalWidth := m.panelWidth()
 	contentWidth := totalWidth - 4
 	percent = maxFloat(0, minFloat(1, percent))
 

@@ -13,41 +13,38 @@ import (
 )
 
 func renderResultsView(m model) string {
-	list := renderSimpleAlbumListWithResults(m.results, m.resultsCursor, 13, m.hoverRegion, "results")
+	list := renderSimpleAlbumListWithResults(m.results, m.resultsCursor, m.visibleRows(9, 6, 32), m.hoverRegion, "results", m.panelWidth())
 	var detail string
 	if len(m.results) > 0 {
 		album := m.results[minInt(maxInt(m.resultsCursor, 0), len(m.results)-1)]
-		detail = renderInfoBox("MATCH", album.Artist+" — "+album.Title, "", 65, false)
+		detail = renderInfoBox("MATCH", album.Artist+" — "+album.Title, "", m.panelWidth(), false)
 	} else {
-		detail = renderInfoBox("MATCH", "No album matches", "", 65, false)
+		detail = renderInfoBox("MATCH", "No album matches", "", m.panelWidth(), false)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
-		centerToHeader(detail),
-		centerToHeader(list),
+		m.centerToApp(detail),
+		m.centerToApp(list),
 		"",
 	)
 }
 
-func renderSimpleAlbumList(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string) string {
-	const totalWidth = 65
-	rows := simpleAlbumListRows(albums, cursor, maxRows, hoverRegion, hoverPrefix)
+func renderSimpleAlbumList(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string, totalWidth int) string {
+	rows := simpleAlbumListRows(albums, cursor, maxRows, hoverRegion, hoverPrefix, totalWidth)
 	if len(rows) == 0 {
 		return renderPanelBox([]string{theme.MutedStyle.Render("No albums found.")}, totalWidth, theme.BorderStyle)
 	}
 	return renderPanelBox(rows, totalWidth, theme.BorderStyle)
 }
 
-func renderSimpleAlbumListWithResults(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string) string {
-	const totalWidth = 65
-	rows := simpleAlbumListRows(albums, cursor, maxRows, hoverRegion, hoverPrefix)
+func renderSimpleAlbumListWithResults(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string, totalWidth int) string {
+	rows := simpleAlbumListRows(albums, cursor, maxRows, hoverRegion, hoverPrefix, totalWidth)
 	if len(rows) == 0 {
 		rows = []string{theme.MutedStyle.Render("No albums found.")}
 	}
 	return renderPanelBoxWithBadgeAttachment(rows, totalWidth, renderCountContent("RESULTS", len(albums)), theme.BorderStyle)
 }
 
-func simpleAlbumListRows(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string) []string {
-	const totalWidth = 65
+func simpleAlbumListRows(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string, totalWidth int) []string {
 	contentWidth := totalWidth - 4
 	if len(albums) == 0 {
 		return nil
@@ -105,13 +102,13 @@ func renderPreviewView(m model) string {
 		formatDuration(estimated),
 		previewLoopText(m),
 	)
-	lines := []string{centerToHeader(albumBox), centerToHeader(preview), ""}
+	lines := []string{m.centerToApp(albumBox), m.centerToApp(preview), ""}
 	if m.searching {
-		lines = append(lines, centerToHeader(m.spinner.View()+" "+theme.MutedStyle.Render("Preparing authenticated session…")), "")
+		lines = append(lines, m.centerToApp(m.spinner.View()+" "+theme.MutedStyle.Render("Preparing authenticated session…")), "")
 	}
 	status := firstNonEmptyString(m.previewStatus, m.exportStatus)
 	if status != "" {
-		lines = append(lines, centerToHeader(theme.SuccessStyle.Render(status)), "")
+		lines = append(lines, m.centerToApp(theme.SuccessStyle.Render(status)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
@@ -122,10 +119,8 @@ type previewAlbum struct {
 }
 
 func renderPreviewQueueBox(m model) string {
-	const (
-		totalWidth = 65
-		maxAlbums  = 5
-	)
+	const maxAlbums = 5
+	totalWidth := m.panelWidth()
 	contentWidth := totalWidth - 4
 	prefixPlain := "QUEUE ❯ "
 	prefixWidth := lipgloss.Width(prefixPlain)
@@ -257,15 +252,15 @@ func uniqueAlbumCount(queue []sessionstore.Track) int {
 }
 
 func renderHistoryView(m model) string {
-	const totalWidth = 65
+	totalWidth := m.panelWidth()
 	contentWidth := totalWidth - 4
 	if len(m.history) == 0 {
 		return lipgloss.JoinVertical(lipgloss.Left,
-			centerToHeader(renderPanelBox([]string{theme.MutedStyle.Render("No completed sessions yet.")}, totalWidth, theme.BorderStyle)),
+			m.centerToApp(renderPanelBox([]string{theme.MutedStyle.Render("No completed sessions yet.")}, totalWidth, theme.BorderStyle)),
 			"",
 		)
 	}
-	maxRows := 13
+	maxRows := m.visibleRows(10, 6, 32)
 	cursor := minInt(m.historyCursor, len(m.history)-1)
 	start := visibleStart(cursor, len(m.history), maxRows)
 	end := minInt(len(m.history), start+maxRows)
@@ -310,17 +305,52 @@ func renderHistoryView(m model) string {
 	list := renderPanelBox(rows, totalWidth, theme.BorderStyle)
 	record := m.history[cursor]
 	detailRows := []string{
-		statLine("DATE", record.StartedAt.Local().Format("2006-01-02 15:04"), 59),
-		statLine("MODE", record.Mode, 59),
-		statLine("TOTAL", fmt.Sprintf("%d", len(record.Queue)), 59),
-		statLine("FAILED", fmt.Sprintf("%d", record.Failures), 59),
+		statLine("DATE", record.StartedAt.Local().Format("2006-01-02 15:04"), contentWidth),
+		statLine("MODE", record.Mode, contentWidth),
+		statLine("TOTAL", fmt.Sprintf("%d", len(record.Queue)), contentWidth),
+		statLine("FAILED", fmt.Sprintf("%d", record.Failures), contentWidth),
 	}
 	detail := renderPanelBox(detailRows, totalWidth, theme.BorderStyle)
-	lines := []string{centerToHeader(list), centerToHeader(detail), ""}
+	lines := []string{m.centerToApp(list), m.centerToApp(detail), ""}
 	if m.historyStatus != "" {
-		lines = append(lines, centerToHeader(theme.SuccessStyle.Render(m.historyStatus)), "")
+		lines = append(lines, m.centerToApp(theme.SuccessStyle.Render(m.historyStatus)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+func lastSessionRecord(m model) (sessionstore.Record, bool) {
+	if len(m.lastRecord.Queue) > 0 && m.lastRecord.Status == "complete" {
+		return m.lastRecord, true
+	}
+	for _, record := range m.history {
+		if record.Status == "complete" && len(record.Queue) > 0 {
+			return record, true
+		}
+	}
+	return sessionstore.Record{}, false
+}
+
+func renderLastSessionView(m model) string {
+	record, ok := lastSessionRecord(m)
+	if !ok {
+		box := renderPanelBox([]string{"", centerText(theme.MutedStyle.Render("no previous session available"), m.panelWidth()-4), ""}, m.panelWidth(), theme.BorderStyle)
+		return m.centerToApp(box)
+	}
+	contentWidth := m.panelWidth() - 4
+	rows := make([]string, 0, 6)
+	first := record.Queue[0]
+	rows = append(rows, statLine("ARTIST", first.Artist, contentWidth))
+	if uniqueAlbumCount(record.Queue) > 1 {
+		rows = append(rows, statLine("ALBUMS", fmt.Sprintf("%d", uniqueAlbumCount(record.Queue)), contentWidth))
+	} else {
+		rows = append(rows, statLine("ALBUM", first.Album, contentWidth))
+	}
+	rows = append(rows,
+		statLine("TRACKS", fmt.Sprintf("%d", len(record.Queue)), contentWidth),
+		statLine("LOOP", fmt.Sprintf("%d", maxInt(1, record.Loop)), contentWidth),
+		statLine("INTERVAL", record.Interval.String(), contentWidth),
+	)
+	return m.centerToApp(renderPanelBox(rows, m.panelWidth(), theme.BorderStyle))
 }
 
 func historyLabel(record sessionstore.Record) string {
@@ -337,19 +367,21 @@ func historyLabel(record sessionstore.Record) string {
 
 func renderRecoveryView(m model) string {
 	if m.pending == nil {
-		return centerToHeader(renderPanelBox([]string{theme.MutedStyle.Render("No unfinished session found.")}, 65, theme.BorderStyle))
+		return m.centerToApp(renderPanelBox([]string{theme.MutedStyle.Render("No unfinished session found.")}, m.panelWidth(), theme.BorderStyle))
 	}
 	record := *m.pending
 	album := historyLabel(record)
-	info := renderInfoBox("SESSION", album, fmt.Sprintf("%d / %d", record.Completed, len(record.Queue)), 65, false)
+	totalWidth := m.panelWidth()
+	contentWidth := totalWidth - 4
+	info := renderInfoBox("SESSION", album, fmt.Sprintf("%d / %d", record.Completed, len(record.Queue)), totalWidth, false)
 	rows := []string{
-		statLine("STATUS", "unfinished session found", 59),
-		statLine("STARTED", record.StartedAt.Local().Format("2006-01-02 15:04"), 59),
-		statLine("MODE", record.Mode, 59),
-		statLine("REMAINING", fmt.Sprintf("%d", maxInt(0, len(record.Queue)-record.Completed)), 59),
+		statLine("STATUS", "unfinished session found", contentWidth),
+		statLine("STARTED", record.StartedAt.Local().Format("2006-01-02 15:04"), contentWidth),
+		statLine("MODE", record.Mode, contentWidth),
+		statLine("REMAINING", fmt.Sprintf("%d", maxInt(0, len(record.Queue)-record.Completed)), contentWidth),
 	}
-	box := renderPanelBox(rows, 65, theme.BorderStyle)
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(info), centerToHeader(box), "")
+	box := renderPanelBox(rows, totalWidth, theme.BorderStyle)
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(info), m.centerToApp(box), "")
 }
 
 func renderHelpView(m model) string {
@@ -369,19 +401,23 @@ func renderHelpView(m model) string {
 		helpRow("esc", "go back or cancel"),
 		helpRow("q", "quit; active sessions can resume later"),
 	}
-	box := renderPanelBox(rows, 65, theme.BorderStyle)
+	box := renderPanelBox(rows, m.panelWidth(), theme.BorderStyle)
 	closeStyle := theme.MutedStyle
 	if m.hoverRegion == "help:close" {
 		closeStyle = theme.SuccessStyle
 	}
 	closeLine := theme.MutedStyle.Render("press ? or esc to ") + closeStyle.Render("close")
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(box), centerToHeader(closeLine), "")
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(box), m.centerToApp(closeLine), "")
 }
 
-func helpRow(key, description string) string {
+func helpRow(key, description string, widths ...int) string {
 	left := theme.KeyStyle.Render(key)
 	right := theme.MutedStyle.Render(description)
-	gap := 59 - lipgloss.Width(left) - lipgloss.Width(right)
+	width := 59
+	if len(widths) > 0 {
+		width = maxInt(1, widths[0])
+	}
+	gap := width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {
 		gap = 1
 	}

@@ -1,8 +1,12 @@
 # <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="24" height="24" alt="Last.fm icon"> TUI controls and workflows
 
-The Bubble Tea interface uses a fixed-width layout with Torch Red active
-controls, centered panels, contextual footer hints, and optional mouse support.
-Run `scrobbler` without a subcommand to open it.
+The Bubble Tea interface uses a responsive 67–127-cell layout with Torch Red
+active controls, centered panels, contextual footer hints, and optional mouse
+support. At 67 columns it retains the approved compact design. Between 67 and
+127 it grows content panels and spreads natural-width cards; above 127 the
+application remains 127 cells wide and centers itself. Terminal resizing
+updates rendered geometry and mouse regions live. Run `scrobbler` without a
+subcommand to open it.
 
 The UI requires a terminal at least 67 columns wide. Compact Header is enabled
 only by `SCROBBLE_COMPACT_HEADER` or **Settings → Interface → Compact Header**;
@@ -78,15 +82,28 @@ Compact Header intentionally has no URL hit area.
 | `D` | Discography results for an artist, sourced from Last.fm top albums. |
 | `F` | File, playlist, or folder import. |
 | `H` | History inside the Settings shell. |
-| `P` | Profiles inside the Settings shell. |
 | `S` | Settings, opening on Scrobbling. |
 | `I` | In-app Info and documentation. |
+| `R` | Last Session, for an exact rerun or edit-first rerun. |
+
+### Full-header activity
+
+**Settings → Interface → Now Playing** is enabled by default and applies only
+to the full header. The TUI reads one item through Last.fm's
+[`user.getRecentTracks`](https://www.last.fm/api/show/user.getRecentTracks)
+method, showing an animated volume icon while the API marks a track as
+currently playing and a static icon for the most recent scrobble otherwise.
+Loading, no-history, and unavailable states keep the same reserved row. The
+display refreshes about every 30 seconds and never submits playback state.
+Compact Header deliberately remains activity-free; it only adds its approved
+Manual or Discography artist row after an artist is resolved.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Settings
 
 Settings replaces the former Config/Advanced split with six first-class
-sections. The two rows use the same fixed `19 / 25 / 19` geometry and together
-fit the 65-cell content width exactly:
+sections. At the minimum width, the two rows use the familiar `19 / 25 / 19`
+geometry shown below. On wider terminals the cards retain their natural widths
+and the extra space becomes centered breathing room between them:
 
 ```text
 ╭─────────────────╮ ╭───────────────────────╮ ╭─────────────────╮
@@ -108,7 +125,7 @@ workflows inside the same navigation shell.
 | **Scrobbling** | Loop, interval, retry count/delay, duplicate guard, Clean Discography. |
 | **History** | Saved sessions, edit/exact re-runs, export, delete. |
 | **Tools** | Export directory, update source, connection test, diagnostics, completions, update check. |
-| **Interface** | Notifications, Compact Header, Mouse Support. |
+| **Interface** | Notifications, Now Playing, Compact Header, Mouse Support. |
 | **Profiles** | Load, create, save, and delete named profiles. |
 
 ### Keyboard focus
@@ -188,8 +205,9 @@ Search by artist, album, or both, choose a matching Last.fm result when necessar
 select tracks and preview the queue before starting the scrobble.
 
 Once an artist has been resolved, the full header grows a centered artist badge
-beneath `M A N U A L`; its width follows the artist name while remaining inside
-the fixed 67-column layout. The search-result list attaches a `RESULTS` count to
+beneath `M A N U A L`; its width follows the artist name. Compact mode adds the
+centered `ARTIST ❯ NAME` row only for resolved Manual and Discography stages.
+The search-result list attaches a `RESULTS` count to
 its lower-right border instead of showing a misleading multiselect counter. The
 track-selection list attaches its `SELECTED` counter the same way.
 
@@ -218,8 +236,9 @@ changes the loop count for the album containing the current track.
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Discography
 
 Search an artist, filter or sort the returned albums, clean obvious duplicate
-editions, select albums, and load their tracks into one queue. The source is
-Last.fm's `artist.getTopAlbums` result, not a canonical complete discography.
+editions, select albums, and load their tracks into one queue. The user-facing
+feature is Discography; its source is Last.fm's `artist.getTopAlbums` result,
+not a canonical complete discography.
 
 After the artist is resolved, the full header carries the same dynamic artist
 badge used by Manual. The album chooser is one integrated component: `SORT`,
@@ -250,8 +269,13 @@ manually, then press `Enter` to import.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> History, recovery, and Profiles
 
-`H` and `P` from the Dashboard open History or Profiles directly while retaining
-the Settings section grid.
+`H` from the Dashboard opens History directly while retaining the Settings
+section grid. Profiles remain available through **Settings → Profiles**.
+
+`R` opens Last Session. `Enter` performs an exact rerun through the existing
+queue path, `E` opens the existing edit-first track-selection path, and `Esc`
+returns to the Dashboard. If no completed queue exists, the screen reports
+that no previous session is available.
 
 History controls:
 

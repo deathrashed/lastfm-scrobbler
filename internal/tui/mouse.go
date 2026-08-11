@@ -105,12 +105,12 @@ func footerSpec(m model) [][]footerItem {
 	switch m.stage {
 	case stageInput:
 		return [][]footerItem{
-			{s("→ ↑ ↓ ←", " navigate"), enter(" select", "open the highlighted mode"), s("M-D-F", " quick")},
+			{enter(" select", "open the highlighted mode"), s("→ ↑ ↓ ←", " navigate"), a("footer:s", "s", " settings", "open Settings")},
 			{
-				a("footer:h", "h", " history", "open completed session history"),
-				a("footer:p", "p", " profiles", "open saved Last.fm profiles"),
-				a("footer:s", "s", " settings", "open Settings"),
 				a("footer:i", "i", " info", "open the information guide"),
+				a("footer:h", "h", " history", "open completed session history"),
+				s("m d f", " quick"),
+				a("footer:r", "r", " rerun", "open the latest completed session"),
 				help(),
 			},
 		}
@@ -266,6 +266,11 @@ func footerSpec(m model) [][]footerItem {
 				esc(" menu", "return to the main menu"),
 			},
 		}
+	case stageLastSession:
+		return [][]footerItem{
+			{enter(" rerun", "run the latest completed session unchanged"), a("footer:e", "e", " edit first", "edit the latest completed session before running it again")},
+			{esc(" back", "return to the main menu"), help()},
+		}
 	case stageRecovery:
 		return [][]footerItem{{
 			enter(" resume", "resume the unfinished session"),
@@ -387,7 +392,7 @@ func (m model) bodyLineCount() int {
 func (m model) footerRegions() []mouseRegion {
 	regions := []mouseRegion{}
 	for lineIndex, items := range footerSpec(m) {
-		x := (headerContentWidth - footerLineWidth(items)) / 2
+		x := (m.appWidth() - footerLineWidth(items)) / 2
 		for index, item := range items {
 			if index > 0 && !item.tight {
 				x += lipgloss.Width(" • ")
@@ -406,14 +411,13 @@ func (m model) infoTabRegions() []mouseRegion {
 	rows := [][]int{{0, 1, 2}, {3, 4}}
 	regions := []mouseRegion{}
 	for row, indexes := range rows {
-		lineWidth := len(indexes) - 1
-		for _, index := range indexes {
-			lineWidth += widths[index]
+		rowWidths := make([]int, len(indexes))
+		for index, section := range indexes {
+			rowWidths[index] = widths[section]
 		}
-		x := (headerContentWidth - lineWidth) / 2
-		for _, index := range indexes {
-			regions = append(regions, mouseRegion{id: "info:tab:" + strconv.Itoa(index), x: x, y: m.headerHeight() + row*3, width: widths[index], height: 3})
-			x += widths[index] + 1
+		positions, _ := responsiveCardPositions(rowWidths, m.panelWidth())
+		for index, section := range indexes {
+			regions = append(regions, mouseRegion{id: "info:tab:" + strconv.Itoa(section), x: 1 + positions[index], y: m.headerHeight() + row*3, width: widths[section], height: 3})
 		}
 	}
 	return regions
@@ -457,32 +461,33 @@ func (m model) screenRegions() []mouseRegion {
 	switch m.stage {
 	case stageInput:
 		for i, width := range []int{19, 25, 18} {
-			regions = append(regions, mouseRegion{id: "dashboard:" + strconv.Itoa(i), x: []int{1, 21, 47}[i], y: bodyY, width: width, height: 3, message: keyMessage([]string{"m", "d", "f"}[i])})
+			positions := dashboardCardPositions(m.panelWidth())
+			regions = append(regions, mouseRegion{id: "dashboard:" + strconv.Itoa(i), x: positions[i], y: bodyY, width: width, height: 3, message: keyMessage([]string{"m", "d", "f"}[i])})
 		}
 	case stageSetup:
 		regions = append(regions, setupScreenRegions(m, bodyY)...)
 	case stageCompletions:
 		regions = append(regions, completionScreenRegions(m, bodyY)...)
 	case stageSearch:
-		regions = append(regions, mouseRegion{id: "search:input", x: 1, y: bodyY, width: 65, height: 3})
+		regions = append(regions, mouseRegion{id: "search:input", x: 1, y: bodyY, width: m.panelWidth(), height: 3})
 	case stageImportSource:
-		regions = append(regions, fileSourceRegions(bodyY)...)
+		regions = append(regions, fileSourceRegions(bodyY, m.panelWidth())...)
 	case stageConfig:
 		regions = append(regions, m.settingsRowRegions()...)
 	case stageResults:
-		regions = append(regions, listRegion(bodyY+3, len(m.results), m.resultsCursor, 13, "results")...)
+		regions = append(regions, listRegion(bodyY+3, len(m.results), m.resultsCursor, m.visibleRows(9, 6, 32), m.panelWidth(), "results")...)
 	case stageDiscographySelect:
 		if !m.discographyFiltering {
 			regions = append(regions,
-				mouseRegion{id: "discography:sort", x: 3, y: bodyY, width: discographySortTabWidth, height: 3, message: keyMessage("s")},
-				mouseRegion{id: "discography:filter", x: 19, y: bodyY, width: discographyFilterTabWidth, height: 3, message: keyMessage("/")},
-				mouseRegion{id: "discography:clean", x: 49, y: bodyY, width: discographyCleanTabWidth, height: 3, message: keyMessage("c")},
+				mouseRegion{id: "discography:sort", x: discographySortTabX(m), y: bodyY, width: discographySortTabWidth, height: 3, message: keyMessage("s")},
+				mouseRegion{id: "discography:filter", x: discographyFilterTabX(m), y: bodyY, width: discographyFilterTabWidth, height: 3, message: keyMessage("/")},
+				mouseRegion{id: "discography:clean", x: discographyCleanTabX(m), y: bodyY, width: discographyCleanTabWidth, height: 3, message: keyMessage("c")},
 			)
 		} else {
-			regions = append(regions, mouseRegion{id: "discography:filter", x: 19, y: bodyY, width: discographyFilterTabWidth, height: 3})
+			regions = append(regions, mouseRegion{id: "discography:filter", x: discographyFilterTabX(m), y: bodyY, width: discographyFilterTabWidth, height: 3})
 		}
 		if discographyFilterExpanded(m) {
-			regions = append(regions, mouseRegion{id: "discography:filter-input", x: 3, y: bodyY + 3, width: discographyExpandedFilterWidth, height: discographyExpandedFilterLineCount(m), message: keyMessage("/")})
+			regions = append(regions, mouseRegion{id: "discography:filter-input", x: discographyExpandedFilterX(m), y: bodyY + 3, width: discographyExpandedFilterWidthFor(m), height: discographyExpandedFilterLineCount(m), message: keyMessage("/")})
 		}
 		visible := m.discographyVisibleIndexes()
 		maxRows := discographyChooserMaxRows(m)
@@ -490,33 +495,33 @@ func (m model) screenRegions() []mouseRegion {
 		end := minInt(len(visible), start+maxRows)
 		firstRowY := bodyY + discographyChooserListRowOffset(m)
 		for row, position := 0, start; position < end; position, row = position+1, row+1 {
-			regions = append(regions, mouseRegion{id: "discography:" + strconv.Itoa(position), x: 1, y: firstRowY + row, width: 65, height: 1})
+			regions = append(regions, mouseRegion{id: "discography:" + strconv.Itoa(position), x: 1, y: firstRowY + row, width: m.panelWidth(), height: 1})
 		}
 	case stageTrackSelect:
-		regions = append(regions, listRegion(bodyY+trackSelectListTopOffset(m), len(m.flattenedTracks()), m.trackCursor, trackListMaxRows(m), "tracks")...)
+		regions = append(regions, listRegion(bodyY+trackSelectListTopOffset(m), len(m.flattenedTracks()), m.trackCursor, trackListMaxRows(m), m.panelWidth(), "tracks")...)
 	case stageSimilarSelect:
-		regions = append(regions, listRegion(bodyY+3, len(m.similar), m.similarCursor, 13, "similar")...)
+		regions = append(regions, listRegion(bodyY+3, len(m.similar), m.similarCursor, m.visibleRows(8, 6, 32), m.panelWidth(), "similar")...)
 	case stageHistory:
-		regions = append(regions, listRegion(bodyY+settingsSectionContentStartY(), len(m.history), m.historyCursor, 13, "history")...)
+		regions = append(regions, listRegion(bodyY+settingsSectionContentStartY(), len(m.history), m.historyCursor, m.visibleRows(10, 6, 32), m.panelWidth(), "history")...)
 	case stageProfiles:
-		regions = append(regions, listRegion(bodyY+settingsSectionContentStartY(), len(m.profiles), m.profileCursor, 13, "profiles")...)
+		regions = append(regions, listRegion(bodyY+settingsSectionContentStartY(), len(m.profiles), m.profileCursor, m.visibleRows(10, 6, 32), m.panelWidth(), "profiles")...)
 	case stageDiagnostics:
-		regions = append(regions, mouseRegion{id: "diagnostics:action", x: 1, y: bodyY, width: 65, height: 6, message: keyMessage("enter")})
+		regions = append(regions, mouseRegion{id: "diagnostics:action", x: 1, y: bodyY, width: m.panelWidth(), height: 6, message: keyMessage("enter")})
 	case stageConnectionTest:
 		if !m.connectionTesting {
-			regions = append(regions, mouseRegion{id: "connection:action", x: 1, y: bodyY, width: 65, height: 6, message: keyMessage("r")})
+			regions = append(regions, mouseRegion{id: "connection:action", x: 1, y: bodyY, width: m.panelWidth(), height: 6, message: keyMessage("r")})
 		}
 	case stageUpdateCheck:
-		regions = append(regions, mouseRegion{id: "update:action", x: 1, y: bodyY, width: 65, height: 6, message: keyMessage("r")})
+		regions = append(regions, mouseRegion{id: "update:action", x: 1, y: bodyY, width: m.panelWidth(), height: 6, message: keyMessage("r")})
 	case stageEnvPath:
-		regions = append(regions, mouseRegion{id: "env:input", x: 1, y: bodyY, width: 65, height: 3})
+		regions = append(regions, mouseRegion{id: "env:input", x: 1, y: bodyY, width: m.panelWidth(), height: 3})
 	case stageProfileName:
-		regions = append(regions, mouseRegion{id: "profile:input", x: 1, y: bodyY, width: 65, height: 3})
+		regions = append(regions, mouseRegion{id: "profile:input", x: 1, y: bodyY, width: m.panelWidth(), height: 3})
 	}
 	return regions
 }
 
-func listRegion(y, total, cursor, maxRows int, prefix string) []mouseRegion {
+func listRegion(y, total, cursor, maxRows, width int, prefix string) []mouseRegion {
 	if total == 0 {
 		return nil
 	}
@@ -524,7 +529,7 @@ func listRegion(y, total, cursor, maxRows int, prefix string) []mouseRegion {
 	end := minInt(total, start+maxRows)
 	regions := []mouseRegion{}
 	for row, index := 0, start; index < end; index, row = index+1, row+1 {
-		regions = append(regions, mouseRegion{id: prefix + ":" + strconv.Itoa(index), x: 1, y: y + row + 1, width: 65, height: 1})
+		regions = append(regions, mouseRegion{id: prefix + ":" + strconv.Itoa(index), x: 1, y: y + row + 1, width: width, height: 1})
 	}
 	return regions
 }

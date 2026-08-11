@@ -48,6 +48,13 @@ access, proxy settings, and the current build's repository metadata. If using a
 custom endpoint, verify its URL and response fields. No update URL is needed
 for official builds.
 
+## Now Playing is unavailable
+
+Now Playing is a full-header-only convenience display. Check **Settings →
+Interface → Now Playing** and verify that the configured Last.fm credentials
+can authenticate. A temporary `user.getRecentTracks` failure is shown as
+unavailable without interrupting Manual, Discography, File, or scrobbling.
+
 ## File imports fail
 
 Confirm the path exists and matches the selected source type. Use the supported

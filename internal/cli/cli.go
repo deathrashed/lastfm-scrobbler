@@ -76,6 +76,11 @@ func Run(args []string, cfg config.Config, client lastfm.Client, stdout, stderr 
 		fmt.Fprintf(stdout, "%s (%s)\n", version.Version, version.Commit)
 		return 0
 	case "completion":
+		if len(arguments) == 1 && (arguments[0] == "--help" || arguments[0] == "-h") {
+			fmt.Fprintln(stdout, "Usage: scrobbler completion <zsh|bash|fish|powershell>")
+			fmt.Fprintln(stdout, "       scrobbler completion install [zsh|bash|fish|powershell]")
+			return 0
+		}
 		if len(arguments) > 0 && arguments[0] == "install" {
 			if len(arguments) > 2 {
 				fmt.Fprintln(stderr, "usage: scrobbler completion install [zsh|bash|fish|powershell]")
@@ -190,6 +195,9 @@ func runManual(cfg config.Config, client lastfm.Client, stdout, stderr io.Writer
 	fs.StringVar(&artist, "artist", "", "artist name")
 	fs.StringVar(&album, "album", "", "album title")
 	if err := fs.Parse(normalizeArgs(args, map[string]bool{"artist": true, "album": true, "loop": true, "limit": true, "interval": true})); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	if (artist == "" || album == "") && fs.NArg() > 0 {
@@ -219,6 +227,9 @@ func runFile(cfg config.Config, client lastfm.Client, stdout, stderr io.Writer, 
 	var opts commonOptions
 	addCommon(fs, cfg, &opts)
 	if err := fs.Parse(normalizeArgs(args, map[string]bool{"loop": true, "limit": true, "interval": true})); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	if fs.NArg() != 1 {
@@ -252,6 +263,9 @@ func runDiscography(cfg config.Config, client lastfm.Client, stdout, stderr io.W
 	fs.IntVar(&first, "first", 0, "select the first N albums")
 	fs.BoolVar(&clean, "clean", cfg.CleanDiscography, "remove obvious reissues and duplicates")
 	if err := fs.Parse(normalizeArgs(args, map[string]bool{"loop": true, "limit": true, "interval": true, "albums": true, "first": true})); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -299,6 +313,9 @@ func runSimilar(client lastfm.Client, stdout, stderr io.Writer, args []string) i
 	limit := fs.Int("limit", 20, "maximum suggestions")
 	jsonOut := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(normalizeArgs(args, map[string]bool{"limit": true})); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -510,6 +527,9 @@ func runConnectionTest(cfg config.Config, client lastfm.Client, stdout, stderr i
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(args); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	report := connection.Test(context.Background(), cfg, client)
@@ -537,6 +557,9 @@ func runDiagnostics(cfg config.Config, stdout, stderr io.Writer, args []string) 
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(args); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	history, _ := sessionstore.New(config.DataDir()).LoadHistory()
@@ -558,6 +581,9 @@ func runUpdateCheck(cfg config.Config, stdout, stderr io.Writer, args []string) 
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(args); err != nil {
+		if IsUsageError(err) {
+			return 0
+		}
 		return 2
 	}
 	result, err := (updater.Checker{}).Check(context.Background(), version.Version, cfg.UpdateURL, version.Repository)

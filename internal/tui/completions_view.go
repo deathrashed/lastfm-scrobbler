@@ -13,9 +13,10 @@ const completionRowsStartOffset = 4
 
 func renderCompletionsView(m model) string {
 	manager := completion.DefaultManager()
+	width := m.panelWidth()
 	rows := []string{
-		setupRow("DETECTED SHELL", completion.DetectShell().String(), false),
-		setupRow("STATUS", m.completionStatusText(), false),
+		setupRow("DETECTED SHELL", completion.DetectShell().String(), false, width),
+		setupRow("STATUS", m.completionStatusText(), false, width),
 	}
 	for index, shell := range completion.Shells {
 		marker := theme.SecondaryTextStyle.Render("○")
@@ -28,12 +29,12 @@ func renderCompletionsView(m model) string {
 		if index == completionShellIndex(m.completionShell) {
 			status = m.completionStatus
 		}
-		rows = append(rows, fitStyled(marker+" "+label+strings.Repeat(" ", maxInt(1, 52-lipgloss.Width(marker+" "+label)))+theme.MutedStyle.Render(string(status)), 61))
+		rows = append(rows, fitStyled(marker+" "+label+strings.Repeat(" ", maxInt(1, width-9-lipgloss.Width(marker+" "+label)))+theme.MutedStyle.Render(string(status)), width-4))
 	}
 	if m.completionMessage != "" {
-		rows = append(rows, theme.SuccessStyle.Render(truncateToWidth(m.completionMessage, 61)))
+		rows = append(rows, theme.SuccessStyle.Render(truncateToWidth(m.completionMessage, width-4)))
 	}
-	return setupPanel("S H E L L  C O M P L E T I O N S", rows)
+	return setupPanel("S H E L L  C O M P L E T I O N S", rows, width)
 }
 
 func (m model) completionStatusText() string {
@@ -47,7 +48,7 @@ func completionScreenRegions(m model, bodyY int) []mouseRegion {
 			id:     "completion:shell:" + shell.String(),
 			x:      1,
 			y:      bodyY + completionRowsStartOffset + index,
-			width:  65,
+			width:  m.panelWidth(),
 			height: 1,
 		})
 	}

@@ -13,14 +13,14 @@ const setupPanelWidth = 65
 
 func renderSetupView(m model) string {
 	content := renderSetupBody(m)
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(content), centerToHeader(setupProgress(m.setup.Page)))
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(content), m.centerToApp(setupProgress(m.setup.Page)))
 }
 
 func renderSetupBody(m model) string {
 	var content string
 	switch m.setup.Page {
 	case setup.PageWelcome:
-		content = renderSetupWelcome()
+		content = renderSetupWelcome(m)
 	case setup.PageSystem:
 		content = renderSetupSystem(m)
 	case setup.PageFont:
@@ -38,16 +38,16 @@ func renderSetupBody(m model) string {
 	case setup.PageApply:
 		content = renderSetupApply(m)
 	case setup.PageComplete:
-		content = renderSetupComplete()
+		content = renderSetupComplete(m)
 	}
 	return content
 }
 
-func renderSetupWelcome() string {
+func renderSetupWelcome(m model) string {
 	lines := append([]string{}, renderWordmarkLines()...)
-	lines = append(lines, centerText(theme.MutedStyle.Render("first-time configuration wizard"), setupPanelWidth-4))
-	lines = append(lines, "", centerText(renderExactBox("GET STARTED  ❯", 20, true), setupPanelWidth-4))
-	return setupPanel("W E L C O M E", lines)
+	lines = append(lines, centerText(theme.MutedStyle.Render("first-time configuration wizard"), m.panelWidth()-4))
+	lines = append(lines, "", centerText(renderExactBox("GET STARTED  ❯", 20, true), m.panelWidth()-4))
+	return setupPanelForModel(m, "W E L C O M E", lines)
 }
 
 func renderSetupSystem(m model) string {
@@ -64,7 +64,7 @@ func renderSetupSystem(m model) string {
 		setupRow("NERD FONT", setupFontDetection(m), false),
 		setupRow("PACKAGE MANAGER", env.PackageManager, false),
 	)
-	return setupPanel("S Y S T E M", rows)
+	return setupPanelForModel(m, "S Y S T E M", rows)
 }
 
 func renderSetupFont(m model) string {
@@ -76,13 +76,13 @@ func renderSetupFont(m model) string {
 		} else {
 			value = theme.SecondaryTextStyle.Render("○") + " " + theme.RowLabelStyle.Render(font.Name)
 		}
-		rows = append(rows, fitSetupValue(value, setupPanelWidth-4))
+		rows = append(rows, fitSetupValue(value, m.panelWidth()-4))
 	}
 	rows = append(rows,
-		setupRow("INSTALL FONT", setupOnOff(m.setup.InstallFont), m.setup.Field == len(m.setup.Fonts)),
-		setupRow("TERMINAL DEFAULT", setupTerminalChoice(m), m.setup.Field == len(m.setup.Fonts)+1),
+		setupRow("INSTALL FONT", setupOnOff(m.setup.InstallFont), m.setup.Field == len(m.setup.Fonts), m.panelWidth()),
+		setupRow("TERMINAL DEFAULT", setupTerminalChoice(m), m.setup.Field == len(m.setup.Fonts)+1, m.panelWidth()),
 	)
-	return setupPanel("N E R D  F O N T", rows)
+	return setupPanelForModel(m, "N E R D  F O N T", rows)
 }
 
 func renderSetupAccount(m model) string {
@@ -90,9 +90,9 @@ func renderSetupAccount(m model) string {
 	rows := make([]string, len(labels))
 	for index, label := range labels {
 		input := m.setupInputs[index].View()
-		rows[index] = setupInputRow(label, input, index == m.setup.Field)
+		rows[index] = setupInputRow(label, input, index == m.setup.Field, m.panelWidth())
 	}
-	return setupPanel("L A S T . F M  A C C O U N T", rows)
+	return setupPanelForModel(m, "L A S T . F M  A C C O U N T", rows)
 }
 
 func renderSetupStorage(m model) string {
@@ -107,27 +107,27 @@ func renderSetupStorage(m model) string {
 		if index == m.setup.Field {
 			label = theme.FocusedRowLabelStyle.Render(choice.label)
 		}
-		rows[index] = fitSetupValue(marker+" "+label+"  "+theme.MutedStyle.Render(choice.note), setupPanelWidth-4)
+		rows[index] = fitSetupValue(marker+" "+label+"  "+theme.MutedStyle.Render(choice.note), m.panelWidth()-4)
 	}
-	return setupPanel("C R E D E N T I A L  S T O R A G E", rows)
+	return setupPanelForModel(m, "C R E D E N T I A L  S T O R A G E", rows)
 }
 
 func renderSetupScrobbling(m model) string {
 	rows := []string{
-		setupRow("USE RECOMMENDED", setupOnOff(m.setup.Recommended), m.setup.Field == 0),
-		setupRow("LOOP", fmt.Sprintf("%d", m.setup.Loop), m.setup.Field == 1),
-		setupRow("INTERVAL", m.setup.Interval.String(), m.setup.Field == 2),
+		setupRow("USE RECOMMENDED", setupOnOff(m.setup.Recommended), m.setup.Field == 0, m.panelWidth()),
+		setupRow("LOOP", fmt.Sprintf("%d", m.setup.Loop), m.setup.Field == 1, m.panelWidth()),
+		setupRow("INTERVAL", m.setup.Interval.String(), m.setup.Field == 2, m.panelWidth()),
 	}
-	return setupPanel("S C R O B B L I N G", rows)
+	return setupPanelForModel(m, "S C R O B B L I N G", rows)
 }
 
 func renderSetupInterface(m model) string {
 	rows := []string{
-		setupRow("MOUSE SUPPORT", setupOnOff(m.setup.MouseEnabled), m.setup.Field == 0),
-		setupRow("COMPACT HEADER", setupOnOff(m.setup.CompactHeader), m.setup.Field == 1),
-		setupRow("NOTIFICATIONS", setupOnOff(m.setup.Notify), m.setup.Field == 2),
+		setupRow("MOUSE SUPPORT", setupOnOff(m.setup.MouseEnabled), m.setup.Field == 0, m.panelWidth()),
+		setupRow("COMPACT HEADER", setupOnOff(m.setup.CompactHeader), m.setup.Field == 1, m.panelWidth()),
+		setupRow("NOTIFICATIONS", setupOnOff(m.setup.Notify), m.setup.Field == 2, m.panelWidth()),
 	}
-	return setupPanel("I N T E R F A C E", rows)
+	return setupPanelForModel(m, "I N T E R F A C E", rows)
 }
 
 func renderSetupReview(m model) string {
@@ -146,7 +146,7 @@ func renderSetupReview(m model) string {
 		setupRow("NERD FONT", font, false),
 		setupRow("TERMINAL DEFAULT", setupTerminalChoice(m), false),
 	}
-	return setupPanel("R E V I E W", rows)
+	return setupPanelForModel(m, "R E V I E W", rows)
 }
 
 func renderSetupApply(m model) string {
@@ -163,13 +163,13 @@ func renderSetupApply(m model) string {
 		rows[0] = m.spinner.View() + "  " + theme.RowLabelStyle.Render("Nerd Font") + "  " + theme.RowValueStyle.Render("working")
 	}
 	if result.Error != nil {
-		rows = append(rows, theme.ErrorStyle.Render(truncateToWidth("setup failed: "+result.Error.Error(), setupPanelWidth-4)))
+		rows = append(rows, theme.ErrorStyle.Render(truncateToWidth("setup failed: "+result.Error.Error(), m.panelWidth()-4)))
 	}
-	return setupPanel("C O N N E C T I O N  T E S T", rows)
+	return setupPanelForModel(m, "C O N N E C T I O N  T E S T", rows)
 }
 
-func renderSetupComplete() string {
-	return setupPanel("S E T U P  C O M P L E T E  "+theme.IconSuccess, []string{
+func renderSetupComplete(m model) string {
+	return setupPanelForModel(m, "S E T U P  C O M P L E T E  "+theme.IconSuccess, []string{
 		"Last.fm Scrobbler is ready to use.",
 		"",
 		"You can change these options later in Settings.",

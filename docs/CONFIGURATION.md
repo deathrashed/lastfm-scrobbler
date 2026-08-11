@@ -55,7 +55,7 @@ The TUI exposes configuration through **Settings** (`S` from the Dashboard):
 - **Account** — username/password, API key/secret, credential source/path.
 - **Scrobbling** — loop, interval, retry behavior, duplicate guard, Discography cleanup.
 - **Tools** — export directory, update source, connection test, diagnostics, completions, updates.
-- **Interface** — notifications, Compact Header, Mouse Support.
+- **Interface** — notifications, Now Playing, Compact Header, Mouse Support.
 - **History** and **Profiles** share the same Settings shell but retain their existing data/actions.
 
 Moving these values between TUI sections does not change their environment
@@ -99,6 +99,7 @@ The duplicate guard accepts durations such as `5m` or `1h`; zero disables it.
 
 ```env
 SCROBBLE_NOTIFY=true
+SCROBBLE_NOW_PLAYING=true
 SCROBBLE_COMPACT_HEADER=false
 SCROBBLE_CLEAN_DISCOGRAPHY=false
 SCROBBLE_EXPORT_DIR=~/Downloads
@@ -108,6 +109,12 @@ SCROBBLER_UPDATE_URL=
 
 `SCROBBLE_CLEAN_DISCOGRAPHY` is retained as the compatibility/environment
 variable name; the TUI labels this setting **Clean Discography**.
+
+`SCROBBLE_NOW_PLAYING` defaults to true. When enabled, the full header reads
+one item from Last.fm `user.getRecentTracks` and displays the current track or
+the most recent scrobble. Compact Header never displays activity. The request
+is supplemental, refreshes about every 30 seconds, and never submits playback
+state.
 
 `SCROBBLER_UPDATE_URL` is optional. An empty value uses the official GitHub
 Releases source for `deathrashed/lastfm-scrobbler`; set it only for a custom

@@ -511,6 +511,8 @@ func (c *client) GetRecentTracks(ctx context.Context, user string, from time.Tim
 	}
 	if !from.IsZero() {
 		params["from"] = strconv.FormatInt(from.Unix(), 10)
+	} else {
+		params["limit"] = "1"
 	}
 	var response struct {
 		Recent struct {
@@ -521,6 +523,9 @@ func (c *client) GetRecentTracks(ctx context.Context, user string, from time.Tim
 				Date   struct {
 					UTS string `json:"uts"`
 				} `json:"date"`
+				Attr struct {
+					NowPlaying string `json:"nowplaying"`
+				} `json:"@attr"`
 			} `json:"track"`
 		} `json:"recenttracks"`
 	}
@@ -537,7 +542,7 @@ func (c *client) GetRecentTracks(ctx context.Context, user string, from time.Tim
 		if seconds, err := strconv.ParseInt(strings.TrimSpace(item.Date.UTS), 10, 64); err == nil && seconds > 0 {
 			played = time.Unix(seconds, 0)
 		}
-		tracks = append(tracks, RecentTrack{Artist: artistName, Title: title, Album: item.Album.String(), Played: played})
+		tracks = append(tracks, RecentTrack{Artist: artistName, Title: title, Album: item.Album.String(), Played: played, NowPlaying: item.Attr.NowPlaying == "1"})
 	}
 	return tracks, nil
 }

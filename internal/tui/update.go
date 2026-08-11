@@ -142,6 +142,8 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateDone(msg)
 		case stageHistory:
 			return m.updateHistory(msg)
+		case stageLastSession:
+			return m.updateLastSession(msg)
 		case stageRecovery:
 			return m.updateRecovery(msg)
 		case stageSimilarSelect:
@@ -171,7 +173,44 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.headerURLHover = false
+		m.resizeInputs()
 		return m, nil
+	case activityRefreshMsg:
+		if msg.seq != m.activitySeq {
+			return m, nil
+		}
+		return m, m.activityFetchCmd()
+	case activityResultMsg:
+		if msg.seq != m.activitySeq {
+			return m, nil
+		}
+		if msg.err != nil {
+			if m.activityState != activityCurrent && m.activityState != activityRecent {
+				m.activityState = activityUnavailable
+			}
+			return m, activityRefreshCmd(m.activitySeq)
+		}
+		if len(msg.tracks) == 0 {
+			m.activityState = activityNoTracks
+		} else {
+			m.activityTrack = msg.tracks[0]
+			if m.activityTrack.NowPlaying {
+				m.activityState = activityCurrent
+			} else {
+				m.activityState = activityRecent
+			}
+		}
+		cmds := []tea.Cmd{activityRefreshCmd(m.activitySeq)}
+		if m.activityShouldAnimate() {
+			cmds = append(cmds, activityAnimationCmd(m.activitySeq))
+		}
+		return m, tea.Batch(cmds...)
+	case activityAnimationMsg:
+		if msg.seq != m.activitySeq || !m.activityShouldAnimate() {
+			return m, nil
+		}
+		m.activityFrame = (m.activityFrame + 1) % len(activityVolumeFrames)
+		return m, activityAnimationCmd(m.activitySeq)
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -378,6 +417,11 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.activateMode(2)
 	case "s":
 		return m.openSettings()
+	case "r":
+		m.stage = stageLastSession
+		m.modeChoice = "last-session"
+		m.err = nil
+		return m, nil
 	case "h":
 		return m.openSettingsSection(settingsHistory, settingsFocusContent)
 	case "p":
@@ -680,7 +724,7 @@ func (m model) updateDiscographySelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.discographyCursor = 0
 	case "/", "f":
 		m.discographyFiltering = true
-		m.filterInput.Width = discographyFilterContentWidth
+		m.filterInput.Width = discographyFilterContentWidthFor(m)
 		m.filterInput.SetValue(m.discographyFilter)
 		m.filterInput.CursorEnd()
 		return m, m.filterInput.Focus()
@@ -1108,12 +1152,13 @@ func (m model) finishSession() (tea.Model, tea.Cmd) {
 		message += fmt.Sprintf("; %d failed", len(m.failures))
 	}
 	if m.cfg.Notify {
-		return m, func() tea.Msg {
+		notify := func() tea.Msg {
 			_ = platform.Notify("Last.fm Scrobbler", message)
 			return nil
 		}
+		return m, tea.Batch(m.restartActivity(), notify)
 	}
-	return m, nil
+	return m, m.restartActivity()
 }
 
 func (m *model) startScrobbleSession() {
@@ -1477,6 +1522,35 @@ func (m model) updateHistory(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) updateLastSession(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	record, ok := lastSessionRecord(m)
+	switch msg.String() {
+	case "enter":
+		if !ok {
+			return m, nil
+		}
+		m.restoreRecord(record)
+		m.resetQueueForRun()
+		m.stage = stagePreview
+		m.modeChoice = record.Mode
+		m.modeIndex = modeIndex(record.Mode)
+	case "e":
+		if !ok {
+			return m, nil
+		}
+		m.restoreRecordForEdit(record)
+		m.stage = stageTrackSelect
+		m.modeChoice = record.Mode
+		m.modeIndex = modeIndex(record.Mode)
+	case "esc":
+		m.stage = stageInput
+		m.modeChoice = ""
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
 func (m *model) restoreRecord(record sessionstore.Record) {
 	m.scrobbleQueue = queueFromRecord(record)
 	m.scrobbleIdx = 0
@@ -1751,11 +1825,12 @@ func (m model) headerURLContains(x, y int) bool {
 	if m.compactHeaderEnabled() {
 		return false
 	}
-	left, top, width := headerURLBounds(m.cfg.Username)
+	left, top, width := headerURLBoundsAtWidth(m.cfg.Username, m.appWidth())
 	return y == top && x >= left && x < left+width
 }
 
 func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	msg.X -= m.appX()
 	if msg.Action == tea.MouseActionMotion {
 		m.headerURLHover = m.headerURLContains(msg.X, msg.Y)
 		m.hoverRegion = ""
@@ -1856,7 +1931,7 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			if !m.discographyFiltering {
 				return m.updateModelKey(keyMessage("/"))
 			}
-			m.filterInput.Width = discographyFilterContentWidth
+			m.filterInput.Width = discographyFilterContentWidthFor(m)
 			return m, m.filterInput.Focus()
 		case strings.HasPrefix(region.id, "discography:"):
 			m.discographyCursor, _ = strconv.Atoi(strings.TrimPrefix(region.id, "discography:"))

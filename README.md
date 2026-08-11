@@ -12,7 +12,7 @@
 
 
 <p align="center">
-  A fixed-width terminal application for searching, curating, previewing, and
+  A responsive terminal application for searching, curating, previewing, and
   scrobbling Last.fm album queues.
 </p>
 
@@ -28,7 +28,7 @@
 
 The visual system is deliberately consistent across every screen:
 
-- 67-column header and content area
+- 67-column minimum layout that grows live to 127 columns and centers on wider terminals
 - white structural borders
 - Last.fm Torch Red (`#f8211c`) active controls
 - centered panels and footer hints
@@ -50,7 +50,7 @@ hover and open on click; compact mode has no profile URL.
 | **Import workflows** | Load TXT, CSV, TSV, JSON, M3U/M3U8 playlists, album folders, or artist folders. |
 | **Recovery** | Keep history, resume interrupted queues, edit saved sessions, or perform exact re-runs. |
 | **Automation** | Use stable JSON-capable CLI commands from Keyboard Maestro, shell scripts, and launch agents. |
-| **Terminal UI** | A centered 67-column Bubble Tea interface with Torch Red active controls and mouse support. |
+| **Terminal UI** | A centered 67–127-column Bubble Tea interface with live resize, Torch Red active controls, and mouse support. |
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Installation & Build
 
@@ -155,7 +155,7 @@ file authoritative, including before it exists. `.env` is ignored by Git;
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
 
-The interface keeps the same Torch Red, fixed-width visual language across
+The interface keeps the same Torch Red, fixed-cell visual language across
 search, selection, settings, recovery, and scrobbling workflows. The gallery
 uses current captures and follows the recommended walkthrough order.
 
@@ -308,7 +308,7 @@ the next launch.
 | Context | Controls |
 | --- | --- |
 | **Global** | Arrow keys or `J/K` navigate, `Enter` confirms, `Esc` goes back, `Q` or `Ctrl+C` quits, and `?` opens help. |
-| **Dashboard** | `M` Manual, `D` Discography, `F` File, `H` History, `P` Profiles, `S` Settings, `I` Info. |
+| **Dashboard** | `M` Manual, `D` Discography, `F` File, `H` History, `S` Settings, `I` Info, `R` Last Session. Profiles remain under Settings. |
 | **Track selection** | `Space` toggles a track, `A` selects all, `-/+` changes the current album loop, `Enter` continues, `S` finds similar albums; mouse footer controls also adjust interval and navigation directly. |
 | **Settings** | `Tab` moves between section navigation and section content; arrows navigate the active zone; `Enter` saves, opens, or runs the selected item. |
 
@@ -318,8 +318,9 @@ without triggering navigation shortcuts.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Settings Interface
 
-Press `S` from the Dashboard to open Settings. The six sections share one fixed
-65-cell navigation grid:
+Press `S` from the Dashboard to open Settings. The six sections share one
+symmetrical navigation grid that keeps natural card widths and spreads them as
+the responsive application grows:
 
 ```text
 ╭─────────────────╮ ╭───────────────────────╮ ╭─────────────────╮
@@ -339,7 +340,7 @@ The sections are grouped by purpose:
 - **History** — saved sessions, edit/exact re-runs, export, and delete.
 - **Tools** — export directory, GitHub Releases/custom update source, connection
   test, diagnostics, shell completions, and update checking.
-- **Interface** — notifications, Compact Header, and Mouse Support.
+- **Interface** — notifications, Now Playing, Compact Header, and Mouse Support.
 - **Profiles** — load, create, save, and delete named profiles.
 
 Settings has two keyboard focus zones. `Tab` or `Shift+Tab` moves from section
@@ -650,7 +651,7 @@ go vet ./...
 ```
 
 The project includes tests for Last.fm response parsing, configuration,
-imports, exports, history/recovery, queue construction, fixed-width layouts,
+imports, exports, history/recovery, queue construction, cell-aligned layouts,
 connection reports, diagnostics redaction, update parsing, and editable
 re-runs.
 

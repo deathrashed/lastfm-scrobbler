@@ -51,15 +51,15 @@ func renderInputView(m model) string {
 			boxes[i] = renderExactBoxWithMnemonicHover(label, widths[i], i == m.modeIndex, true, true)
 		}
 	}
-	row := joinThreeLineBoxes(boxes, theme.SepStyle.Render("•"))
+	row := joinResponsiveBoxes(boxes, widths, m.panelWidth(), theme.SepStyle.Render("•"))
 	descriptions := []string{
 		"search by artist, album, or both",
 		"scrobble multiple albums at once",
 		"load albums from a list, playlist, or music folder",
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
-		centerToHeader(row),
-		centerToHeader(theme.MutedStyle.Render(descriptions[m.modeIndex])),
+		m.centerToApp(row),
+		m.centerToApp(theme.MutedStyle.Render(descriptions[m.modeIndex])),
 		"",
 	)
 }
@@ -70,24 +70,24 @@ func renderImportSourceView(m model) string {
 	for index, spec := range fileSourceSpecs {
 		labels[index], widths[index] = spec.label, spec.width
 	}
-	firstRow := joinThreeLineBoxes([]string{
+	firstRow := joinResponsiveBoxes([]string{
 		renderChoiceBox(labels[0], widths[0], m.importSourceIndex == 0, m.hoverRegion == "import:0"),
 		renderChoiceBox(labels[1], widths[1], m.importSourceIndex == 1, m.hoverRegion == "import:1"),
-	}, theme.SepStyle.Render("•"))
-	secondRow := joinThreeLineBoxes([]string{
+	}, []int{widths[0], widths[1]}, m.panelWidth(), theme.SepStyle.Render("•"))
+	secondRow := joinResponsiveBoxes([]string{
 		renderChoiceBox(labels[2], widths[2], m.importSourceIndex == 2, m.hoverRegion == "import:2"),
 		renderChoiceBox(labels[3], widths[3], m.importSourceIndex == 3, m.hoverRegion == "import:3"),
-	}, theme.SepStyle.Render("•"))
+	}, []int{widths[2], widths[3]}, m.panelWidth(), theme.SepStyle.Render("•"))
 	spec := fileSourceSpecFor(m.importSourceIndex)
 	lines := []string{
-		centerToHeader(firstRow),
-		centerToHeader(secondRow),
-		centerToHeader(theme.MutedStyle.Render(spec.description)),
+		m.centerToApp(firstRow),
+		m.centerToApp(secondRow),
+		m.centerToApp(theme.MutedStyle.Render(spec.description)),
 		"",
-		centerToHeader(renderFilePathView(m)),
+		m.centerToApp(renderFilePathView(m)),
 	}
 	if m.searching {
-		lines = append(lines, "", centerToHeader(m.spinner.View()+" "+theme.MutedStyle.Render("Loading imports…")))
+		lines = append(lines, "", m.centerToApp(m.spinner.View()+" "+theme.MutedStyle.Render("Loading imports…")))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lines...,
@@ -100,10 +100,10 @@ func renderSearchView(m model) string {
 	case "discography":
 		label, placeholder = "ARTIST", "Artist name..."
 	}
-	box := renderTextBox(label, m.searchInput.View(), placeholder, 65, m.searchInput.Focused())
-	lines := []string{centerToHeader(box), ""}
+	box := renderTextBox(label, m.searchInput.View(), placeholder, m.panelWidth(), m.searchInput.Focused())
+	lines := []string{m.centerToApp(box), ""}
 	if m.searching {
-		lines = append(lines, centerToHeader(m.spinner.View()+" "+theme.MutedStyle.Render("Loading from Last.fm…")), "")
+		lines = append(lines, m.centerToApp(m.spinner.View()+" "+theme.MutedStyle.Render("Loading from Last.fm…")), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
@@ -116,11 +116,45 @@ const (
 	discographyFilterContentWidth  = 57
 )
 
+func discographyFilterTabWidthFor(m model) int {
+	extra := maxInt(0, m.panelWidth()-65)
+	return minInt(maxInt(discographyFilterTabWidth, discographyFilterTabWidth+extra), maxInt(discographyFilterTabWidth, m.panelWidth()-discographySortTabWidth-discographyCleanTabWidth-2))
+}
+
+func discographyFilterContentWidthFor(m model) int {
+	return maxInt(1, discographyFilterTabWidthFor(m)-4)
+}
+
+func discographyExpandedFilterWidthFor(m model) int {
+	return maxInt(discographyExpandedFilterWidth, m.panelWidth()-4)
+}
+
+func discographyExpandedFilterContentWidthFor(m model) int {
+	return maxInt(1, discographyExpandedFilterWidthFor(m)-4)
+}
+
+func discographySortTabX(m model) int {
+	groupWidth := discographySortTabWidth + discographyFilterTabWidthFor(m) + discographyCleanTabWidth + 2
+	return 1 + maxInt(0, (m.panelWidth()-groupWidth)/2)
+}
+
+func discographyFilterTabX(m model) int {
+	return discographySortTabX(m) + discographySortTabWidth + 1
+}
+
+func discographyCleanTabX(m model) int {
+	return discographyFilterTabX(m) + discographyFilterTabWidthFor(m) + 1
+}
+
+func discographyExpandedFilterX(m model) int {
+	return 1 + maxInt(0, (m.panelWidth()-discographyExpandedFilterWidthFor(m))/2)
+}
+
 func renderDiscographySelectView(m model) string {
 	visible := m.discographyVisibleIndexes()
 	chooser := renderDiscographyChooser(m, visible)
 	return lipgloss.JoinVertical(lipgloss.Left,
-		centerToHeader(chooser),
+		m.centerToApp(chooser),
 		"",
 	)
 }
@@ -141,13 +175,20 @@ func renderDiscographyChooser(m model, visibleIndexes []int) string {
 
 	sortTab := renderDiscographyControlTab("SORT", sortName, discographySortTabWidth, false, m.hoverRegion == "discography:sort", false)
 	filterHovered := m.hoverRegion == "discography:filter" || m.hoverRegion == "discography:filter-input"
-	filterTab := renderDiscographyControlTab("FILTER", compactFilter, discographyFilterTabWidth, m.discographyFiltering, filterHovered, expanded)
+	filterWidth := discographyFilterTabWidthFor(m)
+	filterTab := renderDiscographyControlTab("FILTER", compactFilter, filterWidth, m.discographyFiltering, filterHovered, expanded)
 	cleanTab := renderDiscographyControlTab("CLEAN", clean, discographyCleanTabWidth, false, m.hoverRegion == "discography:clean", false)
 
+	groupWidth := discographySortTabWidth + filterWidth + discographyCleanTabWidth + 2
+	left := maxInt(0, (m.panelWidth()-groupWidth)/2)
+	right := maxInt(0, m.panelWidth()-groupWidth-left)
+	frameWidth := groupWidth + 4
+	frameLeft := maxInt(0, (m.panelWidth()-frameWidth)/2)
+	frameRight := maxInt(0, m.panelWidth()-frameWidth-frameLeft)
 	lines := []string{
-		"  " + sortTab[0] + " " + filterTab[0] + " " + cleanTab[0] + "  ",
-		border.Render("╭─") + sortTab[1] + border.Render("─") + filterTab[1] + border.Render("─") + cleanTab[1] + border.Render("─╮"),
-		border.Render("│ ") + sortTab[2] + " " + filterTab[2] + " " + cleanTab[2] + border.Render(" │"),
+		border.Render(strings.Repeat("─", left)) + sortTab[0] + " " + filterTab[0] + " " + cleanTab[0] + border.Render(strings.Repeat("─", right)),
+		border.Render(strings.Repeat("─", frameLeft)+"╭─") + sortTab[1] + border.Render("─") + filterTab[1] + border.Render("─") + cleanTab[1] + border.Render("─╮"+strings.Repeat("─", frameRight)),
+		border.Render(strings.Repeat("─", frameLeft)+"│ ") + sortTab[2] + " " + filterTab[2] + " " + cleanTab[2] + border.Render(" │"+strings.Repeat("─", frameRight)),
 	}
 	if expanded {
 		lines = append(lines, renderDiscographyExpandedFilter(m)...)
@@ -159,10 +200,11 @@ func renderDiscographyChooser(m model, visibleIndexes []int) string {
 		rows = []string{theme.MutedStyle.Render("No albums match the current view.")}
 	}
 	for _, row := range rows {
-		lines = append(lines, border.Render("│")+" "+padRight(fitStyled(row, 61), 61)+" "+border.Render("│"))
+		rowWidth := maxInt(1, m.panelWidth()-4)
+		lines = append(lines, border.Render("│")+" "+padRight(fitStyled(row, rowWidth), rowWidth)+" "+border.Render("│"))
 	}
 
-	lines = append(lines, renderDiscographyCountAttachment(len(visibleIndexes), len(m.discographySelected))...)
+	lines = append(lines, renderDiscographyCountAttachment(len(visibleIndexes), len(m.discographySelected), m.panelWidth())...)
 	return strings.Join(lines, "\n")
 }
 
@@ -201,22 +243,25 @@ func discographyFilterExpanded(m model) bool {
 	if m.discographyFiltering {
 		return true
 	}
-	return lipgloss.Width(strings.TrimSpace(m.discographyFilter)) > discographyCompactFilterValueWidth()
+	return lipgloss.Width(strings.TrimSpace(m.discographyFilter)) > discographyFilterContentWidthFor(m)
 }
 
 func renderDiscographyExpandedFilter(m model) []string {
 	border := theme.BorderStyle
-	innerTop := border.Render("╭" + strings.Repeat("─", 29) + "┴" + strings.Repeat("─", 29) + "╮")
-	lines := []string{border.Render("│") + " " + innerTop + " " + border.Render("│")}
+	width := discographyExpandedFilterWidthFor(m)
+	left := (width - 1) / 2
+	right := width - 2 - left
+	innerTop := border.Render("╭" + strings.Repeat("─", left) + "┴" + strings.Repeat("─", right) + "╮")
+	lines := []string{fitStyled(border.Render("│")+" "+innerTop+" "+border.Render("│"), m.panelWidth())}
 
 	contentLines := discographyExpandedFilterContent(m)
 	for _, content := range contentLines {
-		content = fitStyled(content, discographyFilterContentWidth)
+		content = fitStyled(content, discographyExpandedFilterContentWidthFor(m))
 		lines = append(lines,
-			border.Render("│")+" "+border.Render("│")+" "+padRight(content, discographyFilterContentWidth)+" "+border.Render("│")+" "+border.Render("│"),
+			border.Render("│")+" "+border.Render("│")+" "+padRight(content, discographyExpandedFilterContentWidthFor(m))+" "+border.Render("│")+" "+border.Render("│"),
 		)
 	}
-	innerBottom := border.Render("╰" + strings.Repeat("─", discographyExpandedFilterWidth-2) + "╯")
+	innerBottom := border.Render("╰" + strings.Repeat("─", discographyExpandedFilterWidthFor(m)-2) + "╯")
 	lines = append(lines, border.Render("│")+" "+innerBottom+" "+border.Render("│"))
 	return lines
 }
@@ -224,7 +269,7 @@ func renderDiscographyExpandedFilter(m model) []string {
 func discographyExpandedFilterContent(m model) []string {
 	if m.discographyFiltering {
 		input := m.filterInput
-		input.Width = discographyFilterContentWidth
+		input.Width = discographyExpandedFilterContentWidthFor(m)
 		shown := input.View()
 		if strings.TrimSpace(stripANSI(shown)) == "" {
 			shown = theme.MutedStyle.Render("type album title…")
@@ -236,13 +281,13 @@ func discographyExpandedFilterContent(m model) []string {
 	if query == "" {
 		return []string{theme.MutedStyle.Render("type album title…")}
 	}
-	wrapped := wrapWords(query, discographyFilterContentWidth)
+	wrapped := wrapWords(query, discographyExpandedFilterContentWidthFor(m))
 	if len(wrapped) == 0 {
 		wrapped = []string{query}
 	}
 	if len(wrapped) > 2 {
 		wrapped = wrapped[:2]
-		wrapped[1] = truncateToWidth(wrapped[1]+"…", discographyFilterContentWidth)
+		wrapped[1] = truncateToWidth(wrapped[1]+"…", discographyExpandedFilterContentWidthFor(m))
 	}
 	for index := range wrapped {
 		wrapped[index] = theme.PrimaryTextStyle.Render(wrapped[index])
@@ -269,10 +314,9 @@ func discographyChooserMaxRows(m model) int {
 	return rows
 }
 
-func renderDiscographyCountAttachment(results, selected int) []string {
+func renderDiscographyCountAttachment(results, selected, totalWidth int) []string {
 	border := theme.BorderStyle
 	const (
-		totalWidth = 65
 		badgeWidth = 18
 		gap        = 1
 	)
@@ -294,13 +338,17 @@ func renderDiscographyCountAttachment(results, selected int) []string {
 
 	leftBottom := border.Render("╰" + strings.Repeat("─", badgeWidth-2) + "╯")
 	rightBottom := border.Render("╰" + strings.Repeat("─", badgeWidth-2) + "╯")
-	line3 := strings.Repeat(" ", leftDash+1) + leftBottom + " " + rightBottom
-	line3 += strings.Repeat(" ", maxInt(0, totalWidth-lipgloss.Width(line3)))
+	countGroup := leftBottom + " " + rightBottom
+	countGroupWidth := lipgloss.Width(countGroup)
+	groupLeft := maxInt(0, (totalWidth-countGroupWidth)/2)
+	groupRight := maxInt(0, totalWidth-countGroupWidth-groupLeft)
+	line3 := strings.Repeat(" ", groupLeft) + countGroup + strings.Repeat(" ", groupRight)
+	line3 = fitStyled(line3, totalWidth)
 	return []string{line1, line2, line3}
 }
 
 func discographyListRows(m model, visibleIndexes []int, maxRows int) []string {
-	const contentWidth = 61
+	contentWidth := maxInt(1, m.panelWidth()-4)
 	total := len(visibleIndexes)
 	if total == 0 {
 		return nil
@@ -352,7 +400,7 @@ func discographyListRows(m model, visibleIndexes []int, maxRows int) []string {
 }
 
 func renderDiscographyList(m model, visibleIndexes []int) string {
-	const totalWidth = 65
+	totalWidth := m.panelWidth()
 	rows := discographyListRows(m, visibleIndexes, discographyMaxRows(m))
 	if len(rows) == 0 {
 		return renderPanelBox([]string{theme.MutedStyle.Render("No albums match the current view.")}, totalWidth, theme.BorderStyle)
@@ -361,11 +409,7 @@ func renderDiscographyList(m model, visibleIndexes []int) string {
 }
 
 func discographyMaxRows(m model) int {
-	maxRows := 13
-	if m.height > 0 {
-		maxRows = maxInt(6, minInt(16, m.height-20))
-	}
-	return maxRows
+	return m.visibleRows(20, 6, 32)
 }
 
 func visibleStart(cursor, total, maxRows int) int {
@@ -399,8 +443,8 @@ func maskValue(value string) string {
 
 func renderConnectionTestView(m model) string {
 	if m.connectionTesting {
-		box := renderInfoBox("CONNECTION", "Testing Last.fm lookup and authentication readiness", m.spinner.View(), 65, true)
-		return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(box), "")
+		box := renderInfoBox("CONNECTION", "Testing Last.fm lookup and authentication readiness", m.spinner.View(), m.panelWidth(), true)
+		return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(box), "")
 	}
 	rows := make([]string, 0, len(m.connectionReport.Items))
 	for _, item := range m.connectionReport.Items {
@@ -411,9 +455,9 @@ func renderConnectionTestView(m model) string {
 			status = theme.SuccessStyle.Render("OK")
 		}
 		left := theme.KeyStyle.Render(item.Label + " ❯")
-		detail := truncateToWidth(item.Detail, 38)
+		detail := truncateToWidth(item.Detail, maxInt(1, m.panelWidth()-27))
 		right := status + "  " + theme.MutedStyle.Render(detail)
-		gap := 59 - lipgloss.Width(left) - lipgloss.Width(right)
+		gap := m.panelWidth() - 6 - lipgloss.Width(left) - lipgloss.Width(right)
 		if gap < 1 {
 			gap = 1
 		}
@@ -426,77 +470,79 @@ func renderConnectionTestView(m model) string {
 	if m.hoverRegion == "connection:action" {
 		border = theme.InnerBorderStyle
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(renderPanelBox(rows, 65, border)), "")
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(renderPanelBox(rows, m.panelWidth(), border)), "")
 }
 
 func renderDiagnosticsView(m model) string {
 	var rows []string
+	contentWidth := m.panelWidth() - 4
 	switch {
 	case m.diagnosticsBusy:
 		rows = []string{theme.KeyStyle.Render("EXPORTING ❯ ") + m.spinner.View() + " " + theme.MutedStyle.Render("building redacted support bundle")}
 	case m.diagnosticsPath != "":
 		rows = []string{
-			statLine("STATUS", "complete", 59),
-			statLine("PATH", truncateToWidth(m.diagnosticsPath, 44), 59),
-			statLine("SECRETS", "redacted", 59),
+			statLine("STATUS", "complete", contentWidth),
+			statLine("PATH", truncateToWidth(m.diagnosticsPath, contentWidth-15), contentWidth),
+			statLine("SECRETS", "redacted", contentWidth),
 		}
 	default:
 		rows = []string{
-			statLine("CONTENTS", "logs + redacted config + history summary", 59),
-			statLine("OUTPUT", truncateToWidth(m.cfg.ExportDir, 43), 59),
-			statLine("SECRETS", "passwords, API secret and session key excluded", 59),
+			statLine("CONTENTS", "logs + redacted config + history summary", contentWidth),
+			statLine("OUTPUT", truncateToWidth(m.cfg.ExportDir, contentWidth-16), contentWidth),
+			statLine("SECRETS", "passwords, API secret and session key excluded", contentWidth),
 		}
 	}
 	border := theme.BorderStyle
 	if m.diagnosticsBusy || m.hoverRegion == "diagnostics:action" {
 		border = theme.InnerBorderStyle
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(renderPanelBox(rows, 65, border)), "")
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(renderPanelBox(rows, m.panelWidth(), border)), "")
 }
 
 func renderUpdateCheckView(m model) string {
 	if m.updateChecking {
-		box := renderInfoBox("UPDATE", "Checking configured release source", m.spinner.View(), 65, true)
-		return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(box), "")
+		box := renderInfoBox("UPDATE", "Checking configured release source", m.spinner.View(), m.panelWidth(), true)
+		return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(box), "")
 	}
 	if m.updateResult.Latest == "" {
-		box := renderInfoBox("UPDATE", "No result yet", versionText(), 65, m.hoverRegion == "update:action")
-		return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(box), "")
+		box := renderInfoBox("UPDATE", "No result yet", versionText(), m.panelWidth(), m.hoverRegion == "update:action")
+		return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(box), "")
 	}
 	status := "UP TO DATE"
 	if m.updateResult.Available {
 		status = "AVAILABLE"
 	}
+	contentWidth := m.panelWidth() - 4
 	rows := []string{
-		statLine("CURRENT", m.updateResult.Current, 59),
-		statLine("LATEST", m.updateResult.Latest, 59),
-		statLine("STATUS", status, 59),
+		statLine("CURRENT", m.updateResult.Current, contentWidth),
+		statLine("LATEST", m.updateResult.Latest, contentWidth),
+		statLine("STATUS", status, contentWidth),
 	}
 	if m.updateResult.URL != "" {
-		rows = append(rows, statLine("RELEASE", truncateToWidth(m.updateResult.URL, 43), 59))
+		rows = append(rows, statLine("RELEASE", truncateToWidth(m.updateResult.URL, contentWidth-16), contentWidth))
 	}
 	border := theme.BorderStyle
 	if m.hoverRegion == "update:action" {
 		border = theme.InnerBorderStyle
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(renderPanelBox(rows, 65, border)), "")
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(renderPanelBox(rows, m.panelWidth(), border)), "")
 }
 
 func versionText() string { return version.Version }
 
 func renderEnvPathView(m model) string {
-	box := renderTextBox("CREDENTIALS PATH", m.envInput.View(), "~/.config/lastfm-scrobbler/.env", 65, m.envInput.Focused())
-	lines := []string{centerToHeader(box), centerToHeader(theme.MutedStyle.Render("enter path to credentials file")), ""}
+	box := renderTextBox("CREDENTIALS PATH", m.envInput.View(), "~/.config/lastfm-scrobbler/.env", m.panelWidth(), m.envInput.Focused())
+	lines := []string{m.centerToApp(box), m.centerToApp(theme.MutedStyle.Render("enter path to credentials file")), ""}
 	if m.envStatus != "" {
-		lines = append(lines, centerToHeader(theme.SuccessStyle.Render(m.envStatus)), "")
+		lines = append(lines, m.centerToApp(theme.SuccessStyle.Render(m.envStatus)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
 func renderSimilarSelectView(m model) string {
-	artistBox := renderInfoBox("BASED ON", m.similarArtist, "", 65, false)
-	list := renderSimpleAlbumList(m.similar, m.similarCursor, 13, m.hoverRegion, "similar")
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(artistBox), centerToHeader(list), "")
+	artistBox := renderInfoBox("BASED ON", m.similarArtist, "", m.panelWidth(), false)
+	list := renderSimpleAlbumList(m.similar, m.similarCursor, m.visibleRows(8, 6, 32), m.hoverRegion, "similar", m.panelWidth())
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(artistBox), m.centerToApp(list), "")
 }
 
 func renderInfoView(m model) string {
@@ -506,49 +552,50 @@ func renderInfoView(m model) string {
 	for index, label := range labels {
 		boxes[index] = renderChoiceBox(label, widths[index], index == m.infoIndex, m.hoverRegion == "info:tab:"+strconv.Itoa(index))
 	}
-	firstRow := joinThreeLineBoxes(boxes[:3], theme.SepStyle.Render("•"))
-	secondRow := joinThreeLineBoxes(boxes[3:], theme.SepStyle.Render("•"))
+	firstRow := joinResponsiveBoxes(boxes[:3], widths[:3], m.panelWidth(), theme.SepStyle.Render("•"))
+	secondRow := joinResponsiveBoxes(boxes[3:], widths[3:], m.panelWidth(), theme.SepStyle.Render("•"))
+	infoRow := func(label, description string) string { return helpRow(label, description, m.panelWidth()-4) }
 	sections := [][]string{
 		{
-			helpRow("MANUAL", "search by artist, album, or both"),
-			helpRow("DISCOGRAPHY", "browse, filter, clean, sort, and select albums"),
-			helpRow("FILE", "lists, playlists, album folders, artist folders"),
-			helpRow("SIMILAR", "press S from results, preview, or completion"),
+			infoRow("MANUAL", "search by artist, album, or both"),
+			infoRow("DISCOGRAPHY", "browse, filter, clean, sort, and select albums"),
+			infoRow("FILE", "lists, playlists, album folders, artist folders"),
+			infoRow("SIMILAR", "press S from results, preview, or completion"),
 		},
 		{
-			helpRow("HEADLESS CLI", "manual, file, and discography commands"),
-			helpRow("SETTINGS", "S opens the six-section Settings area"),
-			helpRow("CONNECTION", "test API lookup and authentication from Tools"),
-			helpRow("COMPLETIONS", "install zsh, bash, fish, or PowerShell completion"),
-			helpRow("MOUSE", "click sections, rows, actions, tabs, and footer hints"),
+			infoRow("HEADLESS CLI", "manual, file, and discography commands"),
+			infoRow("SETTINGS", "S opens the six-section Settings area"),
+			infoRow("CONNECTION", "test API lookup and authentication from Tools"),
+			infoRow("COMPLETIONS", "install zsh, bash, fish, or PowerShell completion"),
+			infoRow("MOUSE", "click sections, rows, actions, tabs, and footer hints"),
 		},
 		{
-			helpRow("HISTORY", "re-run, export, or delete saved sessions"),
-			helpRow("RECOVERY", "resume an interrupted queue at startup"),
-			helpRow("PROFILES", "switch named account configurations"),
-			helpRow("ACCOUNT", "credentials, source, and credential path"),
-			helpRow("STORAGE", "~/.config/lastfm-scrobbler"),
+			infoRow("HISTORY", "re-run, export, or delete saved sessions"),
+			infoRow("RECOVERY", "resume an interrupted queue at startup"),
+			infoRow("PROFILES", "switch named account configurations"),
+			infoRow("ACCOUNT", "credentials, source, and credential path"),
+			infoRow("STORAGE", "~/.config/lastfm-scrobbler"),
 		},
 		{
-			helpRow("SPACE / A", "select tracks or all/none"),
-			helpRow("- / +", "change the current album loop while selecting tracks"),
-			helpRow("MOUSE FOOTER", "adjust interval, navigate, and change loop directly"),
-			helpRow("RERUN", "edit a saved queue before starting it again"),
-			helpRow("E", "export JSON, CSV, TXT, and M3U8"),
+			infoRow("SPACE / A", "select tracks or all/none"),
+			infoRow("- / +", "change the current album loop while selecting tracks"),
+			infoRow("MOUSE FOOTER", "adjust interval, navigate, and change loop directly"),
+			infoRow("RERUN", "edit a saved queue before starting it again"),
+			infoRow("E", "export JSON, CSV, TXT, and M3U8"),
 		},
 		{
-			helpRow("LIST FILE", "TXT, CSV, TSV, and JSON album lists"),
-			helpRow("PLAYLIST", "M3U and M3U8 playlists"),
-			helpRow("ALBUM FOLDER", "infer Artist/Album from one folder"),
-			helpRow("ARTIST FOLDER", "scan album folders beneath an artist"),
-			helpRow("O", platform.PickerDescription()),
+			infoRow("LIST FILE", "TXT, CSV, TSV, and JSON album lists"),
+			infoRow("PLAYLIST", "M3U and M3U8 playlists"),
+			infoRow("ALBUM FOLDER", "infer Artist/Album from one folder"),
+			infoRow("ARTIST FOLDER", "scan album folders beneath an artist"),
+			infoRow("O", platform.PickerDescription()),
 		},
 	}
-	box := renderPanelBox(sections[m.infoIndex], 65, theme.BorderStyle)
+	box := renderPanelBox(sections[m.infoIndex], m.panelWidth(), theme.BorderStyle)
 	return lipgloss.JoinVertical(lipgloss.Left,
-		centerToHeader(firstRow),
-		centerToHeader(secondRow),
-		centerToHeader(box),
+		m.centerToApp(firstRow),
+		m.centerToApp(secondRow),
+		m.centerToApp(box),
 		"",
 	)
 }
@@ -581,15 +628,15 @@ func renderProfilesView(m model) string {
 	if len(rows) == 0 {
 		rows = []string{theme.MutedStyle.Render("No profiles saved.")}
 	}
-	box := renderPanelBox(rows, 65, theme.BorderStyle)
-	lines := []string{centerToHeader(box), ""}
+	box := renderPanelBox(rows, m.panelWidth(), theme.BorderStyle)
+	lines := []string{m.centerToApp(box), ""}
 	if m.profileStatus != "" {
-		lines = append(lines, centerToHeader(theme.SuccessStyle.Render(m.profileStatus)), "")
+		lines = append(lines, m.centerToApp(theme.SuccessStyle.Render(m.profileStatus)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
 func renderProfileNameView(m model) string {
-	box := renderTextBox("PROFILE NAME", m.profileInput.View(), "personal", 65, m.profileInput.Focused())
-	return lipgloss.JoinVertical(lipgloss.Left, centerToHeader(box), centerToHeader(theme.MutedStyle.Render("letters, numbers, hyphens and underscores")), "")
+	box := renderTextBox("PROFILE NAME", m.profileInput.View(), "personal", m.panelWidth(), m.profileInput.Focused())
+	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(box), m.centerToApp(theme.MutedStyle.Render("letters, numbers, hyphens and underscores")), "")
 }

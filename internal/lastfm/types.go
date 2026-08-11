@@ -19,8 +19,9 @@ type SimilarArtist struct {
 }
 
 type RecentTrack struct {
-	Artist string
-	Title  string
-	Album  string
-	Played time.Time
+	Artist     string
+	Title      string
+	Album      string
+	Played     time.Time
+	NowPlaying bool
 }

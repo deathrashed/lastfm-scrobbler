@@ -12,28 +12,37 @@ import (
 	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 )
 
-const headerContentWidth = 67
+const headerContentWidth = minAppWidth
 
 var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 
 func (m model) View() string {
-	if m.width > 0 && m.width < headerContentWidth {
+	if m.width > 0 && m.width < minAppWidth {
 		return theme.ErrorStyle.Render("Terminal too narrow\nLast.fm Scrobbler requires at least 67 columns.")
 	}
 
 	body := m.renderBody()
 
 	parts := []string{
-		RenderHeaderWithHoverArtist(m.width, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.cfg.CompactHeader, m.headerURLHover, m.headerArtist()),
+		m.renderHeader(),
 		body,
 	}
 	if !m.helpVisible {
-		parts = append(parts, centerToHeader(renderFooter(m)))
+		parts = append(parts, m.centerToApp(renderFooter(m)))
 	}
 	if m.err != nil {
-		parts = append(parts, centerToHeader(theme.ErrorStyle.Render(fmt.Sprintf("%s %s", theme.IconError, m.err.Error()))))
+		parts = append(parts, m.centerToApp(theme.ErrorStyle.Render(fmt.Sprintf("%s %s", theme.IconError, m.err.Error()))))
 	}
-	return strings.Join(parts, "\n")
+	view := strings.Join(parts, "\n")
+	if offset := m.appX(); offset > 0 {
+		prefix := strings.Repeat(" ", offset)
+		lines := strings.Split(view, "\n")
+		for index, line := range lines {
+			lines[index] = prefix + line
+		}
+		view = strings.Join(lines, "\n")
+	}
+	return view
 }
 
 func (m model) renderBody() string {
@@ -66,6 +75,8 @@ func (m model) renderBody() string {
 		body = renderDoneView(m)
 	case stageHistory:
 		body = renderSettingsShell(m, renderHistoryView(m))
+	case stageLastSession:
+		body = renderLastSessionView(m)
 	case stageRecovery:
 		body = renderRecoveryView(m)
 	case stageSimilarSelect:
@@ -136,10 +147,10 @@ func renderFooter(m model) string {
 	descriptionLine := ""
 	accentLine := ""
 	if description != "" {
-		descriptionLine = theme.PrimaryTextStyle.Render(truncateToWidth(description, headerContentWidth))
+		descriptionLine = theme.PrimaryTextStyle.Render(truncateToWidth(description, m.contentWidth()))
 	}
 	if accent != "" {
-		accentLine = theme.AccentTextStyle.Render(truncateToWidth(accent, headerContentWidth))
+		accentLine = theme.AccentTextStyle.Render(truncateToWidth(accent, m.contentWidth()))
 	}
 	lines = append(lines, descriptionLine, accentLine)
 	return strings.Join(lines, "\n")
@@ -160,14 +171,7 @@ func footerHoverDescription(m model, spec [][]footerItem) (string, string) {
 }
 
 func centerToHeader(value string) string {
-	if value == "" {
-		return ""
-	}
-	lines := strings.Split(value, "\n")
-	for index, line := range lines {
-		lines[index] = centerText(line, headerContentWidth)
-	}
-	return strings.Join(lines, "\n")
+	return centerToWidth(value, minAppWidth)
 }
 
 func (m model) headerSettingsLine() string {

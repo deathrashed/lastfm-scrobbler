@@ -13,6 +13,8 @@ import (
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
+	"github.com/deathrashed/lastfm-scrobbler/internal/sessionstore"
+	setupstate "github.com/deathrashed/lastfm-scrobbler/internal/setup"
 	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 )
 
@@ -27,7 +29,7 @@ func assertBlockWidth(t *testing.T, block string, want int) {
 
 func TestHeaderAlwaysFitsExactMockupWidth(t *testing.T) {
 	for _, mode := range []string{"", "manual", "discography", "file", "account", "scrobbling", "history", "tools", "interface", "profiles"} {
-		header := RenderHeader(140, stageInput, mode, "deathrashed", "", false)
+		header := RenderHeader(67, stageInput, mode, "deathrashed", "", false)
 		lines := strings.Split(header, "\n")
 		for lineNumber, line := range lines {
 			got := lipgloss.Width(stripANSI(line))
@@ -46,7 +48,7 @@ func TestHeaderAlwaysFitsExactMockupWidth(t *testing.T) {
 func TestCompactHeadersUseTheFourLineSpec(t *testing.T) {
 	modes := []string{"", "manual", "discography", "file", "account", "scrobbling", "history", "tools", "interface", "profiles", "info", "env", "profile", "connection", "diagnostics", "update"}
 	for _, mode := range modes {
-		header := RenderHeader(140, stageInput, mode, "deathrashed", "", true)
+		header := RenderHeader(67, stageInput, mode, "deathrashed", "", true)
 		lines := strings.Split(header, "\n")
 		if len(lines) != compactHeaderLines {
 			t.Fatalf("mode %q line count = %d, want %d", mode, len(lines), compactHeaderLines)
@@ -76,7 +78,7 @@ func TestCompactHeaderLongestSubtitleFits(t *testing.T) {
 
 func TestCompactManualHeaderAddsArtistOnlyAfterResolution(t *testing.T) {
 	unresolved := model{stage: stageSearch, modeChoice: "manual", cfg: config.Config{CompactHeader: true}}
-	before := RenderHeaderWithHoverArtist(140, unresolved.stage, unresolved.modeChoice, "", "", true, false, unresolved.headerArtist())
+	before := RenderHeaderWithHoverArtist(67, unresolved.stage, unresolved.modeChoice, "", "", true, false, unresolved.headerArtist())
 	if lines := strings.Split(before, "\n"); len(lines) != compactHeaderLines {
 		t.Fatalf("unresolved compact Manual header lines = %d, want %d", len(lines), compactHeaderLines)
 	}
@@ -91,7 +93,7 @@ func TestCompactManualHeaderAddsArtistOnlyAfterResolution(t *testing.T) {
 		results:       []lastfm.Album{{Artist: "Enforced", Title: "War Remains"}},
 		resultsCursor: 0,
 	}
-	header := RenderHeaderWithHoverArtist(140, resolved.stage, resolved.modeChoice, "", "", true, false, resolved.headerArtist())
+	header := RenderHeaderWithHoverArtist(67, resolved.stage, resolved.modeChoice, "", "", true, false, resolved.headerArtist())
 	lines := strings.Split(header, "\n")
 	if len(lines) != compactHeaderLines+1 {
 		t.Fatalf("resolved compact Manual header lines = %d, want %d", len(lines), compactHeaderLines+1)
@@ -108,7 +110,7 @@ func TestCompactDiscographyHeaderAddsResolvedArtist(t *testing.T) {
 		cfg:               config.Config{CompactHeader: true},
 		discographyArtist: "Oxygen Destroyer",
 	}
-	header := RenderHeaderWithHoverArtist(140, m.stage, m.modeChoice, "", "", true, false, m.headerArtist())
+	header := RenderHeaderWithHoverArtist(67, m.stage, m.modeChoice, "", "", true, false, m.headerArtist())
 	lines := strings.Split(header, "\n")
 	if len(lines) != compactHeaderLines+1 {
 		t.Fatalf("compact Discography header lines = %d, want %d", len(lines), compactHeaderLines+1)
@@ -123,7 +125,7 @@ func TestCompactArtistHeaderUsesRequestedStyles(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.SetColorProfile(previousProfile) })
 
-	header := RenderHeaderWithHoverArtist(140, stageResults, "manual", "", "", true, false, "Enforced")
+	header := RenderHeaderWithHoverArtist(67, stageResults, "manual", "", "", true, false, "Enforced")
 	artistLine := strings.Split(header, "\n")[3]
 	if !strings.Contains(artistLine, theme.AccentTextStyle.Render("ARTIST")) {
 		t.Fatal("compact artist label is not Torch Red")
@@ -144,7 +146,7 @@ func TestCompactArtistHeaderTruncatesLongNamesWithoutChangingWidth(t *testing.T)
 		cfg:        config.Config{CompactHeader: true},
 		results:    []lastfm.Album{{Artist: artist, Title: "Long Name"}},
 	}
-	header := RenderHeaderWithHoverArtist(140, m.stage, m.modeChoice, "", "", true, false, m.headerArtist())
+	header := RenderHeaderWithHoverArtist(67, m.stage, m.modeChoice, "", "", true, false, m.headerArtist())
 	lines := strings.Split(header, "\n")
 	if len(lines) != compactHeaderLines+1 {
 		t.Fatalf("long compact artist header lines = %d, want %d", len(lines), compactHeaderLines+1)
@@ -175,6 +177,95 @@ func TestHeaderHeightMatchesRenderedMode(t *testing.T) {
 	small := model{width: 66}
 	if got := small.headerHeight(); got != fullHeaderLines {
 		t.Fatalf("small terminal header height = %d, want %d", got, fullHeaderLines)
+	}
+}
+
+func TestResponsiveApplicationWidthAndCentering(t *testing.T) {
+	for _, terminalWidth := range []int{67, 68, 79, 80, 95, 103, 104, 111, 127, 128, 160, 200} {
+		width := appWidth(terminalWidth)
+		if width < minAppWidth || width > maxAppWidth {
+			t.Fatalf("terminal %d produced app width %d", terminalWidth, width)
+		}
+		offset := appOffset(terminalWidth)
+		if terminalWidth > maxAppWidth && terminalWidth-width > 1 && offset == 0 {
+			t.Fatalf("terminal %d did not center the capped application", terminalWidth)
+		}
+		if absInt(terminalWidth-width-2*offset) > 1 {
+			t.Fatalf("terminal %d margins are not balanced: width=%d offset=%d", terminalWidth, width, offset)
+		}
+		header := RenderHeader(terminalWidth, stageInput, "", "user", "", false)
+		for lineNumber, line := range strings.Split(header, "\n") {
+			if got := displayWidth(stripANSI(line)); got != width {
+				t.Fatalf("terminal %d header line %d width=%d want=%d", terminalWidth, lineNumber+1, got, width)
+			}
+		}
+	}
+}
+
+func TestFullHeaderActivityAddsOneStableRow(t *testing.T) {
+	without := model{width: 127, cfg: config.Config{NowPlaying: false}}
+	with := without
+	with.cfg.NowPlaying = true
+	if got, want := without.headerHeight(), fullHeaderLines; got != want {
+		t.Fatalf("activity-off header height=%d want=%d", got, want)
+	}
+	if got, want := with.headerHeight(), fullHeaderLines+1; got != want {
+		t.Fatalf("activity-on header height=%d want=%d", got, want)
+	}
+	if got := len(strings.Split(with.renderHeader(), "\n")); got != with.headerHeight() {
+		t.Fatalf("rendered activity header lines=%d want=%d", got, with.headerHeight())
+	}
+	with.cfg.CompactHeader = true
+	if got := with.headerHeight(); got != compactHeaderLines {
+		t.Fatalf("compact activity header height=%d want=%d", got, compactHeaderLines)
+	}
+}
+
+func TestFullHeaderActivityStaysWithinResponsiveWidth(t *testing.T) {
+	for _, width := range []int{67, 80, 104, 127, 160, 200} {
+		m := model{
+			width:         width,
+			cfg:           config.Config{NowPlaying: true},
+			activityState: activityCurrent,
+			activityTrack: lastfm.RecentTrack{
+				Artist: "A Very Long Artist Name That Should Truncate Safely",
+				Title:  "A Very Long Track Title That Should Stay Inside The Header",
+			},
+		}
+		for lineIndex, line := range strings.Split(stripANSI(m.renderHeader()), "\n") {
+			if got := displayWidth(line); got > m.appWidth() {
+				t.Fatalf("width %d activity line %d = %d, want <= %d: %q", width, lineIndex+1, got, m.appWidth(), line)
+			}
+		}
+	}
+}
+
+func TestResponsiveReferenceViewsDoNotOverflow(t *testing.T) {
+	for _, width := range []int{67, 80, 104, 127, 160, 200} {
+		base := model{
+			width: width, height: 40,
+			cfg:         config.Config{MouseEnabled: true},
+			modeChoice:  "discography",
+			discography: makeAlbums(8), discographyArtist: "Oxygen Destroyer",
+			discographySelected: map[int]bool{},
+			searchInput:         newTextInput(512, 48), filterInput: newTextInput(128, 44),
+			configInput: newTextInput(1024, 44), envInput: newTextInput(1024, 48), profileInput: newTextInput(64, 40),
+			profiles: []string{"default"}, history: []sessionstore.Record{testLastSessionRecord()},
+			setup: setupstate.NewState(config.Config{}),
+		}
+		views := []string{
+			base.renderHeader(), renderInputView(base), renderSearchView(base),
+			renderDiscographySelectView(base), renderImportSourceView(base),
+			renderSettingsView(base), renderInfoView(base), renderCompletionsView(base),
+			renderHistoryView(base), renderLastSessionView(base), renderSetupView(base),
+		}
+		for viewIndex, view := range views {
+			for lineIndex, line := range strings.Split(stripANSI(view), "\n") {
+				if got := displayWidth(line); got > base.appWidth() {
+					t.Fatalf("width %d view %d line %d width=%d app=%d: %q", width, viewIndex, lineIndex+1, got, base.appWidth(), line)
+				}
+			}
+		}
 	}
 }
 
@@ -266,13 +357,15 @@ func TestCompactHeaderDisablesURLHitTesting(t *testing.T) {
 
 func TestMouseCoordinatesFollowCompactAndFullHeaderHeights(t *testing.T) {
 	compact := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageInput, searchInput: newTextInput(512, 48)}
-	updated, _ := compact.updateMouse(tea.MouseMsg{X: 30, Y: compact.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	dashboard := dashboardCardPositions(compact.panelWidth())
+	updated, _ := compact.updateMouse(tea.MouseMsg{X: compact.appX() + dashboard[1], Y: compact.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	if got := updated.(model).modeChoice; got != "discography" {
 		t.Fatalf("compact dashboard click selected %q, want discography", got)
 	}
 
 	file := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageImportSource, modeChoice: "file"}
-	updated, _ = file.updateMouse(tea.MouseMsg{X: 20, Y: file.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	fileCards := fileSourceCardPositions(file.panelWidth())
+	updated, _ = file.updateMouse(tea.MouseMsg{X: file.appX() + fileCards[0][0], Y: file.headerHeight() + fileCards[0][1], Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	if got := updated.(model).importSourceIndex; got != 0 {
 		t.Fatalf("compact file click selected source %d, want 0", got)
 	}
@@ -293,14 +386,15 @@ func TestMouseCoordinatesFollowCompactAndFullHeaderHeights(t *testing.T) {
 		configInput: newTextInput(1024, 44),
 	}
 	region := settingsModel.settingsGridRegion(settingsHistory)
-	updated, _ = settingsModel.updateMouse(tea.MouseMsg{X: region.x, Y: region.y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	updated, _ = settingsModel.updateMouse(tea.MouseMsg{X: settingsModel.appX() + region.x, Y: region.y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	gotSettings := updated.(model)
 	if gotSettings.currentSettingsSection() != settingsHistory || gotSettings.stage != stageHistory {
 		t.Fatalf("compact Settings click selected section=%d stage=%d", gotSettings.currentSettingsSection(), gotSettings.stage)
 	}
 
 	full := model{width: 140, cfg: config.Config{MouseEnabled: true}, stage: stageInput, searchInput: newTextInput(512, 48)}
-	updated, _ = full.updateMouse(tea.MouseMsg{X: 30, Y: full.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	fullDashboard := dashboardCardPositions(full.panelWidth())
+	updated, _ = full.updateMouse(tea.MouseMsg{X: full.appX() + fullDashboard[1], Y: full.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	if got := updated.(model).modeChoice; got != "discography" {
 		t.Fatalf("full dashboard click selected %q, want discography", got)
 	}
@@ -364,7 +458,7 @@ func TestSettingsHeaderTitlesAndSubtitles(t *testing.T) {
 			t.Fatalf("section %d header = %#v, want %#v", section, headerSpec, spec)
 		}
 		for _, compact := range []bool{false, true} {
-			header := RenderHeader(140, stageConfig, spec.Mode, "deathrashed", "", compact)
+			header := RenderHeader(67, stageConfig, spec.Mode, "deathrashed", "", compact)
 			plain := stripANSI(header)
 			if !strings.Contains(plain, spec.Label) || !strings.Contains(plain, spec.Subtitle) {
 				t.Fatalf("section %d compact=%t missing title/subtitle\n%s", section, compact, plain)
@@ -501,7 +595,7 @@ func TestSpinnerStopsSchedulingAfterDone(t *testing.T) {
 
 func TestExpandedSettingsAndFootersFitHeader(t *testing.T) {
 	base := model{
-		width: 140,
+		width: 67,
 		cfg: config.Config{
 			Username:         strings.Repeat("username", 20),
 			Password:         strings.Repeat("password", 20),
@@ -576,6 +670,14 @@ func TestDashboardAdvertisesSettingsShortcutNotConfig(t *testing.T) {
 	if strings.Contains(strings.ToLower(plain), "c config") {
 		t.Fatalf("Dashboard footer still advertises c config: %q", plain)
 	}
+	for _, required := range []string{"i info", "h history", "m d f quick", "r rerun", "? help"} {
+		if !strings.Contains(plain, required) {
+			t.Fatalf("Dashboard footer missing %q: %q", required, plain)
+		}
+	}
+	if strings.Contains(plain, "p profiles") {
+		t.Fatalf("Dashboard footer still advertises Profiles shortcut: %q", plain)
+	}
 }
 
 func TestSettingsSectionsContainEachExpectedRowExactlyOnce(t *testing.T) {
@@ -583,7 +685,7 @@ func TestSettingsSectionsContainEachExpectedRowExactlyOnce(t *testing.T) {
 		settingsAccount:    {"username", "password", "api-key", "api-secret", "credential-source", "credential-path"},
 		settingsScrobbling: {"loop", "interval", "retry-count", "retry-delay", "duplicate-guard", "clean-top-albums"},
 		settingsTools:      {"export-dir", "update-url", "connection-test", "diagnostics", "completions", "check-updates"},
-		settingsInterface:  {"notifications", "compact-header", "mouse-support"},
+		settingsInterface:  {"notifications", "now-playing", "compact-header", "mouse-support"},
 	}
 	seen := map[string]settingsSection{}
 	for section, wantIDs := range want {
@@ -654,7 +756,7 @@ func TestFocusedTextBoxKeepsStructuralBorderWhite(t *testing.T) {
 func TestDynamicArtistHeaderBadgeScalesAndStaysWithinFrame(t *testing.T) {
 	for _, artist := range []string{"Jet", "Slayer", "Oxygen Destroyer", "An Artist Name That Is Deliberately Much Longer Than The Header Badge"} {
 		header := RenderHeaderWithHoverArtist(
-			140,
+			67,
 			stageTrackSelect,
 			"manual",
 			"deathrashed",

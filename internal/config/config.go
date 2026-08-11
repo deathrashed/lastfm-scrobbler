@@ -25,6 +25,7 @@ type Config struct {
 	RetryDelay       time.Duration
 	DuplicateGuard   time.Duration
 	Notify           bool
+	NowPlaying       bool
 	CompactHeader    bool
 	CleanDiscography bool
 	ExportDir        string
@@ -113,6 +114,7 @@ func defaultConfig() Config {
 		RetryDelay:       2 * time.Second,
 		DuplicateGuard:   0,
 		Notify:           true,
+		NowPlaying:       true,
 		CompactHeader:    false,
 		CleanDiscography: false,
 		ExportDir:        exportDir,
@@ -262,6 +264,9 @@ func loadConfigWithFallback(envPath, fallbackPath string) (Config, error) {
 	}
 	if value := get("SCROBBLE_NOTIFY", "NOTIFY"); value != "" {
 		cfg.Notify = parseBool(value, cfg.Notify)
+	}
+	if value := get("SCROBBLE_NOW_PLAYING", "NOW_PLAYING"); value != "" {
+		cfg.NowPlaying = parseBool(value, cfg.NowPlaying)
 	}
 	if value := get("SCROBBLE_COMPACT_HEADER", "COMPACT_HEADER"); value != "" {
 		cfg.CompactHeader = parseBool(value, cfg.CompactHeader)
@@ -597,7 +602,7 @@ func Save(cfg Config) error {
 	}
 
 	content := fmt.Sprintf(
-		"API_KEY=%s\nAPI_SECRET=%s\nLASTFM_USERNAME=%s\nLASTFM_PASSWORD=%s\nLASTFM_SESSION_KEY=%s\nLASTFM_PROFILE=%s\nLASTFM_CREDENTIAL_SOURCE=%s\nSCROBBLE_INTERVAL=%s\nSCROBBLE_LIMIT=%d\nSCROBBLE_LOOP=%d\nSCROBBLE_RETRIES=%d\nSCROBBLE_RETRY_DELAY=%s\nSCROBBLE_DUPLICATE_GUARD=%s\nSCROBBLE_NOTIFY=%t\nSCROBBLE_COMPACT_HEADER=%t\nSCROBBLE_CLEAN_DISCOGRAPHY=%t\nSCROBBLE_EXPORT_DIR=%s\nSCROBBLE_MOUSE=%t\nSCROBBLER_UPDATE_URL=%s\n",
+		"API_KEY=%s\nAPI_SECRET=%s\nLASTFM_USERNAME=%s\nLASTFM_PASSWORD=%s\nLASTFM_SESSION_KEY=%s\nLASTFM_PROFILE=%s\nLASTFM_CREDENTIAL_SOURCE=%s\nSCROBBLE_INTERVAL=%s\nSCROBBLE_LIMIT=%d\nSCROBBLE_LOOP=%d\nSCROBBLE_RETRIES=%d\nSCROBBLE_RETRY_DELAY=%s\nSCROBBLE_DUPLICATE_GUARD=%s\nSCROBBLE_NOTIFY=%t\nSCROBBLE_NOW_PLAYING=%t\nSCROBBLE_COMPACT_HEADER=%t\nSCROBBLE_CLEAN_DISCOGRAPHY=%t\nSCROBBLE_EXPORT_DIR=%s\nSCROBBLE_MOUSE=%t\nSCROBBLER_UPDATE_URL=%s\n",
 		apiKey,
 		apiSecret,
 		username,
@@ -612,6 +617,7 @@ func Save(cfg Config) error {
 		cfg.RetryDelay.String(),
 		cfg.DuplicateGuard.String(),
 		cfg.Notify,
+		cfg.NowPlaying,
 		cfg.CompactHeader,
 		cfg.CleanDiscography,
 		cfg.ExportDir,

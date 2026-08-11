@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	minHeaderWidth          = 67
-	fullHeaderWidth         = 67
+	minHeaderWidth          = minAppWidth
+	fullHeaderWidth         = minAppWidth
 	fullHeaderLines         = 11
 	compactHeaderLines      = 4
 	compactHeaderInnerWidth = fullHeaderWidth - 2
@@ -105,10 +105,18 @@ func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsL
 }
 
 func RenderHeaderWithHoverArtist(width int, stg stage, modeChoice, username, settingsLine string, compact, urlHover bool, artist string) string {
+	width = appWidth(width)
 	if compact {
-		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover, compactHeaderArtistFor(modeChoice, artist))
+		return renderCompactHeader(width, stg, modeChoice, username, settingsLine, urlHover, compactHeaderArtistFor(modeChoice, artist))
 	}
-	return renderFullHeader(fullHeaderWidth, stg, modeChoice, username, settingsLine, urlHover, artist)
+	return renderFullHeader(width, stg, modeChoice, username, settingsLine, urlHover, artist, "")
+}
+
+func (m model) renderHeader() string {
+	if m.cfg.CompactHeader {
+		return renderCompactHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.compactHeaderArtist())
+	}
+	return renderFullHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.headerArtist(), m.activityContent())
 }
 
 func (m model) compactHeaderEnabled() bool {
@@ -122,33 +130,37 @@ func (m model) headerHeight() int {
 		}
 		return compactHeaderLines
 	}
-	if m.headerArtist() != "" {
-		return fullHeaderLines + 2
+	height := fullHeaderLines
+	if m.nowPlayingEnabled() {
+		height++
 	}
-	return fullHeaderLines
+	if m.headerArtist() != "" {
+		height += 2
+	}
+	return height
 }
 
-func renderCompactHeader(stg stage, modeChoice, username, settingsLine string, urlHover bool, artist string) string {
+func renderCompactHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool, artist string) string {
 	_ = stg
 	_ = username
 	_ = urlHover
 	spec := compactHeaderSpecFor(modeChoice)
 	subtitle := theme.MutedStyle.Render(spec.Subtitle)
 	if modeChoice == "" {
-		subtitle = renderDashboardContext()
+		subtitle = renderDashboardContext(width)
 	}
 	if settingsLine != "" {
 		subtitle = renderSettingsContext(settingsLine)
 	}
 	lines := []string{
-		renderCompactBorder('╭', '╮'),
-		renderCompactContent(spec.Title, theme.HeaderTextStyle),
-		renderCompactContentStyled(subtitle),
+		renderCompactBorder(width, '╭', '╮'),
+		renderCompactContent(width, spec.Title, theme.HeaderTextStyle),
+		renderCompactContentStyled(width, subtitle),
 	}
 	if artist != "" {
-		lines = append(lines, renderCompactArtistRow(artist))
+		lines = append(lines, renderCompactArtistRow(width, artist))
 	}
-	lines = append(lines, renderCompactBottom(spec.Icon))
+	lines = append(lines, renderCompactBottom(width, spec.Icon))
 	return strings.Join(lines, "\n")
 }
 
@@ -166,13 +178,13 @@ func compactHeaderArtistFor(modeChoice, artist string) string {
 	return strings.ToUpper(strings.TrimSpace(artist))
 }
 
-func renderCompactArtistRow(artist string) string {
+func renderCompactArtistRow(width int, artist string) string {
 	const prefix = "ARTIST ❯ "
-	artist = truncateToWidth(strings.ToUpper(strings.TrimSpace(artist)), compactHeaderInnerWidth-lipgloss.Width(prefix))
+	artist = truncateToWidth(strings.ToUpper(strings.TrimSpace(artist)), maxInt(1, width-2-lipgloss.Width(prefix)))
 	row := theme.AccentTextStyle.Render("ARTIST") + " " +
 		theme.PrimaryTextStyle.Render("❯") + " " +
 		theme.ArtistStyle.Render(artist)
-	return renderCompactContentStyled(row)
+	return renderCompactContentStyled(width, row)
 }
 
 func compactHeaderSpecFor(modeChoice string) compactHeaderSpec {
@@ -182,20 +194,20 @@ func compactHeaderSpecFor(modeChoice string) compactHeaderSpec {
 	return compactHeaderSpecs[""]
 }
 
-func renderCompactBorder(left, right rune) string {
-	return theme.BorderStyle.Render(string(left) + strings.Repeat("─", fullHeaderWidth-2) + string(right))
+func renderCompactBorder(width int, left, right rune) string {
+	return theme.BorderStyle.Render(string(left) + strings.Repeat("─", maxInt(1, width-2)) + string(right))
 }
 
-func renderCompactContent(value string, style lipgloss.Style) string {
-	return renderCompactContentStyled(style.Render(value))
+func renderCompactContent(width int, value string, style lipgloss.Style) string {
+	return renderCompactContentStyled(width, style.Render(value))
 }
 
-func renderCompactContentStyled(value string) string {
-	return theme.BorderStyle.Render("│") + centerText(value, fullHeaderWidth-2) + theme.BorderStyle.Render("│")
+func renderCompactContentStyled(width int, value string) string {
+	return theme.BorderStyle.Render("│") + centerText(value, maxInt(1, width-2)) + theme.BorderStyle.Render("│")
 }
 
-func renderCompactBottom(icon string) string {
-	innerWidth := compactHeaderInnerWidth
+func renderCompactBottom(width int, icon string) string {
+	innerWidth := maxInt(1, width-2)
 	iconWidth := lipgloss.Width(icon)
 	dashes := maxInt(0, innerWidth-iconWidth)
 	left := dashes / 2
@@ -205,31 +217,41 @@ func renderCompactBottom(icon string) string {
 		theme.BorderStyle.Render(strings.Repeat("─", right)+"╯")
 }
 
-func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool, artist string) string {
+func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool, artist, activity string) string {
 	outer := theme.BorderStyle
 	inner := theme.BorderStyle
 	wordmark := theme.TitleIconStyle
 	contextLine, badgeText, badgeIcon := headerBadge(stg, modeChoice)
+	badgeText = responsiveHeaderTitle(badgeText, width)
 	isDashboard := modeChoice == ""
-	innerWidth := width - 12
+	wordmarkLines := renderWordmarkLinesFor(width)
+	innerWidth := lipgloss.Width(wordmarkLines[0])
+	frameWidth := innerWidth + 2
+	leftPadding := maxInt(0, (width-2-frameWidth)/2)
+	rightPadding := maxInt(0, width-2-frameWidth-leftPadding)
 
 	lines := []string{outer.Render("╭" + strings.Repeat("─", width-2) + "╮")}
-	urlText := renderHeaderURL(username, urlHover)
+	urlText := renderHeaderURL(username, urlHover, width)
 	lines = append(lines,
 		outer.Render("│")+centerText(urlText, width-2)+outer.Render("│"),
-		outer.Render("│    ")+inner.Render("╭"+strings.Repeat("─", innerWidth)+"╮")+outer.Render("    │"),
 	)
-	for _, line := range renderWordmarkLines() {
-		lines = append(lines, outer.Render("│    ")+inner.Render("│")+wordmark.Render(line)+inner.Render("│")+outer.Render("    │"))
+	if activity != "" {
+		lines = append(lines, outer.Render("│")+centerText(activity, width-2)+outer.Render("│"))
 	}
-	lines = append(lines, outer.Render("│    ")+inner.Render("╰"+strings.Repeat("─", innerWidth)+"╯")+outer.Render("    │"))
+	lines = append(lines,
+		outer.Render("│")+strings.Repeat(" ", leftPadding)+inner.Render("╭"+strings.Repeat("─", innerWidth)+"╮")+strings.Repeat(" ", rightPadding)+outer.Render("│"),
+	)
+	for _, line := range wordmarkLines {
+		lines = append(lines, outer.Render("│")+strings.Repeat(" ", leftPadding)+inner.Render("│")+wordmark.Render(padRight(line, innerWidth))+inner.Render("│")+strings.Repeat(" ", rightPadding)+outer.Render("│"))
+	}
+	lines = append(lines, outer.Render("│")+strings.Repeat(" ", leftPadding)+inner.Render("╰"+strings.Repeat("─", innerWidth)+"╯")+strings.Repeat(" ", rightPadding)+outer.Render("│"))
 
 	var context string
 	switch {
 	case settingsLine != "" && (stg == stageTrackSelect || stg == stagePreview || stg == stageScrobbling || stg == stageDone):
 		context = renderSettingsContext(settingsLine)
 	case isDashboard:
-		context = renderDashboardContext()
+		context = renderDashboardContext(width)
 	default:
 		context = theme.SecondaryTextStyle.Render(contextLine)
 	}
@@ -276,8 +298,8 @@ func renderArtistBadgeExtension(width int, badgeText, badgeIcon, artist string) 
 	artistStyle := theme.ArtistStyle
 
 	sectionWidth := lipgloss.Width(badgeText) + 4
-	artistText := spacedArtistName(artist)
-	const maxArtistBoxWidth = 57
+	artistText := spacedArtistNameForWidth(artist, width)
+	maxArtistBoxWidth := minInt(101, maxInt(57, width-10))
 	artistText = truncateToWidth(artistText, maxArtistBoxWidth-4)
 	artistBoxWidth := maxInt(7, lipgloss.Width(artistText)+4)
 	if artistBoxWidth > maxArtistBoxWidth {
@@ -341,6 +363,17 @@ func renderIconRibbon(width int, badgeIcon string, border, icon lipgloss.Style) 
 }
 
 func spacedArtistName(value string) string {
+	return spacedArtistNameWithSeparator(value, " ", "   ")
+}
+
+func spacedArtistNameForWidth(value string, width int) string {
+	if densityFor(width) == densityWide {
+		return spacedArtistNameWithSeparator(value, "  ", "    ")
+	}
+	return spacedArtistName(value)
+}
+
+func spacedArtistNameWithSeparator(value, letterSeparator, wordSeparator string) string {
 	words := strings.Fields(strings.ToUpper(strings.TrimSpace(value)))
 	spaced := make([]string, 0, len(words))
 	for _, word := range words {
@@ -349,9 +382,9 @@ func spacedArtistName(value string) string {
 		for _, r := range runes {
 			parts = append(parts, string(r))
 		}
-		spaced = append(spaced, strings.Join(parts, " "))
+		spaced = append(spaced, strings.Join(parts, letterSeparator))
 	}
-	return strings.Join(spaced, "   ")
+	return strings.Join(spaced, wordSeparator)
 }
 
 func lastfmURL(username string) string {
@@ -362,9 +395,9 @@ func lastfmURL(username string) string {
 	return "https://www.last.fm/user/" + url.PathEscape(username)
 }
 
-func renderHeaderURL(username string, hover bool) string {
+func renderHeaderURL(username string, hover bool, width int) string {
 	value := lastfmURL(username)
-	display := truncateToWidth(headerURLDisplay(username), fullHeaderWidth-2)
+	display := truncateToWidth(headerURLDisplay(username), width-2)
 	style := theme.HeaderURLStyle
 	if hover {
 		style = theme.HeaderURLHoverStyle
@@ -377,8 +410,12 @@ func renderOSC8(target, value string) string {
 }
 
 func headerURLBounds(username string) (left, top, width int) {
-	displayWidth := lipgloss.Width(truncateToWidth(headerURLDisplay(username), fullHeaderWidth-2))
-	left = 1 + (fullHeaderWidth-2-displayWidth)/2
+	return headerURLBoundsAtWidth(username, fullHeaderWidth)
+}
+
+func headerURLBoundsAtWidth(username string, headerWidth int) (left, top, width int) {
+	displayWidth := lipgloss.Width(truncateToWidth(headerURLDisplay(username), headerWidth-2))
+	left = 1 + (headerWidth-2-displayWidth)/2
 	return left, 1, displayWidth
 }
 
@@ -390,12 +427,16 @@ func headerURLDisplay(username string) string {
 	return "last.fm/user/" + url.PathEscape(username)
 }
 
-func renderDashboardContext() string {
-	return theme.HeaderMetaStyle.Render("SEARCH") +
-		theme.SepStyle.Render("  •  ") +
-		theme.HeaderMetaStyle.Render("SELECT") +
-		theme.SepStyle.Render("  •  ") +
-		theme.HeaderMetaStyle.Render("SCROBBLE")
+func renderDashboardContext(widths ...int) string {
+	width := fullHeaderWidth
+	if len(widths) > 0 {
+		width = widths[0]
+	}
+	separator := "  •  "
+	if densityFor(width) == densityWide {
+		separator = "   •   "
+	}
+	return theme.MutedStyle.Render("SEARCH" + separator + "SELECT" + separator + "SCROBBLE")
 }
 
 func renderSettingsContext(settingsLine string) string {
@@ -434,7 +475,7 @@ func renderBadgeBottom(width int, badgeText, badgeIcon string) (badgeTop, bottom
 	leftIconDash := dashes / 2
 	rightIconDash := dashes - leftIconDash
 	underline := border.Render("╰"+strings.Repeat("─", leftIconDash)) + icon.Render(badgeIcon) + border.Render(strings.Repeat("─", rightIconDash)+"╯")
-	badgeUnderline = strings.Repeat(" ", maxInt(0, (width-lipgloss.Width(underline))/2)) + underline
+	badgeUnderline = centerText(underline, width)
 	return badgeTop, bottomLine, badgeUnderline
 }
 
@@ -444,11 +485,33 @@ func headerBadge(stg stage, modeChoice string) (contextLine, badgeText, badgeIco
 	return spec.Subtitle, spec.Title, spec.Icon
 }
 
+func responsiveHeaderTitle(value string, width int) string {
+	if densityFor(width) != densityWide {
+		return value
+	}
+	wide := strings.Join(strings.Fields(value), "  ")
+	if lipgloss.Width(wide)+1 <= width-4 {
+		return wide
+	}
+	return value
+}
+
 func renderWordmarkLines() []string {
 	return []string{
 		"   ╦  ╔═╗╔═╗╔╦╗ ╔═╗╔╦╗  ╔═╗╔═╗╦═╗╔═╗╔╗ ╔╗ ╦  ╔═╗╦═╗    ",
 		"   ║  ╠═╣╚═╗ ║  ╠╣ ║║║  ╚═╗║  ╠╦╝║ ║╠╩╗╠╩╗║  ║╣ ╠╦╝    ",
 		"   ╩═╝╩ ╩╚═╝ ╩ o╚  ╩ ╩  ╚═╝╚═╝╩╚═╚═╝╚═╝╚═╝╩═╝╚═╝╩╚═    ",
+	}
+}
+
+func renderWordmarkLinesFor(width int) []string {
+	if densityFor(width) != densityWide {
+		return renderWordmarkLines()
+	}
+	return []string{
+		"  ╦   ╔═╗ ╔═╗ ╔╦╗  ╔═╗ ╔╦╗    ╔═╗ ╔═╗ ╦═╗ ╔═╗ ╔╗  ╔╗  ╦   ╔═╗ ╦═╗  ",
+		"  ║   ╠═╣ ╚═╗  ║   ╠╣  ║║║    ╚═╗ ║   ╠╦╝ ║ ║ ╠╩╗ ╠╩╗ ║   ║╣  ╠╦╝  ",
+		"  ╩═╝ ╩ ╩ ╚═╝  ╩  o╚   ╩ ╩    ╚═╝ ╚═╝ ╩╚═ ╚═╝ ╚═╝ ╚═╝ ╩═╝ ╚═╝ ╩╚═  ",
 	}
 }
 

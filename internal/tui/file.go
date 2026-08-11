@@ -36,9 +36,9 @@ func fileSourceSpecFor(index int) fileSourceSpec {
 	return fileSourceSpecs[index]
 }
 
-func fileSourceRegions(bodyY int) []mouseRegion {
+func fileSourceRegions(bodyY, panelWidth int) []mouseRegion {
 	regions := make([]mouseRegion, 0, len(fileSourceSpecs)+1)
-	positions := fileSourceCardPositions()
+	positions := fileSourceCardPositions(panelWidth)
 	for index, spec := range fileSourceSpecs {
 		regions = append(regions, mouseRegion{
 			id:     "import:" + strconv.Itoa(index),
@@ -48,15 +48,15 @@ func fileSourceRegions(bodyY int) []mouseRegion {
 			height: fileSourceRowHeight,
 		})
 	}
-	regions = append(regions, mouseRegion{id: "file:path", x: 1, y: bodyY + filePathPanelOffset, width: 65, height: 5})
+	regions = append(regions, mouseRegion{id: "file:path", x: 1, y: bodyY + filePathPanelOffset, width: panelWidth, height: 5})
 	return regions
 }
 
-func fileSourceCardPositions() [][2]int {
+func fileSourceCardPositions(panelWidth int) [][2]int {
 	positions := make([][2]int, 0, len(fileSourceSpecs))
 	for row, indexes := range [][2]int{{0, 1}, {2, 3}} {
 		rowWidth := fileSourceSpecs[indexes[0]].width + 1 + fileSourceSpecs[indexes[1]].width
-		x := (headerContentWidth - rowWidth) / 2
+		x := 1 + (panelWidth-rowWidth)/2
 		positions = append(positions,
 			[2]int{x, row * fileSourceRowHeight},
 			[2]int{x + fileSourceSpecs[indexes[0]].width + 1, row * fileSourceRowHeight},
@@ -85,10 +85,10 @@ func renderFilePathView(m model) string {
 	if m.filePathFocused {
 		prefix = theme.FocusedRowLabelStyle.Render("PATH ") + theme.FocusedRowArrowStyle.Render("❯ ")
 	}
-	value = fitStyled(value, 61-lipgloss.Width(prefix))
+	value = fitStyled(value, maxInt(1, m.panelWidth()-4-lipgloss.Width(prefix)))
 	return renderPanelBoxWithBadgeAttachment(
 		[]string{prefix + value},
-		65,
+		m.panelWidth(),
 		renderFileTypesContent(spec.types),
 		theme.BorderStyle,
 	)

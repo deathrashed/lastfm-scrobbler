@@ -106,7 +106,8 @@ var settingsRowsBySection = map[settingsSection][]settingsRowSpec{
 		{ID: "check-updates", Label: "CHECK FOR UPDATES", Description: "compare this build with the configured release endpoint", Kind: settingsAction},
 	},
 	settingsInterface: {
-		{ID: "notifications", Label: "NOTIFICATIONS", Description: "send a macOS notification when a session finishes", Kind: settingsToggle},
+		{ID: "notifications", Label: "NOTIFICATIONS", Description: "send a completion notification when supported", Kind: settingsToggle},
+		{ID: "now-playing", Label: "NOW PLAYING", Description: "show current or recent Last.fm activity in the full header", Kind: settingsToggle},
 		{ID: "compact-header", Label: "COMPACT HEADER", Description: "use the four-line compact header", Kind: settingsToggle},
 		{ID: "mouse-support", Label: "MOUSE SUPPORT", Description: "enable clickable controls and mouse-wheel navigation", Kind: settingsToggle},
 	},
@@ -328,6 +329,8 @@ func (m model) settingsRawValue(row settingsRowSpec) string {
 		return m.cfg.UpdateURL
 	case "notifications":
 		return boolWord(m.cfg.Notify)
+	case "now-playing":
+		return boolWord(m.cfg.NowPlaying)
 	case "compact-header":
 		return boolWord(m.cfg.CompactHeader)
 	case "mouse-support":
@@ -426,6 +429,8 @@ func (m *model) commitSettingsField() {
 		m.cfg.UpdateURL = value
 	case "notifications":
 		m.cfg.Notify = parseToggle(value, m.cfg.Notify)
+	case "now-playing":
+		m.cfg.NowPlaying = parseToggle(value, m.cfg.NowPlaying)
 	case "compact-header":
 		m.cfg.CompactHeader = parseToggle(value, m.cfg.CompactHeader)
 	case "mouse-support":
@@ -472,6 +477,8 @@ func (m *model) adjustSettingsRow(delta int) bool {
 		m.discographyClean = m.cfg.CleanDiscography
 	case "notifications":
 		m.cfg.Notify = !m.cfg.Notify
+	case "now-playing":
+		m.cfg.NowPlaying = !m.cfg.NowPlaying
 	case "compact-header":
 		m.cfg.CompactHeader = !m.cfg.CompactHeader
 	case "mouse-support":
@@ -489,6 +496,13 @@ func (m *model) adjustSettingsRow(delta int) bool {
 	}
 	m.loadSettingsField()
 	return true
+}
+
+func (m *model) activitySettingChanged(rowID string) tea.Cmd {
+	if rowID == "now-playing" || rowID == "compact-header" {
+		return m.restartActivity()
+	}
+	return nil
 }
 
 func (m model) openSettingsRowAction() (tea.Model, tea.Cmd) {
@@ -545,11 +559,11 @@ func (m model) updateSettings(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "left":
 		if m.adjustSettingsRow(-1) {
-			return m, m.configInput.Focus()
+			return m, tea.Batch(m.configInput.Focus(), m.activitySettingChanged(row.ID))
 		}
 	case "right", " ":
 		if m.adjustSettingsRow(1) {
-			return m, m.configInput.Focus()
+			return m, tea.Batch(m.configInput.Focus(), m.activitySettingChanged(row.ID))
 		}
 	case "o":
 		if row.ID == "export-dir" {
@@ -561,7 +575,8 @@ func (m model) updateSettings(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.commitSettingsField()
 		m.loadSettingsField()
-		return m.saveConfig()
+		updated, cmd := m.saveConfig()
+		return updated, tea.Batch(cmd, m.activitySettingChanged(row.ID))
 	case "esc":
 		return m.leaveSettings()
 	case "q", "ctrl+c":
@@ -632,24 +647,24 @@ func renderSettingsView(m model) string {
 	for index, row := range rows {
 		listRows = append(listRows, renderSettingsOverviewRow(m, row, index))
 	}
-	list := renderPanelBox(listRows, 65, theme.BorderStyle)
+	list := renderPanelBox(listRows, m.panelWidth(), theme.BorderStyle)
 	row := rows[m.settingsRow]
 	detail := renderSettingsDetail(m, row)
 	lines := []string{
-		centerToHeader(list),
-		centerToHeader(detail),
-		centerToHeader(theme.MutedStyle.Render(row.Description)),
+		m.centerToApp(list),
+		m.centerToApp(detail),
+		m.centerToApp(theme.MutedStyle.Render(row.Description)),
 		"",
 	}
 	if m.configStatus != "" {
-		lines = append(lines, centerToHeader(theme.SuccessStyle.Render(m.configStatus)), "")
+		lines = append(lines, m.centerToApp(theme.SuccessStyle.Render(m.configStatus)), "")
 	}
 	content := lipgloss.JoinVertical(lipgloss.Left, lines...)
 	return renderSettingsShell(m, content)
 }
 
 func renderSettingsShell(m model, content string) string {
-	grid := centerToHeader(renderSettingsGrid(m))
+	grid := m.centerToApp(renderSettingsGrid(m))
 	if content == "" {
 		return grid
 	}
@@ -663,8 +678,8 @@ func renderSettingsGrid(m model) string {
 	for index, spec := range settingsSectionSpecs {
 		boxes[index] = renderSettingsSectionBox(spec.Label, widths[index], settingsSection(index) == current, m.hoverRegion == "settings:section:"+strconv.Itoa(index), m.settingsFocus == settingsFocusSections)
 	}
-	first := joinThreeLineBoxes(boxes[:3], theme.SepStyle.Render("•"))
-	second := joinThreeLineBoxes(boxes[3:], theme.SepStyle.Render("•"))
+	first := joinResponsiveBoxes(boxes[:3], widths[:3], m.panelWidth(), theme.SepStyle.Render("•"))
+	second := joinResponsiveBoxes(boxes[3:], widths[3:], m.panelWidth(), theme.SepStyle.Render("•"))
 	return first + "\n" + second
 }
 
@@ -694,11 +709,12 @@ func renderSettingsOverviewRow(m model, row settingsRowSpec, index int) string {
 	}
 	left := marker + labelStyle.Render(row.Label+" ") + arrowStyle.Render("❯")
 	right := valueStyle.Render(m.settingsOverviewValue(row))
-	gap := 61 - lipgloss.Width(left) - lipgloss.Width(right)
+	contentWidth := maxInt(1, m.panelWidth()-4)
+	gap := contentWidth - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {
 		gap = 1
 	}
-	return fitStyled(left+strings.Repeat(" ", gap)+right, 61)
+	return fitStyled(left+strings.Repeat(" ", gap)+right, contentWidth)
 }
 
 func renderSettingsEditValue(m model, row settingsRowSpec) string {
@@ -716,24 +732,24 @@ func renderSettingsDetail(m model, row settingsRowSpec) string {
 	active := m.settingsFocus == settingsFocusContent
 	hovered := m.hoverRegion == "settings:detail"
 	if row.Kind == settingsAction {
-		return renderSettingsDetailLine(row.Label, "", "ENTER", active, hovered, true)
+		return renderSettingsDetailLine(row.Label, "", "ENTER", active, hovered, true, m.panelWidth())
 	}
 	if row.Kind == settingsPathAction {
 		value := m.cfg.EnvPath
 		if strings.TrimSpace(value) == "" {
 			value = row.Placeholder
 		}
-		return renderSettingsDetailLine(row.Label, truncateToWidth(value, 38), "ENTER", active, hovered, true)
+		return renderSettingsDetailLine(row.Label, truncateToWidth(value, m.panelWidth()-27), "ENTER", active, hovered, true, m.panelWidth())
 	}
 	value := renderSettingsEditValue(m, row)
 	if strings.TrimSpace(stripANSI(value)) == "" {
 		value = theme.MutedStyle.Render(row.Placeholder)
 	}
 	accentBorder := row.Kind == settingsToggle || row.Kind == settingsChoice
-	return renderSettingsDetailLine(row.Label, value, "", active, hovered, accentBorder)
+	return renderSettingsDetailLine(row.Label, value, "", active, hovered, accentBorder, m.panelWidth())
 }
 
-func renderSettingsDetailLine(label, value, right string, active, hovered, accentBorder bool) string {
+func renderSettingsDetailLine(label, value, right string, active, hovered, accentBorder bool, totalWidth int) string {
 	border := theme.BorderStyle
 	if accentBorder && (active || hovered) {
 		border = theme.InnerBorderStyle
@@ -760,7 +776,7 @@ func renderSettingsDetailLine(label, value, right string, active, hovered, accen
 		}
 		rightText = rightStyle.Render(right)
 	}
-	contentWidth := 61
+	contentWidth := maxInt(1, totalWidth-4)
 	leftAndValue := left
 	if strings.TrimSpace(stripANSI(value)) != "" {
 		leftAndValue += " " + middle
@@ -772,7 +788,7 @@ func renderSettingsDetailLine(label, value, right string, active, hovered, accen
 		}
 		leftAndValue += strings.Repeat(" ", gap) + rightText
 	}
-	return renderPanelBox([]string{fitStyled(leftAndValue, contentWidth)}, 65, border)
+	return renderPanelBox([]string{fitStyled(leftAndValue, contentWidth)}, totalWidth, border)
 }
 
 func settingsSectionContentStartY() int { return 6 }
@@ -792,10 +808,8 @@ func (m model) settingsRowY(index int) int {
 func (m model) settingsGridRegion(section settingsSection) mouseRegion {
 	widths := []int{settingsSideWidth, settingsCenterWidth, settingsSideWidth}
 	row, col := int(section)/3, int(section)%3
-	x := 1
-	for index := 0; index < col; index++ {
-		x += widths[index] + 1
-	}
+	positions, _ := responsiveCardPositions(widths, m.panelWidth())
+	x := 1 + positions[col]
 	return mouseRegion{
 		id:     "settings:section:" + strconv.Itoa(int(section)),
 		x:      x,
@@ -821,12 +835,12 @@ func (m model) settingsRowRegions() []mouseRegion {
 			id:     "settings:row:" + strconv.Itoa(index),
 			x:      1,
 			y:      m.settingsRowY(index),
-			width:  65,
+			width:  m.panelWidth(),
 			height: 1,
 		})
 	}
 	if len(rows) > 0 {
-		regions = append(regions, mouseRegion{id: "settings:detail", x: 1, y: m.settingsDetailY(), width: 65, height: 3, message: keyMessage("enter")})
+		regions = append(regions, mouseRegion{id: "settings:detail", x: 1, y: m.settingsDetailY(), width: m.panelWidth(), height: 3, message: keyMessage("enter")})
 	}
 	return regions
 }
@@ -851,6 +865,7 @@ func (m model) updateSettingsMouseRegion(region mouseRegion) (tea.Model, tea.Cmd
 		}
 		if row.Kind == settingsToggle || row.Kind == settingsChoice {
 			m.adjustSettingsRow(1)
+			return m, tea.Batch(m.configInput.Focus(), m.activitySettingChanged(row.ID))
 		}
 		return m, m.configInput.Focus()
 	}

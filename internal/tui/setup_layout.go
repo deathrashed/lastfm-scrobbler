@@ -12,44 +12,60 @@ import (
 	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 )
 
-func setupPanel(title string, lines []string) string {
+func setupPanel(title string, lines []string, widths ...int) string {
+	totalWidth := setupPanelWidth
+	if len(widths) > 0 {
+		totalWidth = maxInt(setupPanelWidth, widths[0])
+	}
 	titleCore := "┤ " + theme.HeaderTextStyle.Render(title) + " ├"
-	remaining := setupPanelWidth - 2 - lipgloss.Width(titleCore)
+	remaining := totalWidth - 2 - lipgloss.Width(titleCore)
 	left := remaining / 2
 	right := remaining - left
 	border := theme.BorderStyle
 	out := []string{border.Render("╭" + strings.Repeat("─", left) + titleCore + strings.Repeat("─", right) + "╮")}
 	closure := "╰" + strings.Repeat("─", lipgloss.Width(titleCore)-2) + "╯"
 	line := strings.Repeat(" ", left) + closure + strings.Repeat(" ", right)
-	out = append(out, border.Render("│")+fitSetupValue(line, setupPanelWidth-2)+border.Render("│"))
+	out = append(out, border.Render("│")+fitSetupValue(line, totalWidth-2)+border.Render("│"))
 	for _, value := range lines {
 		for _, lineValue := range strings.Split(value, "\n") {
-			out = append(out, border.Render("│")+" "+fitSetupValue(lineValue, setupPanelWidth-4)+" "+border.Render("│"))
+			out = append(out, border.Render("│")+" "+fitSetupValue(lineValue, totalWidth-4)+" "+border.Render("│"))
 		}
 	}
-	out = append(out, border.Render("╰"+strings.Repeat("─", setupPanelWidth-2)+"╯"))
+	out = append(out, border.Render("╰"+strings.Repeat("─", totalWidth-2)+"╯"))
 	return strings.Join(out, "\n")
 }
 
-func setupRow(label, value string, focused bool) string {
+func setupPanelForModel(m model, title string, lines []string) string {
+	return setupPanel(title, lines, m.panelWidth())
+}
+
+func setupRow(label, value string, focused bool, widths ...int) string {
+	totalWidth := setupPanelWidth
+	if len(widths) > 0 {
+		totalWidth = maxInt(setupPanelWidth, widths[0])
+	}
 	labelStyle, arrowStyle, valueStyle := theme.RowLabelStyle, theme.RowArrowStyle, theme.RowValueStyle
 	if focused {
 		labelStyle, arrowStyle, valueStyle = theme.FocusedRowLabelStyle, theme.FocusedRowArrowStyle, theme.FocusedRowValueStyle
 	}
 	labelText := padRight(labelStyle.Render(label), 22)
 	row := labelText + " " + arrowStyle.Render("❯") + " " + valueStyle.Render(value)
-	return fitSetupValue(row, setupPanelWidth-4)
+	return fitSetupValue(row, totalWidth-4)
 }
 
-func setupInputRow(label, value string, focused bool) string {
+func setupInputRow(label, value string, focused bool, widths ...int) string {
+	totalWidth := setupPanelWidth
+	if len(widths) > 0 {
+		totalWidth = maxInt(setupPanelWidth, widths[0])
+	}
 	labelStyle, arrowStyle := theme.RowLabelStyle, theme.RowArrowStyle
 	if focused {
 		labelStyle, arrowStyle = theme.FocusedRowLabelStyle, theme.FocusedRowArrowStyle
 	}
-	return fitSetupValue(padRight(labelStyle.Render(label), 22)+" "+arrowStyle.Render("❯")+" "+value, setupPanelWidth-4)
+	return fitSetupValue(padRight(labelStyle.Render(label), 22)+" "+arrowStyle.Render("❯")+" "+value, totalWidth-4)
 }
 
-func setupStatusRow(label, status string, applying bool) string {
+func setupStatusRow(label, status string, applying bool, widths ...int) string {
 	if status == "" && applying {
 		status = "waiting"
 	}
@@ -135,7 +151,7 @@ func setupScreenRegions(m model, bodyY int) []mouseRegion {
 	add := func(id, needle string, message tea.KeyMsg) {
 		for index, line := range lines {
 			if strings.Contains(line, needle) {
-				regions = append(regions, mouseRegion{id: id, x: 1, y: bodyY + index, width: setupPanelWidth, height: 1, message: message})
+				regions = append(regions, mouseRegion{id: id, x: 1, y: bodyY + index, width: m.panelWidth(), height: 1, message: message})
 				return
 			}
 		}
