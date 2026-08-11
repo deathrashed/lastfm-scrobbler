@@ -15,6 +15,7 @@ import (
 const headerContentWidth = minAppWidth
 
 var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+var oscPattern = regexp.MustCompile(`\x1b\][^\x1b]*(\x07|\x1b\\)`)
 
 func (m model) View() string {
 	if m.width > 0 && m.width < minAppWidth {
@@ -316,6 +317,43 @@ func renderPanelBox(lines []string, totalWidth int, border lipgloss.Style) strin
 	innerWidth := maxInt(4, totalWidth-2)
 	contentWidth := maxInt(1, innerWidth-2)
 	out := []string{border.Render("╭" + strings.Repeat("─", innerWidth) + "╮")}
+	for _, line := range lines {
+		line = fitStyled(line, contentWidth)
+		out = append(out, border.Render("│")+" "+padRight(line, contentWidth)+" "+border.Render("│"))
+	}
+	out = append(out, border.Render("╰"+strings.Repeat("─", innerWidth)+"╯"))
+	return strings.Join(out, "\n")
+}
+
+// renderAttachedTitlePanel keeps the established detached/attached title
+// language while giving the body panel its own semantic identity. The title
+// is centered mathematically and the panel remains an exact totalWidth cells.
+func renderAttachedTitlePanel(title string, lines []string, totalWidth int) string {
+	border := theme.BorderStyle
+	innerWidth := maxInt(4, totalWidth-2)
+	contentWidth := maxInt(1, innerWidth-2)
+	titleContent := theme.HeaderTextStyle.Render(title)
+	titleInnerWidth := lipgloss.Width(" " + title + " ")
+	titleTotalWidth := titleInnerWidth + 2
+	if titleTotalWidth > totalWidth-4 {
+		available := maxInt(1, totalWidth-8)
+		title = truncateToWidth(title, available)
+		titleContent = theme.HeaderTextStyle.Render(title)
+		titleInnerWidth = lipgloss.Width(" " + title + " ")
+		titleTotalWidth = titleInnerWidth + 2
+	}
+	start := maxInt(1, (totalWidth-titleTotalWidth)/2)
+	end := maxInt(1, totalWidth-titleTotalWidth-start)
+
+	topTitle := border.Render("╭" + strings.Repeat("─", titleInnerWidth) + "╮")
+	line0 := strings.Repeat(" ", start) + topTitle + strings.Repeat(" ", end)
+	line1 := border.Render("╭"+strings.Repeat("─", maxInt(0, start-1))+"┤") +
+		" " + titleContent + " " +
+		border.Render("├"+strings.Repeat("─", maxInt(0, end-1))+"╮")
+	closure := border.Render("╰" + strings.Repeat("─", titleInnerWidth) + "╯")
+	line2 := border.Render("│") + strings.Repeat(" ", maxInt(0, start-1)) + closure + strings.Repeat(" ", maxInt(0, end-1)) + border.Render("│")
+
+	out := []string{fitStyled(line0, totalWidth), fitStyled(line1, totalWidth), fitStyled(line2, totalWidth)}
 	for _, line := range lines {
 		line = fitStyled(line, contentWidth)
 		out = append(out, border.Render("│")+" "+padRight(line, contentWidth)+" "+border.Render("│"))
@@ -633,7 +671,9 @@ func truncateToWidth(text string, width int) string {
 	return parts[0] + "…"
 }
 
-func stripANSI(value string) string { return ansiPattern.ReplaceAllString(value, "") }
+func stripANSI(value string) string {
+	return oscPattern.ReplaceAllString(ansiPattern.ReplaceAllString(value, ""), "")
+}
 
 func albumInfoLine(album lastfm.Album) string {
 	return album.Artist + " — " + album.Title + fmt.Sprintf(" (%d tracks)", len(album.Tracks))

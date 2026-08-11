@@ -202,14 +202,14 @@ func TestResponsiveApplicationWidthAndCentering(t *testing.T) {
 	}
 }
 
-func TestFullHeaderActivityAddsOneStableRow(t *testing.T) {
+func TestFullHeaderActivityAddsAttachedProfileAndStableActivityRow(t *testing.T) {
 	without := model{width: 127, cfg: config.Config{NowPlaying: false}}
 	with := without
 	with.cfg.NowPlaying = true
 	if got, want := without.headerHeight(), fullHeaderLines; got != want {
 		t.Fatalf("activity-off header height=%d want=%d", got, want)
 	}
-	if got, want := with.headerHeight(), fullHeaderLines+1; got != want {
+	if got, want := with.headerHeight(), fullHeaderLines+2; got != want {
 		t.Fatalf("activity-on header height=%d want=%d", got, want)
 	}
 	if got := len(strings.Split(with.renderHeader(), "\n")); got != with.headerHeight() {
@@ -358,14 +358,14 @@ func TestCompactHeaderDisablesURLHitTesting(t *testing.T) {
 func TestMouseCoordinatesFollowCompactAndFullHeaderHeights(t *testing.T) {
 	compact := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageInput, searchInput: newTextInput(512, 48)}
 	dashboard := dashboardCardPositions(compact.panelWidth())
-	updated, _ := compact.updateMouse(tea.MouseMsg{X: compact.appX() + dashboard[1], Y: compact.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	updated, _ := compact.updateMouse(tea.MouseMsg{X: compact.appX() + compact.workX() + dashboard[1], Y: compact.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	if got := updated.(model).modeChoice; got != "discography" {
 		t.Fatalf("compact dashboard click selected %q, want discography", got)
 	}
 
 	file := model{width: 140, cfg: config.Config{CompactHeader: true, MouseEnabled: true}, stage: stageImportSource, modeChoice: "file"}
 	fileCards := fileSourceCardPositions(file.panelWidth())
-	updated, _ = file.updateMouse(tea.MouseMsg{X: file.appX() + fileCards[0][0], Y: file.headerHeight() + fileCards[0][1], Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	updated, _ = file.updateMouse(tea.MouseMsg{X: file.appX() + file.workX() + fileCards[0][0], Y: file.headerHeight() + fileCards[0][1], Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	if got := updated.(model).importSourceIndex; got != 0 {
 		t.Fatalf("compact file click selected source %d, want 0", got)
 	}
@@ -394,7 +394,7 @@ func TestMouseCoordinatesFollowCompactAndFullHeaderHeights(t *testing.T) {
 
 	full := model{width: 140, cfg: config.Config{MouseEnabled: true}, stage: stageInput, searchInput: newTextInput(512, 48)}
 	fullDashboard := dashboardCardPositions(full.panelWidth())
-	updated, _ = full.updateMouse(tea.MouseMsg{X: full.appX() + fullDashboard[1], Y: full.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	updated, _ = full.updateMouse(tea.MouseMsg{X: full.appX() + full.workX() + fullDashboard[1], Y: full.headerHeight(), Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
 	if got := updated.(model).modeChoice; got != "discography" {
 		t.Fatalf("full dashboard click selected %q, want discography", got)
 	}
@@ -670,13 +670,29 @@ func TestDashboardAdvertisesSettingsShortcutNotConfig(t *testing.T) {
 	if strings.Contains(strings.ToLower(plain), "c config") {
 		t.Fatalf("Dashboard footer still advertises c config: %q", plain)
 	}
-	for _, required := range []string{"i info", "h history", "m d f quick", "r rerun", "? help"} {
+	for _, required := range []string{"enter select", "→ ↑ navigate ↓ ←", "s settings", "i info", "h history", "m d quick f q", "r rerun", "? help"} {
 		if !strings.Contains(plain, required) {
 			t.Fatalf("Dashboard footer missing %q: %q", required, plain)
 		}
 	}
 	if strings.Contains(plain, "p profiles") {
 		t.Fatalf("Dashboard footer still advertises Profiles shortcut: %q", plain)
+	}
+}
+
+func TestDashboardFooterMatchesApprovedOrder(t *testing.T) {
+	lines := strings.Split(stripANSI(renderFooter(model{stage: stageInput})), "\n")
+	want := []string{
+		"enter select • → ↑ navigate ↓ ← • s settings",
+		"i info • h history • m d quick f q • r rerun • ? help",
+	}
+	if len(lines) < len(want) {
+		t.Fatalf("Dashboard footer lines=%d want at least %d: %q", len(lines), len(want), lines)
+	}
+	for index := range want {
+		if lines[index] != want[index] {
+			t.Fatalf("Dashboard footer line %d=%q want=%q", index+1, lines[index], want[index])
+		}
 	}
 }
 
@@ -1074,6 +1090,42 @@ func TestDiscographyLongFilterExpandsBelowCompactControl(t *testing.T) {
 	}
 }
 
+func TestDiscographyExpandedFilterJointAlignsWithFilterTabAtResponsiveWidths(t *testing.T) {
+	for _, width := range []int{67, 80, 81, 82, 95, 104, 111, 127} {
+		m := model{
+			width:                width,
+			stage:                stageDiscographySelect,
+			modeChoice:           "discography",
+			discography:          makeAlbums(3),
+			discographySelected:  map[int]bool{},
+			discographyFiltering: true,
+			filterInput:          newTextInput(128, 44),
+		}
+		plain := stripANSI(renderDiscographyChooser(m, m.discographyVisibleIndexes()))
+		lines := strings.Split(plain, "\n")
+		filterJointX := -1
+		expandedJointX := -1
+		for _, line := range lines {
+			if filterJointX < 0 {
+				if index := strings.Index(line, "┬"); index >= 0 {
+					filterJointX = lipgloss.Width(line[:index])
+				}
+			}
+			if expandedJointX < 0 {
+				if index := strings.Index(line, "┴"); index >= 0 {
+					expandedJointX = lipgloss.Width(line[:index])
+				}
+			}
+		}
+		if filterJointX < 0 || expandedJointX < 0 {
+			t.Fatalf("width %d missing filter connector joints:\n%s", width, plain)
+		}
+		if filterJointX != expandedJointX {
+			t.Fatalf("width %d FILTER connector is offset: tab joint x=%d expanded joint x=%d:\n%s", width, filterJointX, expandedJointX, plain)
+		}
+	}
+}
+
 func TestManualResultsExposeResolvedArtistInHeader(t *testing.T) {
 	m := model{
 		stage:         stageResults,
@@ -1083,5 +1135,234 @@ func TestManualResultsExposeResolvedArtistInHeader(t *testing.T) {
 	}
 	if got := m.headerArtist(); got != "Enforced" {
 		t.Fatalf("manual results header artist=%q, want Enforced", got)
+	}
+}
+
+func TestResponsiveWorkAreaCapsAndCenters(t *testing.T) {
+	tests := []struct {
+		terminal int
+		app      int
+		panel    int
+		workX    int
+	}{
+		{67, 67, 65, 1},
+		{80, 80, 78, 1},
+		{104, 104, 102, 1},
+		{127, 127, 103, 12},
+		{160, 127, 103, 12},
+	}
+	for _, tt := range tests {
+		m := model{width: tt.terminal}
+		if got := m.appWidth(); got != tt.app {
+			t.Fatalf("terminal %d app width=%d want=%d", tt.terminal, got, tt.app)
+		}
+		if got := m.panelWidth(); got != tt.panel {
+			t.Fatalf("terminal %d work width=%d want=%d", tt.terminal, got, tt.panel)
+		}
+		if got := m.workX(); got != tt.workX {
+			t.Fatalf("terminal %d work x=%d want=%d", tt.terminal, got, tt.workX)
+		}
+		left := m.workX()
+		right := m.appWidth() - m.panelWidth() - left
+		if absInt(left-right) > 1 {
+			t.Fatalf("terminal %d work margins left=%d right=%d", tt.terminal, left, right)
+		}
+	}
+}
+
+func TestHelpUsesFullResponsiveInfoWidth(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		m    model
+		want int
+	}{
+		{"compact", model{width: 67}, 65},
+		{"wide", model{width: 127}, 125},
+	} {
+		lines := strings.Split(stripANSI(renderHelpView(tt.m)), "\n")
+		if len(lines) == 0 {
+			t.Fatalf("%s help rendered no lines", tt.name)
+		}
+		if got := lipgloss.Width(strings.TrimSpace(lines[0])); got != tt.want {
+			t.Fatalf("%s help panel width=%d want=%d", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestResponsiveCardGapsAreBoundedInsteadOfGreedy(t *testing.T) {
+	tests := []struct {
+		panel int
+		want  int
+	}{
+		{65, 1},
+		{78, 3},
+		{102, 5},
+		{103, 5},
+	}
+	for _, tt := range tests {
+		positions, gap := responsiveCardPositions([]int{19, 25, 18}, tt.panel)
+		if gap != tt.want {
+			t.Fatalf("panel %d gap=%d want=%d", tt.panel, gap, tt.want)
+		}
+		groupStart := positions[0]
+		groupEnd := positions[len(positions)-1] + 18
+		if absInt(groupStart-(tt.panel-groupEnd)) > 1 {
+			t.Fatalf("panel %d card group not centered: left=%d right=%d", tt.panel, groupStart, tt.panel-groupEnd)
+		}
+	}
+}
+
+func assertCardSeparatorsOnlyOnMiddleRows(t *testing.T, name, block string, groups int, separatorsPerMiddle ...int) {
+	t.Helper()
+	if len(separatorsPerMiddle) == 0 {
+		t.Fatal("separator expectations are missing")
+	}
+	lines := strings.Split(stripANSI(block), "\n")
+	need := groups * 3
+	if len(lines) < need {
+		t.Fatalf("%s lines=%d want at least %d\n%s", name, len(lines), need, block)
+	}
+	for group := 0; group < groups; group++ {
+		for row := 0; row < 3; row++ {
+			got := strings.Count(lines[group*3+row], "•")
+			want := 0
+			if row == 1 {
+				want = separatorsPerMiddle[minInt(group, len(separatorsPerMiddle)-1)]
+			}
+			if got != want {
+				t.Fatalf("%s group %d row %d bullet count=%d want=%d: %q", name, group, row, got, want, lines[group*3+row])
+			}
+		}
+	}
+}
+
+func TestWideNavigationGroupsDoNotCreateVerticalBulletColumns(t *testing.T) {
+	m := model{width: 127, modeIndex: 1, infoIndex: 0, importSourceIndex: 0, searchInput: newTextInput(512, 48)}
+	assertCardSeparatorsOnlyOnMiddleRows(t, "dashboard", renderInputView(m), 1, 2)
+	assertCardSeparatorsOnlyOnMiddleRows(t, "settings", renderSettingsGrid(m), 2, 2)
+	assertCardSeparatorsOnlyOnMiddleRows(t, "file", renderImportSourceView(m), 2, 1)
+	assertCardSeparatorsOnlyOnMiddleRows(t, "info", renderInfoView(m), 2, 2, 1)
+}
+
+func TestWideCompactHeaderRemainsFixedSizeAndCentered(t *testing.T) {
+	header := RenderHeader(127, stageInput, "manual", "deathrashed", "", true)
+	lines := strings.Split(stripANSI(header), "\n")
+	if len(lines) != compactHeaderLines {
+		t.Fatalf("compact header lines=%d want=%d", len(lines), compactHeaderLines)
+	}
+	for index, line := range lines {
+		if got := displayWidth(line); got != 127 {
+			t.Fatalf("wide compact line %d width=%d want=127", index+1, got)
+		}
+		trimmed := strings.TrimSpace(line)
+		if got := displayWidth(trimmed); got != fullHeaderWidth {
+			t.Fatalf("wide compact inner line %d width=%d want=%d: %q", index+1, got, fullHeaderWidth, trimmed)
+		}
+		left := len(line) - len(strings.TrimLeft(line, " "))
+		right := len(line) - len(strings.TrimRight(line, " "))
+		if absInt(left-right) > 1 {
+			t.Fatalf("wide compact line %d margins left=%d right=%d", index+1, left, right)
+		}
+	}
+}
+
+func TestWideDiscographyUsesCenteredBoundedWorkGeometry(t *testing.T) {
+	m := model{
+		width:               127,
+		stage:               stageDiscographySelect,
+		modeChoice:          "discography",
+		discography:         makeAlbums(5),
+		discographySelected: map[int]bool{},
+		discographyArtist:   "Oxygen Destroyer",
+		filterInput:         newTextInput(128, 44),
+	}
+	chooser := renderDiscographyChooser(m, m.discographyVisibleIndexes())
+	assertBlockWidth(t, chooser, maxWorkWidth)
+	lines := strings.Split(stripANSI(chooser), "\n")
+	if len(lines) < 3 {
+		t.Fatalf("wide chooser has only %d lines", len(lines))
+	}
+	if strings.HasPrefix(lines[0], "─") || strings.HasPrefix(lines[0], "╭─") {
+		t.Fatalf("wide chooser has detached/floating top-border stub: %q", lines[0])
+	}
+	if !strings.HasPrefix(lines[1], "╭") || !strings.HasSuffix(lines[1], "╮") {
+		t.Fatalf("wide chooser outer control border malformed: %q", lines[1])
+	}
+	if !strings.HasPrefix(lines[2], "│") || !strings.HasSuffix(lines[2], "│") {
+		t.Fatalf("wide chooser control content border malformed: %q", lines[2])
+	}
+	if got := discographyFilterTabWidthFor(m); got > discographyFilterTabMaxWidth {
+		t.Fatalf("wide FILTER width=%d exceeds cap=%d", got, discographyFilterTabMaxWidth)
+	}
+	if got := discographyExpandedFilterWidthFor(m); got > discographyExpandedFilterMax {
+		t.Fatalf("wide expanded FILTER width=%d exceeds cap=%d", got, discographyExpandedFilterMax)
+	}
+	left := discographySortTabX(m) - m.workX()
+	right := m.panelWidth() - ((discographyCleanTabX(m) - m.workX()) + discographyCleanTabWidth)
+	if absInt(left-right) > 1 {
+		t.Fatalf("Discography control group margins left=%d right=%d", left, right)
+	}
+}
+
+func TestLastSessionUsesAttachedSessionPanel(t *testing.T) {
+	m := model{width: 127, stage: stageLastSession, history: []sessionstore.Record{testLastSessionRecord()}}
+	view := stripANSI(renderLastSessionView(m))
+	if !strings.Contains(view, "L A S T   S E S S I O N") {
+		t.Fatalf("Last Session attached title missing:\n%s", view)
+	}
+	for _, want := range []string{"ARTIST      ❯ Terror", "ALBUM       ❯ Keepers Of The Faith", "TRACKS      ❯ 1", "LOOP        ❯ 1", "INTERVAL    ❯ 2s"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("Last Session missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestResponsiveListBudgetsKeepFullViewWithinTerminal(t *testing.T) {
+	for _, height := range []int{28, 30, 32, 36, 40, 44, 50, 56, 64} {
+		manual := model{
+			width: 127, height: height, stage: stageResults, modeChoice: "manual",
+			cfg: config.Config{NowPlaying: true}, results: makeAlbums(50),
+		}
+		if got := len(strings.Split(manual.View(), "\n")); got > height {
+			t.Fatalf("manual height %d rendered %d lines", height, got)
+		}
+	}
+
+	for _, height := range []int{40, 44, 50} {
+		history := make([]sessionstore.Record, 40)
+		for index := range history {
+			history[index] = testLastSessionRecord()
+			history[index].ID = fmt.Sprintf("history-%d", index)
+		}
+		historyView := model{
+			width: 127, height: height, stage: stageHistory, modeChoice: "history",
+			settingsSection: settingsHistory, settingsFocus: settingsFocusContent,
+			cfg: config.Config{NowPlaying: true}, history: history,
+		}
+		if got := len(strings.Split(historyView.View(), "\n")); got > height {
+			t.Fatalf("history height %d rendered %d lines", height, got)
+		}
+	}
+}
+
+func TestNowPlayingPromotesProfileURLIntoAttachedTopBadge(t *testing.T) {
+	m := model{width: 67, cfg: config.Config{Username: "deathrashed", NowPlaying: true}, activityState: activityRecent, activityTrack: lastfm.RecentTrack{Artist: "Hypocrisy", Title: "Fire in the Sky"}}
+	lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+	if len(lines) != fullHeaderLines+2 {
+		t.Fatalf("activity header lines=%d want=%d", len(lines), fullHeaderLines+2)
+	}
+	if !strings.Contains(lines[1], "┤ last.fm/user/deathrashed ├") {
+		t.Fatalf("profile URL is not attached to the top border: %q", lines[1])
+	}
+	if !strings.Contains(lines[2], "╰") || !strings.Contains(lines[2], "╯") {
+		t.Fatalf("attached profile badge has no closure row: %q", lines[2])
+	}
+	if !strings.Contains(lines[3], "Hypocrisy - Fire in the Sky") {
+		t.Fatalf("activity row is not directly below attached profile badge: %q", lines[3])
+	}
+	for index, line := range lines {
+		if got := displayWidth(line); got != 67 {
+			t.Fatalf("attached profile line %d width=%d want=67: %q", index+1, got, line)
+		}
 	}
 }

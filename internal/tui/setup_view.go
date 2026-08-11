@@ -44,7 +44,11 @@ func renderSetupBody(m model) string {
 }
 
 func renderSetupWelcome(m model) string {
-	lines := append([]string{}, renderWordmarkLines()...)
+	wordmark := renderWordmarkLinesFor(m.appWidth())
+	lines := make([]string, 0, len(wordmark)+3)
+	for _, line := range wordmark {
+		lines = append(lines, centerText(line, m.panelWidth()-4))
+	}
 	lines = append(lines, centerText(theme.MutedStyle.Render("first-time configuration wizard"), m.panelWidth()-4))
 	lines = append(lines, "", centerText(renderExactBox("GET STARTED  ❯", 20, true), m.panelWidth()-4))
 	return setupPanelForModel(m, "W E L C O M E", lines)

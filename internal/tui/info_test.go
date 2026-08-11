@@ -31,3 +31,23 @@ func TestInfoUsesCurrentTerminologyAndPickerCapability(t *testing.T) {
 		t.Fatalf("Imports picker wording = %q, want %q", imports, platform.PickerDescription())
 	}
 }
+
+func TestInfoContentPanelActuallyGrowsWithResponsiveWorkWidth(t *testing.T) {
+	panelBorderWidth := func(width int) int {
+		plain := stripANSI(renderInfoView(model{width: width, infoIndex: 0}))
+		largest := 0
+		for _, line := range strings.Split(plain, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "╭") && strings.HasSuffix(trimmed, "╮") {
+				largest = maxInt(largest, lipgloss.Width(trimmed))
+			}
+		}
+		return largest
+	}
+	if got := panelBorderWidth(67); got != 65 {
+		t.Fatalf("Info 67-column panel width = %d, want 65", got)
+	}
+	if got := panelBorderWidth(127); got != 125 {
+		t.Fatalf("Info 127-column panel width = %d, want 125", got)
+	}
+}

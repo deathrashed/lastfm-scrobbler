@@ -9,36 +9,58 @@ import (
 	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 )
 
-const completionRowsStartOffset = 4
+const completionRowsStartOffset = 3
 
 func renderCompletionsView(m model) string {
 	manager := completion.DefaultManager()
 	width := m.panelWidth()
+	contentWidth := maxInt(1, width-4)
 	rows := []string{
 		setupRow("DETECTED SHELL", completion.DetectShell().String(), false, width),
-		setupRow("STATUS", m.completionStatusText(), false, width),
+		setupRow("STATUS", string(m.completionStatusFor(manager, m.completionShell)), false, width),
 	}
 	for index, shell := range completion.Shells {
-		marker := theme.SecondaryTextStyle.Render("○")
-		label := theme.RowLabelStyle.Render(shell.String())
-		if shell == m.completionShell {
-			marker = theme.AccentTextStyle.Render("●")
-			label = theme.FocusedRowLabelStyle.Render(shell.String())
-		}
+		selected := shell == m.completionShell
 		status := manager.Status(shell)
 		if index == completionShellIndex(m.completionShell) {
-			status = m.completionStatus
+			status = m.completionStatusFor(manager, shell)
 		}
-		rows = append(rows, fitStyled(marker+" "+label+strings.Repeat(" ", maxInt(1, width-9-lipgloss.Width(marker+" "+label)))+theme.MutedStyle.Render(string(status)), width-4))
+		rows = append(rows, completionShellRow(shell, status, selected, contentWidth))
 	}
 	if m.completionMessage != "" {
-		rows = append(rows, theme.SuccessStyle.Render(truncateToWidth(m.completionMessage, width-4)))
+		rows = append(rows, theme.SuccessStyle.Render(truncateToWidth(m.completionMessage, contentWidth)))
 	}
-	return setupPanel("S H E L L  C O M P L E T I O N S", rows, width)
+	// The page header already carries the attached C O M P L E T I O N S title.
+	// The body is therefore a normal working panel, not a second nested setup
+	// title. This keeps the screen consistent with the approved reference view.
+	return m.centerToApp(renderPanelBox(rows, width, theme.BorderStyle))
+}
+
+func completionShellRow(shell completion.Shell, status completion.Status, selected bool, width int) string {
+	marker := theme.SecondaryTextStyle.Render("○")
+	labelStyle := theme.RowLabelStyle
+	if selected {
+		marker = theme.AccentTextStyle.Render("●")
+		labelStyle = theme.FocusedRowLabelStyle
+	}
+	left := marker + " " + labelStyle.Render(shell.String())
+	rightText := string(status)
+	availableRight := maxInt(1, width-lipgloss.Width(left)-1)
+	rightText = truncateToWidth(rightText, availableRight)
+	right := theme.MutedStyle.Render(rightText)
+	gap := maxInt(1, width-lipgloss.Width(left)-lipgloss.Width(right))
+	return fitStyled(left+strings.Repeat(" ", gap)+right, width)
 }
 
 func (m model) completionStatusText() string {
-	return string(m.completionStatus)
+	return string(m.completionStatusFor(completion.DefaultManager(), m.completionShell))
+}
+
+func (m model) completionStatusFor(manager completion.Manager, shell completion.Shell) completion.Status {
+	if shell == m.completionShell && m.completionStatus != "" {
+		return m.completionStatus
+	}
+	return manager.Status(shell)
 }
 
 func completionScreenRegions(m model, bodyY int) []mouseRegion {
@@ -46,7 +68,7 @@ func completionScreenRegions(m model, bodyY int) []mouseRegion {
 	for index, shell := range completion.Shells {
 		regions = append(regions, mouseRegion{
 			id:     "completion:shell:" + shell.String(),
-			x:      1,
+			x:      m.workX(),
 			y:      bodyY + completionRowsStartOffset + index,
 			width:  m.panelWidth(),
 			height: 1,

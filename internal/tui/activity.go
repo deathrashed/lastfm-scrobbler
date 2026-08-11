@@ -33,7 +33,10 @@ type activityRefreshMsg struct{ seq uint64 }
 type activityAnimationMsg struct{ seq uint64 }
 
 func (m model) activityPollingEnabled() bool {
-	return m.nowPlayingEnabled() && strings.TrimSpace(m.cfg.Username) != "" && m.client != nil
+	return m.nowPlayingEnabled() &&
+		strings.TrimSpace(m.cfg.Username) != "" &&
+		strings.TrimSpace(m.cfg.APIKey) != "" &&
+		m.client != nil
 }
 
 func (m model) activityFetchCmd() tea.Cmd {
@@ -59,6 +62,13 @@ func activityAnimationCmd(seq uint64) tea.Cmd {
 	return tea.Tick(280*time.Millisecond, func(time.Time) tea.Msg { return activityAnimationMsg{seq: seq} })
 }
 
+func (m model) activityRefreshIfEnabled() tea.Cmd {
+	if !m.activityPollingEnabled() {
+		return nil
+	}
+	return activityRefreshCmd(m.activitySeq)
+}
+
 func (m model) activityContent() string {
 	if !m.nowPlayingEnabled() {
 		return ""
@@ -75,8 +85,8 @@ func (m model) activityContent() string {
 		return theme.MutedStyle.Render("Last.fm activity unavailable")
 	case activityCurrent, activityRecent:
 		artist, title := activityTextParts(m.activityTrack.Artist, m.activityTrack.Title, maxInt(1, m.appWidth()-2-displayWidth(activityVolumeFrames[0])-2))
-		icon := ""
-		iconStyle := theme.IconStyle
+		icon := theme.IconHistory
+		iconStyle := theme.MutedStyle
 		if m.activityState == activityCurrent {
 			icon = activityVolumeFrames[m.activityFrame%len(activityVolumeFrames)]
 			iconStyle = theme.AccentTextStyle

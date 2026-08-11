@@ -59,3 +59,53 @@ func TestFilePathMouseRegionUsesUnifiedPanelGeometry(t *testing.T) {
 		}
 	}
 }
+
+func TestFileSourceRowsKeepCompactOneCellSeparatorAtWideWidth(t *testing.T) {
+	m := model{
+		width:             127,
+		stage:             stageImportSource,
+		modeChoice:        "file",
+		importSourceIndex: 0,
+		searchInput:       newTextInput(512, 48),
+	}
+	plain := stripANSI(renderImportSourceView(m))
+	if got := strings.Count(plain, "│•│"); got != 2 {
+		t.Fatalf("File source row compact separator count = %d, want 2:\n%s", got, plain)
+	}
+	if strings.Contains(plain, "│ • │") {
+		t.Fatalf("File source rows grew spaces around the separator:\n%s", plain)
+	}
+	if !strings.Contains(plain, "L I S T  F I L E") {
+		t.Fatalf("File list label spacing regressed:\n%s", plain)
+	}
+
+	positions := fileSourceCardPositions(m.panelWidth())
+	divider := fileSourceDividerX(m.panelWidth())
+	for _, pair := range [][2]int{{0, 1}, {2, 3}} {
+		left, right := pair[0], pair[1]
+		if got := positions[left][0] + fileSourceSpecs[left].width; got != divider {
+			t.Fatalf("left File card %d ends at %d, want divider %d", left, got, divider)
+		}
+		if got := positions[right][0]; got != divider+1 {
+			t.Fatalf("right File card %d starts at %d, want %d", right, got, divider+1)
+		}
+	}
+}
+
+func TestFileSourceRowsShareOneDividerColumn(t *testing.T) {
+	m := model{width: 67, stage: stageImportSource, modeChoice: "file", importSourceIndex: 0, searchInput: newTextInput(128, 48)}
+	plain := stripANSI(renderImportSourceView(m))
+	lines := strings.Split(plain, "\n")
+	var dividerColumns []int
+	for _, line := range lines {
+		if at := strings.Index(line, "•"); at >= 0 {
+			dividerColumns = append(dividerColumns, lipgloss.Width(line[:at]))
+		}
+	}
+	if len(dividerColumns) < 2 {
+		t.Fatalf("file source divider bullets=%v, want at least two\n%s", dividerColumns, plain)
+	}
+	if dividerColumns[0] != dividerColumns[1] {
+		t.Fatalf("file source dividers do not align: %v\n%s", dividerColumns[:2], plain)
+	}
+}

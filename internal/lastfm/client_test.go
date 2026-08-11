@@ -178,7 +178,7 @@ func TestGetRecentTracksParsesStringValuesAndFrom(t *testing.T) {
 		if got := r.URL.Query().Get("from"); got != "1700000000" {
 			t.Fatalf("from = %q", got)
 		}
-		_, _ = w.Write([]byte(`{"recenttracks":{"track":[{"name":"Hell Awaits","artist":"Slayer","album":"Hell Awaits","@attr":{"nowplaying":"1"},"date":{"uts":"1700000010"}}]}}`))
+		_, _ = w.Write([]byte(`{"recenttracks":{"track":[{"name":"Hell Awaits","artist":"Slayer","album":"Hell Awaits","@attr":{"nowplaying":"true"},"date":{"uts":"1700000010"}}]}}`))
 	}))
 	defer server.Close()
 
@@ -187,6 +187,21 @@ func TestGetRecentTracksParsesStringValuesAndFrom(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(tracks) != 1 || tracks[0].Artist != "Slayer" || tracks[0].Title != "Hell Awaits" || tracks[0].Played.Unix() != 1700000010 || !tracks[0].NowPlaying {
+		t.Fatalf("tracks = %#v", tracks)
+	}
+}
+
+func TestGetRecentTracksAcceptsNumericNowPlayingMarker(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"recenttracks":{"track":[{"name":"War Remains","artist":{"#text":"Enforced"},"@attr":{"nowplaying":"1"}}]}}`))
+	}))
+	defer server.Close()
+
+	tracks, err := testClient(server).GetRecentTracks(context.Background(), "deathrashed", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tracks) != 1 || !tracks[0].NowPlaying {
 		t.Fatalf("tracks = %#v", tracks)
 	}
 }

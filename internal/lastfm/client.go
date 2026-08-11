@@ -498,7 +498,7 @@ func (c *client) GetSimilarAlbums(ctx context.Context, artist string, limit int)
 	return albums, nil
 }
 
-// GetRecentTracks returns recent scrobbles for duplicate protection.
+// GetRecentTracks returns recent/current listening activity for duplicate protection and the optional TUI activity row.
 func (c *client) GetRecentTracks(ctx context.Context, user string, from time.Time) ([]RecentTrack, error) {
 	user = strings.TrimSpace(user)
 	if user == "" {
@@ -542,7 +542,9 @@ func (c *client) GetRecentTracks(ctx context.Context, user string, from time.Tim
 		if seconds, err := strconv.ParseInt(strings.TrimSpace(item.Date.UTS), 10, 64); err == nil && seconds > 0 {
 			played = time.Unix(seconds, 0)
 		}
-		tracks = append(tracks, RecentTrack{Artist: artistName, Title: title, Album: item.Album.String(), Played: played, NowPlaying: item.Attr.NowPlaying == "1"})
+		nowPlayingValue := strings.TrimSpace(item.Attr.NowPlaying)
+		nowPlaying := nowPlayingValue == "1" || strings.EqualFold(nowPlayingValue, "true")
+		tracks = append(tracks, RecentTrack{Artist: artistName, Title: title, Album: item.Album.String(), Played: played, NowPlaying: nowPlaying})
 	}
 	return tracks, nil
 }

@@ -13,19 +13,46 @@ import (
 )
 
 func renderResultsView(m model) string {
-	list := renderSimpleAlbumListWithResults(m.results, m.resultsCursor, m.visibleRows(9, 6, 32), m.hoverRegion, "results", m.panelWidth())
-	var detail string
-	if len(m.results) > 0 {
-		album := m.results[minInt(maxInt(m.resultsCursor, 0), len(m.results)-1)]
-		detail = renderInfoBox("MATCH", album.Artist+" — "+album.Title, "", m.panelWidth(), false)
-	} else {
-		detail = renderInfoBox("MATCH", "No album matches", "", m.panelWidth(), false)
-	}
+	detail := renderManualResultDetail(m)
+	list := renderSimpleAlbumListWithResults(m.results, m.resultsCursor, manualResultsMaxRows(m), m.hoverRegion, "results", m.panelWidth())
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.centerToApp(detail),
 		m.centerToApp(list),
 		"",
 	)
+}
+
+func renderManualResultDetail(m model) string {
+	if len(m.results) > 0 {
+		album := m.results[minInt(maxInt(m.resultsCursor, 0), len(m.results)-1)]
+		return renderInfoBox("MATCH", album.Artist+" — "+album.Title, "", m.panelWidth(), false)
+	}
+	return renderInfoBox("MATCH", "No album matches", "", m.panelWidth(), false)
+}
+
+func manualResultsMaxRows(m model) int {
+	if m.height <= 0 {
+		return 32
+	}
+
+	// Do not estimate this screen with a magic "roughly N rows" budget. The
+	// full Manual header can grow when Now Playing and the resolved artist badge
+	// are present, while MATCH can itself wrap for an unusually long result.
+	// Count the actual fixed-height pieces and give only the remaining terminal
+	// rows to the result list. This prevents a tall result list from scrolling
+	// the top of the header out of Ghostty.
+	detailRows := len(strings.Split(renderManualResultDetail(m), "\n"))
+	footerRows := len(strings.Split(renderFooter(m), "\n"))
+	const (
+		resultsAttachmentChrome = 4 // list top + three attached RESULTS rows
+		bodyTrailingBlank       = 1
+	)
+	reserved := detailRows + resultsAttachmentChrome + bodyTrailingBlank + footerRows
+	if m.err != nil {
+		reserved++
+	}
+	available := m.height - m.headerHeight() - reserved
+	return maxInt(1, minInt(32, available))
 }
 
 func renderSimpleAlbumList(albums []lastfm.Album, cursor, maxRows int, hoverRegion, hoverPrefix string, totalWidth int) string {
@@ -260,7 +287,7 @@ func renderHistoryView(m model) string {
 			"",
 		)
 	}
-	maxRows := m.visibleRows(10, 6, 32)
+	maxRows := historyMaxRows(m)
 	cursor := minInt(m.historyCursor, len(m.history)-1)
 	start := visibleStart(cursor, len(m.history), maxRows)
 	end := minInt(len(m.history), start+maxRows)
@@ -318,6 +345,12 @@ func renderHistoryView(m model) string {
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
+func historyMaxRows(m model) int {
+	// Settings grid (6), list/detail chrome, blank spacing and the two-line
+	// History footer leave 21 non-list rows below the header.
+	return m.visibleRows(21, 6, 32)
+}
+
 func lastSessionRecord(m model) (sessionstore.Record, bool) {
 	if len(m.lastRecord.Queue) > 0 && m.lastRecord.Status == "complete" {
 		return m.lastRecord, true
@@ -333,24 +366,35 @@ func lastSessionRecord(m model) (sessionstore.Record, bool) {
 func renderLastSessionView(m model) string {
 	record, ok := lastSessionRecord(m)
 	if !ok {
-		box := renderPanelBox([]string{"", centerText(theme.MutedStyle.Render("no previous session available"), m.panelWidth()-4), ""}, m.panelWidth(), theme.BorderStyle)
+		box := renderAttachedTitlePanel(
+			"L A S T   S E S S I O N",
+			[]string{"", centerText(theme.MutedStyle.Render("no previous session available"), m.panelWidth()-4), ""},
+			m.panelWidth(),
+		)
 		return m.centerToApp(box)
 	}
 	contentWidth := m.panelWidth() - 4
 	rows := make([]string, 0, 6)
 	first := record.Queue[0]
-	rows = append(rows, statLine("ARTIST", first.Artist, contentWidth))
+	rows = append(rows, lastSessionLine("ARTIST", first.Artist, contentWidth))
 	if uniqueAlbumCount(record.Queue) > 1 {
-		rows = append(rows, statLine("ALBUMS", fmt.Sprintf("%d", uniqueAlbumCount(record.Queue)), contentWidth))
+		rows = append(rows, lastSessionLine("ALBUMS", fmt.Sprintf("%d", uniqueAlbumCount(record.Queue)), contentWidth))
 	} else {
-		rows = append(rows, statLine("ALBUM", first.Album, contentWidth))
+		rows = append(rows, lastSessionLine("ALBUM", first.Album, contentWidth))
 	}
 	rows = append(rows,
-		statLine("TRACKS", fmt.Sprintf("%d", len(record.Queue)), contentWidth),
-		statLine("LOOP", fmt.Sprintf("%d", maxInt(1, record.Loop)), contentWidth),
-		statLine("INTERVAL", record.Interval.String(), contentWidth),
+		lastSessionLine("TRACKS", fmt.Sprintf("%d", len(record.Queue)), contentWidth),
+		lastSessionLine("LOOP", fmt.Sprintf("%d", maxInt(1, record.Loop)), contentWidth),
+		lastSessionLine("INTERVAL", record.Interval.String(), contentWidth),
 	)
-	return m.centerToApp(renderPanelBox(rows, m.panelWidth(), theme.BorderStyle))
+	return m.centerToApp(renderAttachedTitlePanel("L A S T   S E S S I O N", rows, m.panelWidth()))
+}
+
+func lastSessionLine(label, value string, width int) string {
+	const labelWidth = 12
+	left := theme.SummaryLabelStyle.Render(padRight(label, labelWidth)) + theme.SummaryArrowStyle.Render("❯ ")
+	available := maxInt(1, width-lipgloss.Width(left))
+	return left + theme.SummaryValueStyle.Render(truncateToWidth(value, available))
 }
 
 func historyLabel(record sessionstore.Record) string {
@@ -385,23 +429,24 @@ func renderRecoveryView(m model) string {
 }
 
 func renderHelpView(m model) string {
+	width := m.helpPanelWidth()
+	rowWidth := maxInt(1, width-4)
 	rows := []string{
-		helpRow("↑ / ↓ / ← / →", "navigate lists, tabs, and Settings sections"),
-		helpRow("enter", "confirm or continue"),
-		helpRow("space", "toggle a selected album or track"),
-		helpRow("a", "select all / select none"),
-		helpRow("- / +", "change the current album loop during track selection"),
-		helpRow("/", "filter long Discography lists"),
-		helpRow("c", "clean duplicate editions in Discography lists"),
-		helpRow("s", "Settings on Dashboard; similar/sort elsewhere"),
-		helpRow("e", "export the current queue or history entry"),
-		helpRow("h", "session history"),
-		helpRow("p", "profiles"),
-		helpRow("tab", "switch Settings section/content focus"),
-		helpRow("esc", "go back or cancel"),
-		helpRow("q", "quit; active sessions can resume later"),
+		helpRow("↑ / ↓ / ← / →", "navigate lists, tabs, and Settings sections", rowWidth),
+		helpRow("enter", "confirm or continue", rowWidth),
+		helpRow("space", "toggle a selected album or track", rowWidth),
+		helpRow("a", "select all / select none", rowWidth),
+		helpRow("- / +", "change the current album loop during track selection", rowWidth),
+		helpRow("/", "filter long Discography lists", rowWidth),
+		helpRow("c", "clean duplicate editions in Discography lists", rowWidth),
+		helpRow("s", "Settings on Dashboard; similar/sort elsewhere", rowWidth),
+		helpRow("e", "export the current queue or history entry", rowWidth),
+		helpRow("h", "session history", rowWidth),
+		helpRow("tab", "switch Settings section/content focus", rowWidth),
+		helpRow("esc", "go back or cancel", rowWidth),
+		helpRow("q", "quit; active sessions can resume later", rowWidth),
 	}
-	box := renderPanelBox(rows, m.panelWidth(), theme.BorderStyle)
+	box := renderPanelBox(rows, width, theme.BorderStyle)
 	closeStyle := theme.MutedStyle
 	if m.hoverRegion == "help:close" {
 		closeStyle = theme.SuccessStyle

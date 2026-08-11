@@ -809,7 +809,7 @@ func (m model) settingsGridRegion(section settingsSection) mouseRegion {
 	widths := []int{settingsSideWidth, settingsCenterWidth, settingsSideWidth}
 	row, col := int(section)/3, int(section)%3
 	positions, _ := responsiveCardPositions(widths, m.panelWidth())
-	x := 1 + positions[col]
+	x := m.workX() + positions[col]
 	return mouseRegion{
 		id:     "settings:section:" + strconv.Itoa(int(section)),
 		x:      x,
@@ -833,14 +833,14 @@ func (m model) settingsRowRegions() []mouseRegion {
 	for index := range rows {
 		regions = append(regions, mouseRegion{
 			id:     "settings:row:" + strconv.Itoa(index),
-			x:      1,
+			x:      m.workX(),
 			y:      m.settingsRowY(index),
 			width:  m.panelWidth(),
 			height: 1,
 		})
 	}
 	if len(rows) > 0 {
-		regions = append(regions, mouseRegion{id: "settings:detail", x: 1, y: m.settingsDetailY(), width: m.panelWidth(), height: 3, message: keyMessage("enter")})
+		regions = append(regions, mouseRegion{id: "settings:detail", x: m.workX(), y: m.settingsDetailY(), width: m.panelWidth(), height: 3, message: keyMessage("enter")})
 	}
 	return regions
 }

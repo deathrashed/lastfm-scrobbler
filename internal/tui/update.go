@@ -188,7 +188,7 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activityState != activityCurrent && m.activityState != activityRecent {
 				m.activityState = activityUnavailable
 			}
-			return m, activityRefreshCmd(m.activitySeq)
+			return m, m.activityRefreshIfEnabled()
 		}
 		if len(msg.tracks) == 0 {
 			m.activityState = activityNoTracks
@@ -200,9 +200,15 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activityState = activityRecent
 			}
 		}
-		cmds := []tea.Cmd{activityRefreshCmd(m.activitySeq)}
+		cmds := make([]tea.Cmd, 0, 2)
+		if refresh := m.activityRefreshIfEnabled(); refresh != nil {
+			cmds = append(cmds, refresh)
+		}
 		if m.activityShouldAnimate() {
 			cmds = append(cmds, activityAnimationCmd(m.activitySeq))
+		}
+		if len(cmds) == 0 {
+			return m, nil
 		}
 		return m, tea.Batch(cmds...)
 	case activityAnimationMsg:
@@ -419,13 +425,10 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openSettings()
 	case "r":
 		m.stage = stageLastSession
-		m.modeChoice = "last-session"
 		m.err = nil
 		return m, nil
 	case "h":
 		return m.openSettingsSection(settingsHistory, settingsFocusContent)
-	case "p":
-		return m.openSettingsSection(settingsProfiles, settingsFocusContent)
 	case "i":
 		m.stage = stageInfo
 		m.modeChoice = "info"
@@ -1825,7 +1828,11 @@ func (m model) headerURLContains(x, y int) bool {
 	if m.compactHeaderEnabled() {
 		return false
 	}
-	left, top, width := headerURLBoundsAtWidth(m.cfg.Username, m.appWidth())
+	maxDisplayWidth := m.appWidth() - 2
+	if m.nowPlayingEnabled() {
+		maxDisplayWidth = m.appWidth() - 8
+	}
+	left, top, width := headerURLBoundsAtWidthWithLimit(m.cfg.Username, m.appWidth(), maxDisplayWidth)
 	return y == top && x >= left && x < left+width
 }
 

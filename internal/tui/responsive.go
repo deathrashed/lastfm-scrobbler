@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	minAppWidth = 67
-	maxAppWidth = 127
+	minAppWidth  = 67
+	maxAppWidth  = 127
+	maxWorkWidth = 103
 )
 
 type layoutDensity int
@@ -38,10 +39,10 @@ func appOffset(terminalWidth int) int {
 }
 
 func densityFor(width int) layoutDensity {
-	switch appWidth(width) {
-	case 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127:
+	switch width = appWidth(width); {
+	case width >= 104:
 		return densityWide
-	case 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103:
+	case width >= 80:
 		return densityComfortable
 	default:
 		return densityCompact
@@ -54,7 +55,30 @@ func (m model) appX() int { return appOffset(m.width) }
 
 func (m model) contentWidth() int { return maxInt(1, m.appWidth()-2) }
 
-func (m model) panelWidth() int { return m.contentWidth() }
+func workWidth(appWidth int) int {
+	return minInt(maxInt(1, appWidth-2), maxWorkWidth)
+}
+
+func (m model) panelWidth() int { return workWidth(m.appWidth()) }
+
+// Documentation surfaces are deliberately allowed to use the whole responsive
+// application content width. Their rows benefit from horizontal space, while
+// their navigation/control elements still keep bounded natural-size gaps.
+func (m model) documentationPanelWidth() int { return m.contentWidth() }
+func (m model) infoPanelWidth() int          { return m.documentationPanelWidth() }
+func (m model) helpPanelWidth() int          { return m.documentationPanelWidth() }
+
+func (m model) infoX() int {
+	return maxInt(0, (m.appWidth()-m.infoPanelWidth())/2)
+}
+
+// workX is the horizontal origin of the centered working-content area inside
+// the responsive application. The outer header may grow to 127 cells, while
+// dense working panels intentionally stop at maxWorkWidth so the wide layout
+// keeps the same proportions as the original 67-cell design.
+func (m model) workX() int {
+	return maxInt(0, (m.appWidth()-m.panelWidth())/2)
+}
 
 func (m model) density() layoutDensity { return densityFor(m.width) }
 
@@ -135,9 +159,6 @@ func (m model) visibleRows(reserved, minimum, maximum int) int {
 
 func dashboardCardPositions(panelWidth int) []int {
 	positions, _ := responsiveCardPositions([]int{19, 25, 18}, panelWidth)
-	for index := range positions {
-		positions[index]++
-	}
 	return positions
 }
 
@@ -145,13 +166,15 @@ func responsiveCardPositions(widths []int, panelWidth int) ([]int, int) {
 	if len(widths) == 0 {
 		return nil, 0
 	}
-	minimum := 1
+	minimum := 0
 	for _, width := range widths {
 		minimum += width
 	}
-	minimum += len(widths) - 1
-	extra := maxInt(0, panelWidth-minimum)
-	gap := 1 + extra/maxInt(1, len(widths)-1)
+	gap := responsiveCardGap(panelWidth)
+	if len(widths) > 1 {
+		maxGap := maxInt(1, (panelWidth-minimum)/(len(widths)-1))
+		gap = minInt(gap, maxGap)
+	}
 	groupWidth := 0
 	for _, width := range widths {
 		groupWidth += width
@@ -170,8 +193,19 @@ func responsiveCardPositions(widths []int, panelWidth int) ([]int, int) {
 	return positions, gap
 }
 
+func responsiveCardGap(panelWidth int) int {
+	switch {
+	case panelWidth >= 102:
+		return 5
+	case panelWidth >= 78:
+		return 3
+	default:
+		return 1
+	}
+}
+
 func joinResponsiveBoxes(boxes []string, widths []int, panelWidth int, separator string) string {
-	_, gap := responsiveCardPositions(widths, panelWidth)
+	positions, gap := responsiveCardPositions(widths, panelWidth)
 	rows := make([][]string, len(boxes))
 	maxRows := 0
 	for index, box := range boxes {
@@ -180,11 +214,14 @@ func joinResponsiveBoxes(boxes []string, widths []int, panelWidth int, separator
 	}
 	output := make([]string, 0, maxRows)
 	for row := 0; row < maxRows; row++ {
-		line := ""
+		line := strings.Repeat(" ", maxInt(0, positions[0]))
 		for index, width := range widths {
 			if index > 0 {
 				separatorText := strings.Repeat(" ", gap)
-				if lipgloss.Width(separator) <= gap {
+				// Navigation separators belong on the content row only. Rendering
+				// them on every line produces a vertical column of bullets between
+				// otherwise horizontal three-line cards.
+				if row == maxRows/2 && lipgloss.Width(separator) <= gap {
 					left := (gap - lipgloss.Width(separator)) / 2
 					separatorText = strings.Repeat(" ", left) + separator + strings.Repeat(" ", gap-lipgloss.Width(separator)-left)
 				}

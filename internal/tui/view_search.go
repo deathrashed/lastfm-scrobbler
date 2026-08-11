@@ -41,6 +41,34 @@ func joinThreeLineBoxes(boxes []string, middleSeparator string) string {
 	return strings.Join(output, "\n")
 }
 
+func renderFileSourceRow(panelWidth, leftIndex, rightIndex int, leftBox, rightBox string) string {
+	positions := fileSourceCardPositions(panelWidth)
+	leftX := positions[leftIndex][0]
+	rightX := positions[rightIndex][0]
+	leftRows := strings.Split(leftBox, "\n")
+	rightRows := strings.Split(rightBox, "\n")
+	rowCount := maxInt(len(leftRows), len(rightRows))
+	lines := make([]string, 0, rowCount)
+	for row := 0; row < rowCount; row++ {
+		line := strings.Repeat(" ", leftX)
+		if row < len(leftRows) {
+			line += leftRows[row]
+		}
+		gap := maxInt(0, rightX-lipgloss.Width(line))
+		if row == rowCount/2 && gap > 0 {
+			line += strings.Repeat(" ", gap-1) + theme.SepStyle.Render("•")
+		} else {
+			line += strings.Repeat(" ", gap)
+		}
+		if row < len(rightRows) {
+			line += rightRows[row]
+		}
+		line = padRight(line, panelWidth)
+		lines = append(lines, fitStyled(line, panelWidth))
+	}
+	return strings.Join(lines, "\n")
+}
+
 func renderInputView(m model) string {
 	labels := []string{"M A N U A L", "D I S C O G R A P H Y", "F I L E"}
 	widths := []int{19, 25, 18}
@@ -70,14 +98,17 @@ func renderImportSourceView(m model) string {
 	for index, spec := range fileSourceSpecs {
 		labels[index], widths[index] = spec.label, spec.width
 	}
-	firstRow := joinResponsiveBoxes([]string{
+	// Both rows share one fixed central divider. Their asymmetric card widths
+	// therefore line up vertically instead of each row drifting around its own
+	// independent centre point.
+	firstRow := renderFileSourceRow(m.panelWidth(), 0, 1,
 		renderChoiceBox(labels[0], widths[0], m.importSourceIndex == 0, m.hoverRegion == "import:0"),
 		renderChoiceBox(labels[1], widths[1], m.importSourceIndex == 1, m.hoverRegion == "import:1"),
-	}, []int{widths[0], widths[1]}, m.panelWidth(), theme.SepStyle.Render("•"))
-	secondRow := joinResponsiveBoxes([]string{
+	)
+	secondRow := renderFileSourceRow(m.panelWidth(), 2, 3,
 		renderChoiceBox(labels[2], widths[2], m.importSourceIndex == 2, m.hoverRegion == "import:2"),
 		renderChoiceBox(labels[3], widths[3], m.importSourceIndex == 3, m.hoverRegion == "import:3"),
-	}, []int{widths[2], widths[3]}, m.panelWidth(), theme.SepStyle.Render("•"))
+	)
 	spec := fileSourceSpecFor(m.importSourceIndex)
 	lines := []string{
 		m.centerToApp(firstRow),
@@ -111,14 +142,19 @@ func renderSearchView(m model) string {
 const (
 	discographySortTabWidth        = 15
 	discographyFilterTabWidth      = 29
+	discographyFilterTabMaxWidth   = 35
 	discographyCleanTabWidth       = 15
 	discographyExpandedFilterWidth = 61
-	discographyFilterContentWidth  = 57
+	discographyExpandedFilterMax   = 77
 )
 
 func discographyFilterTabWidthFor(m model) int {
 	extra := maxInt(0, m.panelWidth()-65)
-	return minInt(maxInt(discographyFilterTabWidth, discographyFilterTabWidth+extra), maxInt(discographyFilterTabWidth, m.panelWidth()-discographySortTabWidth-discographyCleanTabWidth-2))
+	// The filter benefits from a little more room, but it should not swallow
+	// the entire wide working area. Grow gradually and cap it so SORT/FILTER/
+	// CLEAN remain a compact centered control group.
+	grown := discographyFilterTabWidth + extra/4
+	return minInt(discographyFilterTabMaxWidth, maxInt(discographyFilterTabWidth, grown))
 }
 
 func discographyFilterContentWidthFor(m model) int {
@@ -126,7 +162,8 @@ func discographyFilterContentWidthFor(m model) int {
 }
 
 func discographyExpandedFilterWidthFor(m model) int {
-	return maxInt(discographyExpandedFilterWidth, m.panelWidth()-4)
+	grown := discographyExpandedFilterWidth + maxInt(0, m.panelWidth()-65)/2
+	return minInt(maxInt(discographyExpandedFilterWidth, grown), minInt(discographyExpandedFilterMax, maxInt(discographyExpandedFilterWidth, m.panelWidth()-4)))
 }
 
 func discographyExpandedFilterContentWidthFor(m model) int {
@@ -134,20 +171,25 @@ func discographyExpandedFilterContentWidthFor(m model) int {
 }
 
 func discographySortTabX(m model) int {
-	groupWidth := discographySortTabWidth + discographyFilterTabWidthFor(m) + discographyCleanTabWidth + 2
-	return 1 + maxInt(0, (m.panelWidth()-groupWidth)/2)
+	gap := discographyControlGap(m)
+	groupWidth := discographySortTabWidth + discographyFilterTabWidthFor(m) + discographyCleanTabWidth + gap*2
+	return m.workX() + maxInt(0, (m.panelWidth()-groupWidth)/2)
 }
 
 func discographyFilterTabX(m model) int {
-	return discographySortTabX(m) + discographySortTabWidth + 1
+	return discographySortTabX(m) + discographySortTabWidth + discographyControlGap(m)
 }
 
 func discographyCleanTabX(m model) int {
-	return discographyFilterTabX(m) + discographyFilterTabWidthFor(m) + 1
+	return discographyFilterTabX(m) + discographyFilterTabWidthFor(m) + discographyControlGap(m)
 }
 
 func discographyExpandedFilterX(m model) int {
-	return 1 + maxInt(0, (m.panelWidth()-discographyExpandedFilterWidthFor(m))/2)
+	return m.workX() + maxInt(0, (m.panelWidth()-discographyExpandedFilterWidthFor(m))/2)
+}
+
+func discographyControlGap(m model) int {
+	return responsiveCardGap(m.panelWidth())
 }
 
 func renderDiscographySelectView(m model) string {
@@ -179,16 +221,14 @@ func renderDiscographyChooser(m model, visibleIndexes []int) string {
 	filterTab := renderDiscographyControlTab("FILTER", compactFilter, filterWidth, m.discographyFiltering, filterHovered, expanded)
 	cleanTab := renderDiscographyControlTab("CLEAN", clean, discographyCleanTabWidth, false, m.hoverRegion == "discography:clean", false)
 
-	groupWidth := discographySortTabWidth + filterWidth + discographyCleanTabWidth + 2
+	gap := discographyControlGap(m)
+	groupWidth := discographySortTabWidth + filterWidth + discographyCleanTabWidth + gap*2
 	left := maxInt(0, (m.panelWidth()-groupWidth)/2)
 	right := maxInt(0, m.panelWidth()-groupWidth-left)
-	frameWidth := groupWidth + 4
-	frameLeft := maxInt(0, (m.panelWidth()-frameWidth)/2)
-	frameRight := maxInt(0, m.panelWidth()-frameWidth-frameLeft)
 	lines := []string{
-		border.Render(strings.Repeat("─", left)) + sortTab[0] + " " + filterTab[0] + " " + cleanTab[0] + border.Render(strings.Repeat("─", right)),
-		border.Render(strings.Repeat("─", frameLeft)+"╭─") + sortTab[1] + border.Render("─") + filterTab[1] + border.Render("─") + cleanTab[1] + border.Render("─╮"+strings.Repeat("─", frameRight)),
-		border.Render(strings.Repeat("─", frameLeft)+"│ ") + sortTab[2] + " " + filterTab[2] + " " + cleanTab[2] + border.Render(" │"+strings.Repeat("─", frameRight)),
+		strings.Repeat(" ", left) + sortTab[0] + strings.Repeat(" ", gap) + filterTab[0] + strings.Repeat(" ", gap) + cleanTab[0] + strings.Repeat(" ", right),
+		border.Render("╭"+strings.Repeat("─", maxInt(0, left-1))) + sortTab[1] + border.Render(strings.Repeat("─", gap)) + filterTab[1] + border.Render(strings.Repeat("─", gap)) + cleanTab[1] + border.Render(strings.Repeat("─", maxInt(0, right-1))+"╮"),
+		border.Render("│") + strings.Repeat(" ", maxInt(0, left-1)) + sortTab[2] + strings.Repeat(" ", gap) + filterTab[2] + strings.Repeat(" ", gap) + cleanTab[2] + strings.Repeat(" ", maxInt(0, right-1)) + border.Render("│"),
 	}
 	if expanded {
 		lines = append(lines, renderDiscographyExpandedFilter(m)...)
@@ -249,20 +289,31 @@ func discographyFilterExpanded(m model) bool {
 func renderDiscographyExpandedFilter(m model) []string {
 	border := theme.BorderStyle
 	width := discographyExpandedFilterWidthFor(m)
-	left := (width - 1) / 2
-	right := width - 2 - left
-	innerTop := border.Render("╭" + strings.Repeat("─", left) + "┴" + strings.Repeat("─", right) + "╮")
-	lines := []string{fitStyled(border.Render("│")+" "+innerTop+" "+border.Render("│"), m.panelWidth())}
+	outerInner := maxInt(1, m.panelWidth()-2)
+	innerLeft := maxInt(0, (outerInner-width)/2)
+	innerRight := maxInt(0, outerInner-width-innerLeft)
+
+	// Anchor the expanded input joint to the ACTUAL FILTER tab joint rather
+	// than independently centering both boxes. On even responsive widths the
+	// two independent integer divisions can choose opposite center cells,
+	// leaving the vertical connector visibly one cell out of alignment.
+	filterJointX := (discographyFilterTabX(m) - m.workX()) + discographyFilterTabWidthFor(m)/2
+	expandedBoxX := 1 + innerLeft // outer panel border + padding before the inner box
+	jointX := maxInt(1, minInt(width-2, filterJointX-expandedBoxX))
+	leftDashes := jointX - 1
+	rightDashes := maxInt(0, width-3-leftDashes)
+	innerTop := border.Render("╭" + strings.Repeat("─", leftDashes) + "┴" + strings.Repeat("─", rightDashes) + "╮")
+
+	lines := []string{border.Render("│") + strings.Repeat(" ", innerLeft) + innerTop + strings.Repeat(" ", innerRight) + border.Render("│")}
 
 	contentLines := discographyExpandedFilterContent(m)
 	for _, content := range contentLines {
 		content = fitStyled(content, discographyExpandedFilterContentWidthFor(m))
-		lines = append(lines,
-			border.Render("│")+" "+border.Render("│")+" "+padRight(content, discographyExpandedFilterContentWidthFor(m))+" "+border.Render("│")+" "+border.Render("│"),
-		)
+		innerLine := border.Render("│") + " " + padRight(content, discographyExpandedFilterContentWidthFor(m)) + " " + border.Render("│")
+		lines = append(lines, border.Render("│")+strings.Repeat(" ", innerLeft)+innerLine+strings.Repeat(" ", innerRight)+border.Render("│"))
 	}
 	innerBottom := border.Render("╰" + strings.Repeat("─", discographyExpandedFilterWidthFor(m)-2) + "╯")
-	lines = append(lines, border.Render("│")+" "+innerBottom+" "+border.Render("│"))
+	lines = append(lines, border.Render("│")+strings.Repeat(" ", innerLeft)+innerBottom+strings.Repeat(" ", innerRight)+border.Render("│"))
 	return lines
 }
 
@@ -409,7 +460,10 @@ func renderDiscographyList(m model, visibleIndexes []int) string {
 }
 
 func discographyMaxRows(m model) int {
-	return m.visibleRows(20, 6, 32)
+	// The full header/artist badge, chooser chrome, attached counters and footer
+	// leave about fourteen non-list rows once the header is accounted for. This
+	// keeps the footer clear while making noticeably better use of tall terminals.
+	return m.visibleRows(14, 6, 32)
 }
 
 func visibleStart(cursor, total, maxRows int) int {
@@ -541,8 +595,12 @@ func renderEnvPathView(m model) string {
 
 func renderSimilarSelectView(m model) string {
 	artistBox := renderInfoBox("BASED ON", m.similarArtist, "", m.panelWidth(), false)
-	list := renderSimpleAlbumList(m.similar, m.similarCursor, m.visibleRows(8, 6, 32), m.hoverRegion, "similar", m.panelWidth())
+	list := renderSimpleAlbumList(m.similar, m.similarCursor, similarMaxRows(m), m.hoverRegion, "similar", m.panelWidth())
 	return lipgloss.JoinVertical(lipgloss.Left, m.centerToApp(artistBox), m.centerToApp(list), "")
+}
+
+func similarMaxRows(m model) int {
+	return m.visibleRows(7, 6, 32)
 }
 
 func renderInfoView(m model) string {
@@ -552,9 +610,10 @@ func renderInfoView(m model) string {
 	for index, label := range labels {
 		boxes[index] = renderChoiceBox(label, widths[index], index == m.infoIndex, m.hoverRegion == "info:tab:"+strconv.Itoa(index))
 	}
-	firstRow := joinResponsiveBoxes(boxes[:3], widths[:3], m.panelWidth(), theme.SepStyle.Render("•"))
-	secondRow := joinResponsiveBoxes(boxes[3:], widths[3:], m.panelWidth(), theme.SepStyle.Render("•"))
-	infoRow := func(label, description string) string { return helpRow(label, description, m.panelWidth()-4) }
+	infoWidth := m.infoPanelWidth()
+	firstRow := joinResponsiveBoxes(boxes[:3], widths[:3], infoWidth, theme.SepStyle.Render("•"))
+	secondRow := joinResponsiveBoxes(boxes[3:], widths[3:], infoWidth, theme.SepStyle.Render("•"))
+	infoRow := func(label, description string) string { return helpRow(label, description, infoWidth-4) }
 	sections := [][]string{
 		{
 			infoRow("MANUAL", "search by artist, album, or both"),
@@ -591,7 +650,7 @@ func renderInfoView(m model) string {
 			infoRow("O", platform.PickerDescription()),
 		},
 	}
-	box := renderPanelBox(sections[m.infoIndex], m.panelWidth(), theme.BorderStyle)
+	box := renderPanelBox(sections[m.infoIndex], infoWidth, theme.BorderStyle)
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.centerToApp(firstRow),
 		m.centerToApp(secondRow),
@@ -601,8 +660,15 @@ func renderInfoView(m model) string {
 }
 
 func renderProfilesView(m model) string {
-	rows := make([]string, 0, len(m.profiles))
-	for index, profile := range m.profiles {
+	maxRows := profilesMaxRows(m)
+	cursorIndex := minInt(maxInt(m.profileCursor, 0), maxInt(0, len(m.profiles)-1))
+	start := visibleStart(cursorIndex, len(m.profiles), maxRows)
+	end := minInt(len(m.profiles), start+maxRows)
+	visible := end - start
+	thumb := scrollbarThumb(start, len(m.profiles), visible)
+	rows := make([]string, 0, maxInt(1, visible))
+	for row, index := 0, start; index < end; index, row = index+1, row+1 {
+		profile := m.profiles[index]
 		focused := m.settingsFocus == settingsFocusContent && index == m.profileCursor
 		hovered := m.hoverRegion == "profiles:"+strconv.Itoa(index)
 		cursor := "  "
@@ -622,7 +688,17 @@ func renderProfilesView(m model) string {
 		if strings.EqualFold(profile, m.cfg.Profile) {
 			active = stateStyle.Render("  ACTIVE")
 		}
-		line := cursor + nameStyle.Render(profile) + active
+		scroll := " "
+		if len(m.profiles) > visible {
+			scroll = theme.MutedStyle.Render("│")
+			if row == thumb {
+				scroll = theme.KeyStyle.Render("█")
+			}
+		}
+		contentWidth := maxInt(1, m.panelWidth()-4)
+		left := cursor + nameStyle.Render(truncateToWidth(profile, maxInt(1, contentWidth-lipgloss.Width(active)-4))) + active
+		gap := maxInt(1, contentWidth-lipgloss.Width(left)-1)
+		line := left + strings.Repeat(" ", gap) + scroll
 		rows = append(rows, line)
 	}
 	if len(rows) == 0 {
@@ -634,6 +710,11 @@ func renderProfilesView(m model) string {
 		lines = append(lines, m.centerToApp(theme.SuccessStyle.Render(m.profileStatus)), "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+func profilesMaxRows(m model) int {
+	// Reserve the Settings grid, list chrome, footer and a possible status row.
+	return m.visibleRows(17, 6, 32)
 }
 
 func renderProfileNameView(m model) string {

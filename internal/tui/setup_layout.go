@@ -151,7 +151,7 @@ func setupScreenRegions(m model, bodyY int) []mouseRegion {
 	add := func(id, needle string, message tea.KeyMsg) {
 		for index, line := range lines {
 			if strings.Contains(line, needle) {
-				regions = append(regions, mouseRegion{id: id, x: 1, y: bodyY + index, width: m.panelWidth(), height: 1, message: message})
+				regions = append(regions, mouseRegion{id: id, x: m.workX(), y: bodyY + index, width: m.panelWidth(), height: 1, message: message})
 				return
 			}
 		}

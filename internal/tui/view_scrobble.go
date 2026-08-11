@@ -144,7 +144,7 @@ func renderedLineCount(value string) int {
 }
 
 func trackListMaxRows(m model) int {
-	available := m.height - m.headerHeight() - trackSelectListTopOffset(m) - 7
+	available := m.height - m.headerHeight() - trackSelectListTopOffset(m) - 11
 	if m.height <= 0 {
 		return 32
 	}

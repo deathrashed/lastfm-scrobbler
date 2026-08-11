@@ -99,21 +99,19 @@ func TestDashboardSettingsShortcutAndFooterOpenScrobbling(t *testing.T) {
 	}
 }
 
-func TestDashboardHistoryAndProfilesOpenInsideSettingsShell(t *testing.T) {
-	for _, test := range []struct {
-		key     string
-		stage   stage
-		section settingsSection
-	}{
-		{"h", stageHistory, settingsHistory},
-		{"p", stageProfiles, settingsProfiles},
-	} {
-		m := model{stage: stageInput, configInput: newTextInput(1024, 44), profiles: []string{"default"}}
-		updated, _ := m.updateInput(keyMessage(test.key))
-		got := updated.(model)
-		if got.stage != test.stage || got.currentSettingsSection() != test.section || got.settingsFocus != settingsFocusContent {
-			t.Fatalf("%s opened stage=%d section=%d focus=%d", test.key, got.stage, got.currentSettingsSection(), got.settingsFocus)
-		}
+func TestDashboardHistoryOpensInsideSettingsShellAndProfilesShortcutIsRemoved(t *testing.T) {
+	m := model{stage: stageInput, configInput: newTextInput(1024, 44), profiles: []string{"default"}}
+	updated, _ := m.updateInput(keyMessage("h"))
+	got := updated.(model)
+	if got.stage != stageHistory || got.currentSettingsSection() != settingsHistory || got.settingsFocus != settingsFocusContent {
+		t.Fatalf("h opened stage=%d section=%d focus=%d", got.stage, got.currentSettingsSection(), got.settingsFocus)
+	}
+
+	m = model{stage: stageInput, configInput: newTextInput(1024, 44), profiles: []string{"default"}}
+	updated, _ = m.updateInput(keyMessage("p"))
+	got = updated.(model)
+	if got.stage != stageInput || got.modeChoice != "" {
+		t.Fatalf("removed p shortcut changed Dashboard state: stage=%d mode=%q", got.stage, got.modeChoice)
 	}
 }
 
@@ -224,8 +222,8 @@ func TestFileSourceCardsHoverWithoutMovingKeyboardSelection(t *testing.T) {
 	if !strings.Contains(rendered, theme.AccentTextStyle.Render("P L A Y L I S T")) {
 		t.Fatal("hovered File source is not Torch Red")
 	}
-	if !strings.Contains(rendered, theme.SelectedModeStyle.Render("L I S T   F I L E")) {
-		t.Fatal("selected File source is not bold white while another card is hovered")
+	if !strings.Contains(rendered, theme.SelectedModeStyle.Render(fileSourceSpecs[0].label)) {
+		t.Fatalf("selected File source is not bold white while another card is hovered")
 	}
 	if !strings.Contains(rendered, theme.InnerBorderStyle.Render("╭")) {
 		t.Fatal("selected File source lost its Torch Red border")
@@ -307,8 +305,8 @@ func TestTallDiscographyRowsKeepMouseRegionsInSync(t *testing.T) {
 		discographyCursor:   0,
 		cfg:                 config.Config{MouseEnabled: true},
 	}
-	if got := discographyMaxRows(m); got != m.visibleRows(20, 6, 32) {
-		t.Fatalf("discography max rows = %d, want %d", got, m.visibleRows(20, 6, 32))
+	if got := discographyMaxRows(m); got != m.visibleRows(14, 6, 32) {
+		t.Fatalf("discography max rows = %d, want %d", got, m.visibleRows(14, 6, 32))
 	}
 	found := false
 	wantIndex := minInt(len(m.discography), discographyMaxRows(m)) - 1
@@ -529,7 +527,7 @@ func TestScrollableListRegionsTrackRenderedRowsAcrossHeaders(t *testing.T) {
 				rows++
 			}
 		}
-		maxRows := m.visibleRows(9, 6, 32)
+		maxRows := manualResultsMaxRows(m)
 		if rows != minInt(maxRows, len(m.results)) {
 			t.Fatalf("compact=%t visible result rows=%d, want %d", compact, rows, minInt(maxRows, len(m.results)))
 		}

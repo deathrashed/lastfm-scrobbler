@@ -107,14 +107,16 @@ func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsL
 func RenderHeaderWithHoverArtist(width int, stg stage, modeChoice, username, settingsLine string, compact, urlHover bool, artist string) string {
 	width = appWidth(width)
 	if compact {
-		return renderCompactHeader(width, stg, modeChoice, username, settingsLine, urlHover, compactHeaderArtistFor(modeChoice, artist))
+		compactHeader := renderCompactHeader(fullHeaderWidth, stg, modeChoice, username, settingsLine, urlHover, compactHeaderArtistFor(modeChoice, artist))
+		return centerToWidth(compactHeader, width)
 	}
 	return renderFullHeader(width, stg, modeChoice, username, settingsLine, urlHover, artist, "")
 }
 
 func (m model) renderHeader() string {
 	if m.cfg.CompactHeader {
-		return renderCompactHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.compactHeaderArtist())
+		compactHeader := renderCompactHeader(fullHeaderWidth, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.compactHeaderArtist())
+		return centerToWidth(compactHeader, m.appWidth())
 	}
 	return renderFullHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.headerArtist(), m.activityContent())
 }
@@ -132,7 +134,10 @@ func (m model) headerHeight() int {
 	}
 	height := fullHeaderLines
 	if m.nowPlayingEnabled() {
-		height++
+		// The activity treatment also promotes the profile URL into the attached
+		// top badge requested for Now Playing, which adds one structural row in
+		// addition to the activity row itself.
+		height += 2
 	}
 	if m.headerArtist() != "" {
 		height += 2
@@ -230,13 +235,17 @@ func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine s
 	leftPadding := maxInt(0, (width-2-frameWidth)/2)
 	rightPadding := maxInt(0, width-2-frameWidth-leftPadding)
 
-	lines := []string{outer.Render("╭" + strings.Repeat("─", width-2) + "╮")}
-	urlText := renderHeaderURL(username, urlHover, width)
-	lines = append(lines,
-		outer.Render("│")+centerText(urlText, width-2)+outer.Render("│"),
-	)
+	var lines []string
 	if activity != "" {
+		// Now Playing uses the profile URL as a true attached top badge instead
+		// of leaving it as an ordinary row inside the frame. This is the approved
+		// visual hierarchy: profile badge → activity → wordmark.
+		lines = append(lines, renderAttachedProfileHeader(width, username, urlHover)...)
 		lines = append(lines, outer.Render("│")+centerText(activity, width-2)+outer.Render("│"))
+	} else {
+		lines = []string{outer.Render("╭" + strings.Repeat("─", width-2) + "╮")}
+		urlText := renderHeaderURL(username, urlHover, width)
+		lines = append(lines, outer.Render("│")+centerText(urlText, width-2)+outer.Render("│"))
 	}
 	lines = append(lines,
 		outer.Render("│")+strings.Repeat(" ", leftPadding)+inner.Render("╭"+strings.Repeat("─", innerWidth)+"╮")+strings.Repeat(" ", rightPadding)+outer.Render("│"),
@@ -395,6 +404,28 @@ func lastfmURL(username string) string {
 	return "https://www.last.fm/user/" + url.PathEscape(username)
 }
 
+func renderAttachedProfileHeader(width int, username string, hover bool) []string {
+	border := theme.BorderStyle
+	display := truncateToWidth(headerURLDisplay(username), maxInt(1, width-8))
+	style := theme.HeaderURLStyle
+	if hover {
+		style = theme.HeaderURLHoverStyle
+	}
+	content := " " + renderOSC8(lastfmURL(username), style.Render(display)) + " "
+	innerWidth := lipgloss.Width(content)
+	totalWidth := innerWidth + 2
+	left := maxInt(1, (width-totalWidth)/2)
+	right := maxInt(1, width-totalWidth-left)
+
+	capLine := strings.Repeat(" ", left) + border.Render("╭"+strings.Repeat("─", innerWidth)+"╮") + strings.Repeat(" ", right)
+	mainLine := border.Render("╭"+strings.Repeat("─", maxInt(0, left-1))+"┤") +
+		content +
+		border.Render("├"+strings.Repeat("─", maxInt(0, right-1))+"╮")
+	closure := border.Render("╰" + strings.Repeat("─", innerWidth) + "╯")
+	closureLine := border.Render("│") + strings.Repeat(" ", maxInt(0, left-1)) + closure + strings.Repeat(" ", maxInt(0, right-1)) + border.Render("│")
+	return []string{fitStyled(capLine, width), fitStyled(mainLine, width), fitStyled(closureLine, width)}
+}
+
 func renderHeaderURL(username string, hover bool, width int) string {
 	value := lastfmURL(username)
 	display := truncateToWidth(headerURLDisplay(username), width-2)
@@ -414,7 +445,11 @@ func headerURLBounds(username string) (left, top, width int) {
 }
 
 func headerURLBoundsAtWidth(username string, headerWidth int) (left, top, width int) {
-	displayWidth := lipgloss.Width(truncateToWidth(headerURLDisplay(username), headerWidth-2))
+	return headerURLBoundsAtWidthWithLimit(username, headerWidth, headerWidth-2)
+}
+
+func headerURLBoundsAtWidthWithLimit(username string, headerWidth, maxDisplayWidth int) (left, top, width int) {
+	displayWidth := lipgloss.Width(truncateToWidth(headerURLDisplay(username), maxInt(1, maxDisplayWidth)))
 	left = 1 + (headerWidth-2-displayWidth)/2
 	return left, 1, displayWidth
 }

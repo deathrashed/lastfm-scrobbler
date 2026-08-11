@@ -26,6 +26,9 @@ func TestDashboardRerunOpensLastSessionWithoutStarting(t *testing.T) {
 	if cmd != nil || got.stage != stageLastSession {
 		t.Fatalf("r stage=%d cmd=%v, want Last Session and no command", got.stage, cmd)
 	}
+	if got.modeChoice != "" {
+		t.Fatalf("Last Session confirmation changed Dashboard header mode to %q", got.modeChoice)
+	}
 }
 
 func TestLastSessionEnterReusesExactRerunPath(t *testing.T) {
