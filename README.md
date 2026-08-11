@@ -159,13 +159,19 @@ file authoritative, including before it exists. `.env` is ignored by Git;
 
 The interface keeps the same Torch Red, cell-aligned visual language across
 search, selection, settings, recovery, and scrobbling workflows. The gallery
-uses current captures and follows the recommended walkthrough order.
+uses the current captures and follows the recommended walkthrough order.
+The Dashboard footer exposes `enter` selection, arrow-key navigation, `s`
+settings, `i` info, `h` history, `m`/`d` quick actions, `f`/`q` quit, `r`
+rerun, and `?` help; Profiles remain under Settings rather than on the
+Dashboard. The Info screen groups reference material into Modes, Automation,
+Data, Curation, and Imports. Settings is organized into Account, Scrobbling,
+History, Tools, Interface, and Profiles.
 
 <table>
   <tr>
     <td width="33%" valign="top">
       <a href="assets/screenshots/1-dashboard.png"><img src="assets/screenshots/1-dashboard.png" alt="Last.fm Scrobbler dashboard"></a>
-      <p align="center"><strong>Dashboard</strong><br><sub>Choose Manual, Discography, or File</sub></p>
+      <p align="center"><strong>Dashboard</strong><br><sub>Choose Manual, Discography, or File; use the current footer shortcuts</sub></p>
     </td>
     <td width="33%" valign="top">
       <a href="assets/screenshots/2-manual-search.png"><img src="assets/screenshots/2-manual-search.png" alt="Last.fm Scrobbler Manual search"></a>
@@ -211,21 +217,21 @@ uses current captures and follows the recommended walkthrough order.
     </td>
     <td valign="top">
       <a href="assets/screenshots/11-discog-filter.png"><img src="assets/screenshots/11-discog-filter.png" alt="Last.fm Scrobbler Discography filter"></a>
-      <p align="center"><strong>Discography filter</strong><br><sub>Filter long results with the connected input</sub></p>
+      <p align="center"><strong>Discography filter</strong><br><sub>Use the connected FILTER input with RESULTS and SELECTED counters</sub></p>
     </td>
     <td valign="top">
       <a href="assets/screenshots/12-file.png"><img src="assets/screenshots/12-file.png" alt="Last.fm Scrobbler File workflow"></a>
-      <p align="center"><strong>File workflow</strong><br><sub>Choose a source and enter a path on one screen</sub></p>
+      <p align="center"><strong>File workflow</strong><br><sub>Choose LIST FILE, PLAYLIST, ALBUM FOLDER, or ARTIST FOLDER and enter PATH</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
       <a href="assets/screenshots/13-info.png"><img src="assets/screenshots/13-info.png" alt="Last.fm Scrobbler Info reference"></a>
-      <p align="center"><strong>Info</strong><br><sub>Workflows, controls, data, and imports</sub></p>
+      <p align="center"><strong>Info</strong><br><sub>Modes, Automation, Data, Curation, and Imports reference</sub></p>
     </td>
     <td valign="top">
       <a href="assets/screenshots/14-settings.png"><img src="assets/screenshots/14-settings.png" alt="Last.fm Scrobbler unified Settings"></a>
-      <p align="center"><strong>Settings</strong><br><sub>Six-section configuration and utilities shell</sub></p>
+      <p align="center"><strong>Settings</strong><br><sub>Account, Scrobbling, History, Tools, Interface, and Profiles</sub></p>
     </td>
     <td valign="top">
       <a href="assets/screenshots/15-history.png"><img src="assets/screenshots/15-history.png" alt="Last.fm Scrobbler session history"></a>
@@ -239,25 +245,25 @@ uses current captures and follows the recommended walkthrough order.
     </td>
     <td valign="top">
       <a href="assets/screenshots/17-rerun.png"><img src="assets/screenshots/17-rerun.png" alt="Last.fm Scrobbler Last Session rerun"></a>
-      <p align="center"><strong>Last Session</strong><br><sub>Confirm an exact rerun or edit-first rerun</sub></p>
+      <p align="center"><strong>Last Session</strong><br><sub>Confirm <code>enter</code> rerun or <code>e</code> edit-first rerun</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/18-header-now-playing-off.png"><img src="assets/screenshots/18-header-now-playing-off.png" alt="Last.fm Scrobbler full header without Now Playing"></a>
-      <p align="center"><strong>Full header</strong><br><sub>Standard activity-free header state</sub></p>
+      <a href="assets/screenshots/18-header-now-playing-off.png"><img src="assets/screenshots/18-header-now-playing-off.png" alt="Last.fm Scrobbler Interface settings with Now Playing off"></a>
+      <p align="center"><strong>Now Playing off</strong><br><sub>Interface setting for activity-free full headers</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/19-header-now-playing-on.png"><img src="assets/screenshots/19-header-now-playing-on.png" alt="Last.fm Scrobbler full header with Now Playing"></a>
-      <p align="center"><strong>Now Playing</strong><br><sub>Current Last.fm activity in the full header</sub></p>
+      <a href="assets/screenshots/19-header-now-playing-on.png"><img src="assets/screenshots/19-header-now-playing-on.png" alt="Last.fm Scrobbler Interface settings with Now Playing on"></a>
+      <p align="center"><strong>Now Playing on</strong><br><sub>Enable current or recent Last.fm activity in the full header</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/20-header-compact-on.png"><img src="assets/screenshots/20-header-compact-on.png" alt="Last.fm Scrobbler Compact Header"></a>
-      <p align="center"><strong>Compact Header</strong><br><sub>Optional compact header presentation</sub></p>
+      <a href="assets/screenshots/20-header-compact-on.png"><img src="assets/screenshots/20-header-compact-on.png" alt="Last.fm Scrobbler Interface settings with Compact Header on"></a>
+      <p align="center"><strong>Compact Header on</strong><br><sub>Interface setting for the four-line header</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/21-header-compact-artist.png"><img src="assets/screenshots/21-header-compact-artist.png" alt="Last.fm Scrobbler Compact Header with artist context"></a>
-      <p align="center"><strong>Compact Header with artist</strong><br><sub>Resolved artist context inside Manual</sub></p>
+      <a href="assets/screenshots/21-header-compact-artist.png"><img src="assets/screenshots/21-header-compact-artist.png" alt="Last.fm Scrobbler compact Discography view with artist context"></a>
+      <p align="center"><strong>Compact Discography with artist</strong><br><sub>Resolved artist context above the Discography results</sub></p>
     </td>
   </tr>
 </table>
