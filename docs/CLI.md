@@ -29,7 +29,8 @@ installed with `go install ...@latest`.
 | `scrobbler test` | Test Last.fm API access and authentication readiness. |
 | `scrobbler diagnostics` | Export a redacted diagnostics ZIP. |
 | `scrobbler check-update` | Query the configured release endpoint. |
-| `scrobbler completion` | Print zsh, bash, or fish completion. |
+| `scrobbler completion SHELL` | Print zsh, bash, fish, or PowerShell completion. |
+| `scrobbler completion install [SHELL]` | Install per-user completion for the detected or named shell. |
 | `scrobbler version` | Print version and build commit. |
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Common options
@@ -78,7 +79,7 @@ folder. Import errors identify the specific entry that failed.
 The file command accepts the common options shown above, but does not accept
 manual-only `--artist` or `--album` flags.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm top albums
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Discography
 
 The command queries Last.fm's `artist.getTopAlbums` endpoint, limited to the
 available result window; it is not a canonical complete discography.

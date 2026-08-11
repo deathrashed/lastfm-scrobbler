@@ -95,13 +95,14 @@ var settingsRowsBySection = map[settingsSection][]settingsRowSpec{
 		{ID: "retry-count", Label: "RETRY COUNT", Description: "automatic retries after a failed Last.fm request", Kind: settingsText},
 		{ID: "retry-delay", Label: "RETRY DELAY", Description: "pause before each retry", Placeholder: "2s", Kind: settingsText},
 		{ID: "duplicate-guard", Label: "DUPLICATE GUARD", Description: "skip matching recent scrobbles; 0 disables it", Placeholder: "0s", Kind: settingsText},
-		{ID: "clean-top-albums", Label: "CLEAN TOP ALBUMS", Description: "hide obvious reissues, demos and duplicate editions", Kind: settingsToggle},
+		{ID: "clean-top-albums", Label: "CLEAN DISCOGRAPHY", Description: "hide obvious reissues, demos and duplicate editions", Kind: settingsToggle},
 	},
 	settingsTools: {
 		{ID: "export-dir", Label: "EXPORT DIR", Description: "folder used for JSON, CSV, TXT, M3U8, and diagnostics", Kind: settingsText},
-		{ID: "update-url", Label: "UPDATE URL", Description: "GitHub release API or custom JSON update endpoint", Kind: settingsText},
+		{ID: "update-url", Label: "UPDATE SOURCE", Description: "GitHub Releases by default; custom JSON endpoint when needed", Placeholder: "GitHub Releases (default)", Kind: settingsText},
 		{ID: "connection-test", Label: "CONNECTION TEST", Description: "verify API lookup and authentication readiness", Kind: settingsAction},
 		{ID: "diagnostics", Label: "DIAGNOSTICS BUNDLE", Description: "export logs and redacted configuration for troubleshooting", Kind: settingsAction},
+		{ID: "completions", Label: "INSTALL COMPLETIONS", Description: "install zsh, bash, fish, or PowerShell completion", Kind: settingsAction},
 		{ID: "check-updates", Label: "CHECK FOR UPDATES", Description: "compare this build with the configured release endpoint", Kind: settingsAction},
 	},
 	settingsInterface: {
@@ -289,6 +290,7 @@ func (m *model) loadSettingsField() {
 	m.configInput.EchoMode = textinput.EchoNormal
 	m.configInput.EchoCharacter = '•'
 	m.configInput.Width = maxInt(10, 55-len([]rune(row.Label)))
+	m.configInput.Placeholder = row.Placeholder
 	m.configInput.SetValue(m.settingsRawValue(row))
 	if row.Kind == settingsSecret {
 		m.configInput.EchoMode = textinput.EchoPassword
@@ -341,7 +343,7 @@ func (m model) settingsOverviewValue(row settingsRowSpec) string {
 			return "not configured"
 		}
 		return truncateToWidth(m.cfg.EnvPath, 30)
-	case "connection-test", "diagnostics", "check-updates":
+	case "connection-test", "diagnostics", "completions", "check-updates":
 		return "ENTER"
 	}
 	value := m.settingsRawValue(row)
@@ -349,7 +351,7 @@ func (m model) settingsOverviewValue(row settingsRowSpec) string {
 		return maskValue(value)
 	}
 	if row.ID == "update-url" && strings.TrimSpace(value) == "" {
-		return "not configured"
+		return "GitHub Releases"
 	}
 	if row.ID == "export-dir" || row.ID == "update-url" {
 		return truncateToWidth(value, 28)
@@ -501,6 +503,8 @@ func (m model) openSettingsRowAction() (tea.Model, tea.Cmd) {
 		return m.openConnectionTest()
 	case "diagnostics":
 		return m.openDiagnostics()
+	case "completions":
+		return m.openCompletions()
 	case "check-updates":
 		return m.openUpdateCheck()
 	}

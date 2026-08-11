@@ -32,6 +32,7 @@ func TestCompletionsMatchCommandFlags(t *testing.T) {
 	zsh, _ := Completion("zsh")
 	bash, _ := Completion("bash")
 	fish, _ := Completion("fish")
+	powershell, _ := Completion("powershell")
 	for _, output := range []string{zsh, bash} {
 		if !strings.Contains(output, "--artist") || !strings.Contains(output, "--album") {
 			t.Fatalf("manual credential flags missing from completion:\n%s", output)
@@ -42,6 +43,9 @@ func TestCompletionsMatchCommandFlags(t *testing.T) {
 	}
 	if !strings.Contains(fish, "-l artist") || !strings.Contains(fish, "-l album") || !strings.Contains(fish, "-l all") || !strings.Contains(fish, "-l clean") {
 		t.Fatal("fish command flags are incomplete")
+	}
+	if !strings.Contains(powershell, "Register-ArgumentCompleter") || !strings.Contains(powershell, "powershell") {
+		t.Fatal("PowerShell completion is incomplete")
 	}
 	if strings.Contains(bash, `file) COMPREPLY=( $(compgen -W "--loop --limit --interval --dry-run --json --artist`) {
 		t.Fatal("bash file completion advertises manual-only flags")

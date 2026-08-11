@@ -104,6 +104,20 @@ Or select a named profile:
 LASTFM_PROFILE=archive scrobbler file albums.txt
 ```
 
+## Shell completions and updates
+
+Generate or install per-user completion for zsh, bash, fish, or PowerShell:
+
+```text
+scrobbler completion powershell
+scrobbler completion install
+scrobbler completion install fish
+```
+
+The installer is idempotent and may require a shell/profile reload. The normal
+update source is the project's GitHub Releases API, so automation can call
+`scrobbler check-update` without setting an update URL.
+
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> LaunchAgent or cron
 
 Use absolute paths for the binary, credentials file, and imports because

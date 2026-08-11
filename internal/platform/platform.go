@@ -8,38 +8,6 @@ import (
 	"strings"
 )
 
-func PickFileOrFolder(prompt string) (string, error) {
-	if runtime.GOOS != "darwin" {
-		return "", errors.New("native picker is currently available on macOS only")
-	}
-	script := fmt.Sprintf(`set chosenItem to choose file with prompt %q
-POSIX path of chosenItem`, prompt)
-	out, err := exec.Command("osascript", "-e", script).Output()
-	if err == nil {
-		return strings.TrimSpace(string(out)), nil
-	}
-	script = fmt.Sprintf(`set chosenItem to choose folder with prompt %q
-POSIX path of chosenItem`, prompt)
-	out, err = exec.Command("osascript", "-e", script).Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func PickFolder(prompt string) (string, error) {
-	if runtime.GOOS != "darwin" {
-		return "", errors.New("native folder picker is currently available on macOS only")
-	}
-	script := fmt.Sprintf(`set chosenItem to choose folder with prompt %q
-POSIX path of chosenItem`, prompt)
-	out, err := exec.Command("osascript", "-e", script).Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
 func Notify(title, message string) error {
 	if runtime.GOOS != "darwin" {
 		return nil

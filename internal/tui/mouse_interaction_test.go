@@ -492,7 +492,7 @@ func renderActionCard(m model, current stage) string {
 }
 
 func TestEveryRenderedFooterActionHasARegion(t *testing.T) {
-	stages := []stage{stageInput, stageImportSource, stageSearch, stageResults, stageDiscographySelect, stageTrackSelect, stagePreview, stageConfig, stageEnvPath, stageScrobbling, stageDone, stageHistory, stageRecovery, stageSimilarSelect, stageProfiles, stageProfileName, stageInfo, stageConnectionTest, stageDiagnostics, stageUpdateCheck}
+	stages := []stage{stageInput, stageImportSource, stageSearch, stageResults, stageDiscographySelect, stageTrackSelect, stagePreview, stageConfig, stageEnvPath, stageScrobbling, stageDone, stageHistory, stageRecovery, stageSimilarSelect, stageProfiles, stageProfileName, stageInfo, stageConnectionTest, stageDiagnostics, stageUpdateCheck, stageCompletions}
 	for _, current := range stages {
 		m := model{
 			width:           120,

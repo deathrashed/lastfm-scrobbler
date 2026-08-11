@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/deathrashed/lastfm-scrobbler/internal/completion"
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
 	"github.com/deathrashed/lastfm-scrobbler/internal/connection"
 	"github.com/deathrashed/lastfm-scrobbler/internal/diagnostics"
@@ -157,6 +158,8 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateDiagnostics(msg)
 		case stageUpdateCheck:
 			return m.updateUpdateCheck(msg)
+		case stageCompletions:
+			return m.updateCompletions(msg)
 		case stageSetup:
 			return m.updateSetup(msg)
 		}
@@ -294,6 +297,15 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateResult = msg.result
 		}
 		return m, nil
+	case completionInstallMsg:
+		if msg.err != nil {
+			m.err = msg.err
+			return m, nil
+		}
+		m.err = nil
+		m.completionStatus = msg.result.Status
+		m.completionMessage = msg.result.Path
+		return m, nil
 	case headerURLMsg:
 		m.err = msg.err
 		if msg.err != nil {
@@ -307,14 +319,11 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.err = nil
 		switch msg.target {
-		case "search":
+		case "file":
+			m.stage = stageImportSource
 			m.searchInput.SetValue(msg.path)
 			m.searchInput.CursorEnd()
-			return m, m.searchInput.Focus()
-		case "import":
-			m.stage = stageSearch
-			m.searchInput.SetValue(msg.path)
-			m.searchInput.CursorEnd()
+			m.filePathFocused = true
 			return m, m.searchInput.Focus()
 		case "env":
 			m.envInput.SetValue(msg.path)
@@ -414,12 +423,14 @@ func (m model) activateMode(i int) (tea.Model, tea.Cmd) {
 	if m.modeChoice == "file" {
 		m.stage = stageImportSource
 		m.importSourceIndex = 0
+		m.filePathFocused = false
+		m.searchInput.Blur()
 	} else {
 		m.stage = stageSearch
 	}
 	switch m.modeChoice {
 	case "file":
-		m.searchInput.Placeholder = "/path/to/list, playlist, or music folder"
+		m.searchInput.Placeholder = fileSourceSpecFor(m.importSourceIndex).placeholder
 	case "discography":
 		m.searchInput.Placeholder = "Artist name..."
 	default:
@@ -432,27 +443,55 @@ func (m model) activateMode(i int) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateImportSource(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.filePathFocused {
+		switch msg.String() {
+		case "tab", "shift+tab":
+			m.filePathFocused = false
+			m.searchInput.Blur()
+			return m, nil
+		case "enter":
+			q := strings.TrimSpace(m.searchInput.Value())
+			if q == "" {
+				return m, nil
+			}
+			m.searching = true
+			m.err = nil
+			return m, tea.Batch(m.runModeQuery(q), m.spinner.Tick)
+		case "o":
+			return m, pickImportPathCmd(m.importSourceIndex)
+		case "esc":
+			m.stage = stageInput
+			m.modeChoice = ""
+			m.searchInput.Blur()
+			m.filePathFocused = false
+			return m, nil
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+		var cmd tea.Cmd
+		m.searchInput, cmd = m.searchInput.Update(msg)
+		return m, cmd
+	}
 	switch msg.String() {
+	case "tab":
+		m.filePathFocused = true
+		return m, m.searchInput.Focus()
 	case "left", "up", "k":
 		m.importSourceIndex = (m.importSourceIndex + 3) % 4
+		m.searchInput.Placeholder = fileSourceSpecFor(m.importSourceIndex).placeholder
 	case "right", "down", "j":
 		m.importSourceIndex = (m.importSourceIndex + 1) % 4
+		m.searchInput.Placeholder = fileSourceSpecFor(m.importSourceIndex).placeholder
 	case "enter":
-		m.stage = stageSearch
-		placeholders := []string{
-			"/path/to/TXT, CSV, TSV, or JSON list",
-			"/path/to/M3U or M3U8 playlist",
-			"/path/to/Artist/Album folder",
-			"/path/to/Artist folder",
-		}
-		m.searchInput.Placeholder = placeholders[m.importSourceIndex]
-		m.searchInput.SetValue("")
+		m.searchInput.Placeholder = fileSourceSpecFor(m.importSourceIndex).placeholder
+		m.filePathFocused = true
 		return m, m.searchInput.Focus()
 	case "o":
-		return m, pickPathCmd("Choose a list, playlist, album folder, or artist folder", "import")
+		return m, pickImportPathCmd(m.importSourceIndex)
 	case "esc":
 		m.stage = stageInput
 		m.modeChoice = ""
+		m.searchInput.Blur()
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
@@ -473,19 +512,11 @@ func (m model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.err = nil
 		return m, tea.Batch(m.runModeQuery(q), m.spinner.Tick)
 	case "esc":
-		if m.modeChoice == "file" {
-			m.stage = stageImportSource
-		} else {
-			m.stage = stageInput
-			m.modeChoice = ""
-		}
+		m.stage = stageInput
+		m.modeChoice = ""
 		m.searchInput.Blur()
 		m.err = nil
 		return m, nil
-	case "o":
-		if m.modeChoice == "file" {
-			return m, pickPathCmd("Choose an album-list file, playlist, or music folder", "search")
-		}
 	case "ctrl+c":
 		return m, tea.Quit
 	}
@@ -1665,14 +1696,29 @@ func (m model) updateInfo(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func pickPathCmd(prompt, target string) tea.Cmd {
 	return func() tea.Msg {
-		path, err := platform.PickFileOrFolder(prompt)
+		path, err := platform.Pick(platform.PickerFile, prompt)
 		return filePickedMsg{path: path, target: target, err: err}
+	}
+}
+
+func pickImportPathCmd(source int) tea.Cmd {
+	kind := platform.PickerFile
+	if source >= 2 {
+		kind = platform.PickerFolder
+	}
+	prompt := "Choose an album-list file or playlist"
+	if kind == platform.PickerFolder {
+		prompt = "Choose an album or artist folder"
+	}
+	return func() tea.Msg {
+		path, err := platform.Pick(kind, prompt)
+		return filePickedMsg{path: path, target: "file", err: err}
 	}
 }
 
 func pickFolderCmd(prompt, target string) tea.Cmd {
 	return func() tea.Msg {
-		path, err := platform.PickFolder(prompt)
+		path, err := platform.Pick(platform.PickerFolder, prompt)
 		return filePickedMsg{path: path, target: target, err: err}
 	}
 }
@@ -1771,7 +1817,13 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m.activateMode(index)
 		case strings.HasPrefix(region.id, "import:"):
 			m.importSourceIndex, _ = strconv.Atoi(strings.TrimPrefix(region.id, "import:"))
+			m.searchInput.Placeholder = fileSourceSpecFor(m.importSourceIndex).placeholder
+			m.filePathFocused = false
+			m.searchInput.Blur()
 			return m, nil
+		case region.id == "file:path":
+			m.filePathFocused = true
+			return m, m.searchInput.Focus()
 		case region.id == "search:input":
 			return m, m.searchInput.Focus()
 		case region.id == "env:input":
@@ -1784,6 +1836,13 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m.updateModelKey(region.message)
 		case region.id == "update:action":
 			return m.updateModelKey(region.message)
+		case strings.HasPrefix(region.id, "completion:shell:"):
+			shell, err := completion.ParseShell(strings.TrimPrefix(region.id, "completion:shell:"))
+			if err == nil {
+				m.completionShell = shell
+				m.refreshCompletionStatus()
+			}
+			return m, nil
 		case strings.HasPrefix(region.id, "setup:"):
 			return m.updateSetupMouse(region)
 		case strings.HasPrefix(region.id, "results:"):
@@ -1818,33 +1877,6 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		default:
 			return m.updateModelKey(region.message)
-		}
-	}
-	bodyY := y - m.headerHeight()
-	switch m.stage {
-	case stageInput:
-		if bodyY >= 0 && bodyY <= 2 {
-			switch {
-			case x >= 1 && x <= 19:
-				return m.activateMode(0)
-			case x >= 21 && x <= 45:
-				return m.activateMode(1)
-			case x >= 47 && x <= 65:
-				return m.activateMode(2)
-			}
-		}
-	case stageImportSource:
-		switch {
-		case bodyY >= 0 && bodyY <= 2 && x >= 12 && x < 34:
-			m.importSourceIndex = 0
-		case bodyY >= 0 && bodyY <= 2 && x >= 35 && x < 54:
-			m.importSourceIndex = 1
-		case bodyY >= 3 && bodyY <= 5 && x >= 5 && x < 32:
-			m.importSourceIndex = 2
-		case bodyY >= 3 && bodyY <= 5 && x >= 33 && x < 62:
-			m.importSourceIndex = 3
-		default:
-			return m, nil
 		}
 	}
 	return m, nil
@@ -1897,6 +1929,11 @@ func (m model) mouseMove(delta int) (tea.Model, tea.Cmd) {
 		m.infoIndex = (m.infoIndex + delta + 5) % 5
 	case stageSetup:
 		return m.setupMouseMove(delta)
+	case stageCompletions:
+		shells := completion.Shells
+		index := (completionShellIndex(m.completionShell) + delta + len(shells)) % len(shells)
+		m.completionShell = shells[index]
+		m.refreshCompletionStatus()
 	}
 	return m, nil
 }

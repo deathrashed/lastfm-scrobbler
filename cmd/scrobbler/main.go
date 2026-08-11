@@ -37,6 +37,10 @@ func main() {
 	}
 	setupRequested := len(args) > 0 && args[0] == "setup"
 	if setupRequested {
+		if len(args) > 1 && (args[1] == "--help" || args[1] == "-h") {
+			cli.PrintSetupHelp(os.Stdout)
+			return
+		}
 		if os.Getenv("NO_TUI") == "1" || os.Getenv("TERM") == "dumb" {
 			fmt.Fprintln(os.Stderr, "setup requires an interactive terminal; run scrobbler setup in a TUI terminal")
 			os.Exit(2)

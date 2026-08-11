@@ -82,6 +82,8 @@ func (m model) renderBody() string {
 		body = renderDiagnosticsView(m)
 	case stageUpdateCheck:
 		body = renderUpdateCheckView(m)
+	case stageCompletions:
+		body = renderCompletionsView(m)
 	case stageSetup:
 		body = renderSetupView(m)
 	}

@@ -38,8 +38,9 @@ scrobbler-v<version>-darwin-amd64.tar.gz
 checksums.txt
 ```
 
-Each archive contains the binary, `LICENSE`, and Zsh, Bash, and Fish
-completion files. Checksums use release-asset basenames so `shasum -a 256 -c
+Each archive contains the binary and `LICENSE`. The binary can generate Zsh,
+Bash, Fish, and PowerShell completion on demand. Checksums use release-asset
+basenames so `shasum -a 256 -c
 checksums.txt` works directly from a downloaded release directory.
 
 It injects the tag, commit SHA, and repository into the binary and publishes

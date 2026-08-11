@@ -21,3 +21,9 @@ func TestResolveVersionUsesDevelopmentFallback(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultRepositoryIsOfficialProject(t *testing.T) {
+	if DefaultRepository != "deathrashed/lastfm-scrobbler" || Repository != DefaultRepository {
+		t.Fatalf("repository metadata = %q/%q, want official default", DefaultRepository, Repository)
+	}
+}

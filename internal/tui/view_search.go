@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/deathrashed/lastfm-scrobbler/internal/platform"
 	"github.com/deathrashed/lastfm-scrobbler/internal/theme"
 	"github.com/deathrashed/lastfm-scrobbler/internal/version"
 )
@@ -64,8 +65,11 @@ func renderInputView(m model) string {
 }
 
 func renderImportSourceView(m model) string {
-	labels := []string{"L I S T   F I L E", "P L A Y L I S T", "A L B U M   F O L D E R", "A R T I S T   F O L D E R"}
-	widths := []int{22, 19, 27, 29}
+	labels := make([]string, len(fileSourceSpecs))
+	widths := make([]int, len(fileSourceSpecs))
+	for index, spec := range fileSourceSpecs {
+		labels[index], widths[index] = spec.label, spec.width
+	}
 	firstRow := joinThreeLineBoxes([]string{
 		renderChoiceBox(labels[0], widths[0], m.importSourceIndex == 0, m.hoverRegion == "import:0"),
 		renderChoiceBox(labels[1], widths[1], m.importSourceIndex == 1, m.hoverRegion == "import:1"),
@@ -74,28 +78,25 @@ func renderImportSourceView(m model) string {
 		renderChoiceBox(labels[2], widths[2], m.importSourceIndex == 2, m.hoverRegion == "import:2"),
 		renderChoiceBox(labels[3], widths[3], m.importSourceIndex == 3, m.hoverRegion == "import:3"),
 	}, theme.SepStyle.Render("•"))
-	descriptions := []string{
-		"TXT, CSV, TSV, or JSON containing Artist - Album entries",
-		"M3U or M3U8 playlist",
-		"read one album folder containing audio files",
-		"scan album folders inside one artist folder",
-	}
-	formats := renderInfoBox("IMPORTS", "TXT  •  CSV  •  TSV  •  JSON  •  M3U  •  M3U8  •  folders", "", 65, false)
-	return lipgloss.JoinVertical(lipgloss.Left,
+	spec := fileSourceSpecFor(m.importSourceIndex)
+	lines := []string{
 		centerToHeader(firstRow),
 		centerToHeader(secondRow),
-		centerToHeader(theme.MutedStyle.Render(descriptions[m.importSourceIndex])),
+		centerToHeader(theme.MutedStyle.Render(spec.description)),
 		"",
-		centerToHeader(formats),
-		"",
+		centerToHeader(renderFilePathView(m)),
+	}
+	if m.searching {
+		lines = append(lines, "", centerToHeader(m.spinner.View()+" "+theme.MutedStyle.Render("Loading imports…")))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left,
+		lines...,
 	)
 }
 
 func renderSearchView(m model) string {
 	label, placeholder := "SEARCH", "Artist, Album, or Both..."
 	switch m.modeChoice {
-	case "file":
-		label, placeholder = "PATH", "/path/to/list, playlist, or music folder"
 	case "discography":
 		label, placeholder = "ARTIST", "Artist name..."
 	}
@@ -510,7 +511,7 @@ func renderInfoView(m model) string {
 	sections := [][]string{
 		{
 			helpRow("MANUAL", "search by artist, album, or both"),
-			helpRow("TOP ALBUMS", "filter, clean, sort, and select albums"),
+			helpRow("DISCOGRAPHY", "browse, filter, clean, sort, and select albums"),
 			helpRow("FILE", "lists, playlists, album folders, artist folders"),
 			helpRow("SIMILAR", "press S from results, preview, or completion"),
 		},
@@ -518,7 +519,7 @@ func renderInfoView(m model) string {
 			helpRow("HEADLESS CLI", "manual, file, and discography commands"),
 			helpRow("SETTINGS", "S opens the six-section Settings area"),
 			helpRow("CONNECTION", "test API lookup and authentication from Tools"),
-			helpRow("COMPLETION", "zsh, bash, and fish shell completion"),
+			helpRow("COMPLETIONS", "install zsh, bash, fish, or PowerShell completion"),
 			helpRow("MOUSE", "click sections, rows, actions, tabs, and footer hints"),
 		},
 		{
@@ -540,7 +541,7 @@ func renderInfoView(m model) string {
 			helpRow("PLAYLIST", "M3U and M3U8 playlists"),
 			helpRow("ALBUM FOLDER", "infer Artist/Album from one folder"),
 			helpRow("ARTIST FOLDER", "scan album folders beneath an artist"),
-			helpRow("O", "open the native macOS file/folder picker"),
+			helpRow("O", platform.PickerDescription()),
 		},
 	}
 	box := renderPanelBox(sections[m.infoIndex], 65, theme.BorderStyle)

@@ -53,8 +53,8 @@ Keychain. `LASTFM_PROFILE` selects a named profile.
 The TUI exposes configuration through **Settings** (`S` from the Dashboard):
 
 - **Account** — username/password, API key/secret, credential source/path.
-- **Scrobbling** — loop, interval, retry behavior, duplicate guard, top-album cleanup.
-- **Tools** — export directory, update URL, connection test, diagnostics, updates.
+- **Scrobbling** — loop, interval, retry behavior, duplicate guard, Discography cleanup.
+- **Tools** — export directory, update source, connection test, diagnostics, completions, updates.
 - **Interface** — notifications, Compact Header, Mouse Support.
 - **History** and **Profiles** share the same Settings shell but retain their existing data/actions.
 
@@ -107,7 +107,11 @@ SCROBBLER_UPDATE_URL=
 ```
 
 `SCROBBLE_CLEAN_DISCOGRAPHY` is retained as the compatibility/environment
-variable name; the TUI labels this setting **Clean Top Albums**.
+variable name; the TUI labels this setting **Clean Discography**.
+
+`SCROBBLER_UPDATE_URL` is optional. An empty value uses the official GitHub
+Releases source for `deathrashed/lastfm-scrobbler`; set it only for a custom
+JSON-compatible endpoint.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Profiles and Keychain
 

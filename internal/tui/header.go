@@ -84,6 +84,11 @@ var compactHeaderSpecs = map[string]compactHeaderSpec{
 		Subtitle: "check the configured release source",
 		Icon:     theme.IconSettings,
 	},
+	"completions": {
+		Title:    "C O M P L E T I O N S",
+		Subtitle: "install shell completion for this user",
+		Icon:     theme.IconSettings,
+	},
 	"setup": {
 		Title:    "S E T U P",
 		Subtitle: "first-time configuration wizard",

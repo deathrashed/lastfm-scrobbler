@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/deathrashed/lastfm-scrobbler/internal/completion"
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
 	"github.com/deathrashed/lastfm-scrobbler/internal/connection"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
@@ -40,6 +41,7 @@ const (
 	stageConnectionTest
 	stageDiagnostics
 	stageUpdateCheck
+	stageCompletions
 	stageSetup
 )
 
@@ -60,6 +62,7 @@ type model struct {
 	modeChoice        string
 	modeIndex         int
 	importSourceIndex int
+	filePathFocused   bool
 	infoIndex         int
 
 	connectionReport  connection.Report
@@ -68,6 +71,9 @@ type model struct {
 	diagnosticsBusy   bool
 	updateResult      updater.Result
 	updateChecking    bool
+	completionShell   completion.Shell
+	completionStatus  completion.Status
+	completionMessage string
 
 	searchInput  textinput.Model
 	filterInput  textinput.Model

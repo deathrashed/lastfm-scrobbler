@@ -75,7 +75,7 @@ Compact Header intentionally has no URL hit area.
 | Key | Destination |
 | --- | --- |
 | `M` | Manual album entry. |
-| `D` | Last.fm top albums for an artist. |
+| `D` | Discography results for an artist, sourced from Last.fm top albums. |
 | `F` | File, playlist, or folder import. |
 | `H` | History inside the Settings shell. |
 | `P` | Profiles inside the Settings shell. |
@@ -105,9 +105,9 @@ workflows inside the same navigation shell.
 | Section | Contents |
 | --- | --- |
 | **Account** | Last.fm username/password, API key/secret, credential source, credential path. |
-| **Scrobbling** | Loop, interval, retry count/delay, duplicate guard, Clean Top Albums. |
+| **Scrobbling** | Loop, interval, retry count/delay, duplicate guard, Clean Discography. |
 | **History** | Saved sessions, edit/exact re-runs, export, delete. |
-| **Tools** | Export directory, update URL, connection test, diagnostics, update check. |
+| **Tools** | Export directory, update source, connection test, diagnostics, completions, update check. |
 | **Interface** | Notifications, Compact Header, Mouse Support. |
 | **Profiles** | Load, create, save, and delete named profiles. |
 
@@ -167,7 +167,7 @@ Move between sections with `←` and `→`, click a tab, or use the mouse wheel:
 
 | Section | Covers |
 | --- | --- |
-| **Modes** | Manual entry, Last.fm top-album curation, file imports, similar albums. |
+| **Modes** | Manual entry, Discography curation, file imports, similar albums. |
 | **Automation** | Headless CLI, Settings, connection tests, completions, mouse, updates. |
 | **Data** | History, recovery, Profiles, Account credentials, local storage. |
 | **Curation** | Track selection, loop controls, saved-queue editing, exports. |
@@ -212,14 +212,14 @@ space check • s similar • a all • enter continue
 ```
 
 Click the individual `-`, `+`, `↑`, or `↓` symbols to adjust the value or move
-the track cursor directly. In multi-album top-album workflows, `- loop +`
+the track cursor directly. In multi-album Discography workflows, `- loop +`
 changes the loop count for the album containing the current track.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm top albums
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Discography
 
-Search an artist, filter or sort the returned top albums, clean obvious
-duplicate editions, select albums, and load their tracks into one queue. This
-is a Last.fm top-albums result, not a canonical complete discography.
+Search an artist, filter or sort the returned albums, clean obvious duplicate
+editions, select albums, and load their tracks into one queue. The source is
+Last.fm's `artist.getTopAlbums` result, not a canonical complete discography.
 
 After the artist is resolved, the full header carries the same dynamic artist
 badge used by Manual. The album chooser is one integrated component: `SORT`,
@@ -243,9 +243,10 @@ ALBUMS/TRACKS, INTERVAL/SCROBBLES, and ETA/LOOP summary cards.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> File import
 
-The File page supports TXT, CSV, TSV, JSON, M3U/M3U8, one album folder, or an
-artist folder containing album folders. Press `O` to open the native picker,
-then `Enter` to import the selected path.
+The File page combines the four source cards and PATH editor. It supports TXT,
+CSV, TSV, JSON, M3U/M3U8, one album folder, or an artist folder containing
+album folders. Press `O` for the platform picker when available, or enter PATH
+manually, then press `Enter` to import.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> History, recovery, and Profiles
 

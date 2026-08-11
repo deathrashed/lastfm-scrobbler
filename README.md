@@ -46,7 +46,7 @@ hover and open on click; compact mode has no profile URL.
 | Area | What it provides |
 | --- | --- |
 | **Manual scrobbling** | Search by artist, album, or both, choose tracks, preview the queue, and scrobble with configurable loops and intervals. |
-| **Top-album curation** | Filter, sort, clean, select, and queue albums returned by Last.fm's top-albums endpoint. |
+| **Discography curation** | Filter, sort, clean, select, and queue albums returned by Last.fm's top-albums endpoint. |
 | **Import workflows** | Load TXT, CSV, TSV, JSON, M3U/M3U8 playlists, album folders, or artist folders. |
 | **Recovery** | Keep history, resume interrupted queues, edit saved sessions, or perform exact re-runs. |
 | **Automation** | Use stable JSON-capable CLI commands from Keyboard Maestro, shell scripts, and launch agents. |
@@ -195,11 +195,11 @@ uses current captures and follows the recommended walkthrough order.
     </td>
     <td valign="top">
       <a href="assets/screenshots/8-discography-search.png"><img src="assets/screenshots/8-discography-search.png" alt="Last.fm Scrobbler Discography search"></a>
-      <p align="center"><strong>Discography search</strong><br><sub>Resolve an artist before loading top albums</sub></p>
+      <p align="center"><strong>Discography search</strong><br><sub>Resolve an artist before loading results</sub></p>
     </td>
     <td valign="top">
       <a href="assets/screenshots/9-discography-filter.png"><img src="assets/screenshots/9-discography-filter.png" alt="Last.fm Scrobbler Discography filter"></a>
-      <p align="center"><strong>Discography filter</strong><br><sub>Filter top albums while browsing results</sub></p>
+      <p align="center"><strong>Discography filter</strong><br><sub>Filter Discography results while browsing</sub></p>
     </td>
   </tr>
   <tr>
@@ -269,24 +269,27 @@ individual tracks, adjust loops and interval controls, inspect the dry-run
 preview, and start scrobbling. Manual result lists show a compact attached
 `RESULTS` count rather than a multiselect counter.
 
-### Last.fm top albums
+### Discography
 
 Search an artist, filter and sort the returned albums, hide obvious reissues or
 duplicates, select any combination, load their tracks, and build one queue. The
-album chooser integrates `SORT`, `FILTER`, and `CLEAN` into the top border with
+Discography chooser integrates `SORT`, `FILTER`, and `CLEAN` into the top border with
 `RESULTS` and `SELECTED` attached below; long filters expand into a connected
-wide input. Long top-album results and track lists include scroll indicators.
+wide input. The source is Last.fm's `artist.getTopAlbums` result, not a
+canonical complete discography; long results and track lists include scroll
+indicators.
 
 ### File and folder import
 
-The File page makes every import source visible:
+The File page keeps source selection and PATH entry on one screen. It supports:
 
 - TXT, CSV, TSV, or JSON album lists
 - M3U and M3U8 playlists
 - one `Artist/Album` folder
 - an artist folder containing album subfolders
 
-The native macOS picker is available with `O`.
+Press `O` for the platform picker when available, or enter the path manually.
+The screen shows the accepted formats in a dynamic `TYPE`/`TYPES` attachment.
 
 ### Similar albums
 
@@ -331,11 +334,11 @@ The sections are grouped by purpose:
 
 - **Account** — Last.fm username/password, API key/secret, credential source,
   and credential path.
-- **Scrobbling** — loop, interval, retries, duplicate guard, and top-album
+- **Scrobbling** — loop, interval, retries, duplicate guard, and Discography
   cleanup.
 - **History** — saved sessions, edit/exact re-runs, export, and delete.
-- **Tools** — export directory, update URL, connection test, diagnostics, and
-  update checking.
+- **Tools** — export directory, GitHub Releases/custom update source, connection
+  test, diagnostics, shell completions, and update checking.
 - **Interface** — notifications, Compact Header, and Mouse Support.
 - **Profiles** — load, create, save, and delete named profiles.
 
@@ -459,8 +462,17 @@ Detailed command documentation and Keyboard Maestro examples are in
 
 ## Shell completion
 
-Generate completion from the binary so it always matches the installed
-commands.
+Generate or install completion from the binary so it always matches the
+installed commands. Installation is per-user and idempotent; it never requires
+root or administrator access.
+
+```bash
+scrobbler completion install
+scrobbler completion install zsh
+scrobbler completion install bash
+scrobbler completion install fish
+scrobbler completion install powershell
+```
 
 ### Zsh
 
@@ -485,13 +497,22 @@ mkdir -p ~/.config/fish/completions
 scrobbler completion fish > ~/.config/fish/completions/scrobbler.fish
 ```
 
+### PowerShell
+
+```powershell
+scrobbler completion powershell > $HOME/.config/powershell/completions/scrobbler.ps1
+```
+
+The TUI equivalent is **Settings → Tools → Install Completions**. A profile
+reload may be needed after installation.
+
 ## Mouse support
 
 Mouse support is enabled by default and can be disabled in **Settings → Interface** or with
 `SCROBBLE_MOUSE=false`.
 
 - click Dashboard modes, File import sources, Settings sections and rows
-- use the mouse wheel to navigate results, top-album lists, tracks, Settings,
+- use the mouse wheel to navigate results, Discography lists, tracks, Settings,
   History, and Profiles
 - click Info tabs, action cards, editable fields, the Help close hint, and contextual footer actions
 - hover feedback turns interactive card/list text Torch Red while preserving
@@ -507,16 +528,15 @@ some terminals. Disable the setting when native selection is more important.
 
 ## Update checking
 
-The checker defaults to the public repository. Configure either:
-
-```env
-SCROBBLER_UPDATE_URL=https://api.github.com/repos/deathrashed/lastfm-scrobbler/releases/latest
-```
-
-or inject `Repository=deathrashed/lastfm-scrobbler` at build time. A custom endpoint may
+Official and normal development builds default to this project's public GitHub
+Releases, so **Settings → Tools → Check for Updates** and `scrobbler
+check-update` work without configuration. A custom endpoint may
 return GitHub-style JSON (`tag_name`, `html_url`, `body`) or simple JSON
 (`version`, `url`, `notes`). The checker only reports availability; it does not
 replace the running binary.
+
+Set `SCROBBLER_UPDATE_URL` only when an advanced custom endpoint is required;
+the empty value means the official GitHub Releases source.
 
 ## Exports and diagnostics
 
@@ -553,7 +573,7 @@ Input
 Configuration ── project .env ── ~/.env fallback ── Keychain (optional)
           │
           ▼
-Last.fm client ── search / album tracks / top albums / similar albums
+Last.fm client ── search / album tracks / Discography / similar albums
           │
           ▼
 Queue builder ── preview / dry-run / loop / limit / interval
@@ -639,6 +659,13 @@ re-runs.
 - [CLI reference](docs/CLI.md)
 - [Automation and Keyboard Maestro](docs/AUTOMATION.md)
 - [Configuration and credentials](docs/CONFIGURATION.md)
+- [Installation](docs/INSTALLATION.md)
+- [Setup wizard](docs/SETUP.md)
+- [Shell completions](docs/COMPLETIONS.md)
+- [File imports](docs/FILE-IMPORTS.md)
+- [Platform support](docs/PLATFORMS.md)
+- [Updates](docs/UPDATES.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [TUI controls and workflows](docs/TUI.md)
 - [Release checklist](docs/RELEASING.md)
 - [Last.fm colour reference](docs/Last.fm-colors.html)

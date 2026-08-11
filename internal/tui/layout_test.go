@@ -582,7 +582,7 @@ func TestSettingsSectionsContainEachExpectedRowExactlyOnce(t *testing.T) {
 	want := map[settingsSection][]string{
 		settingsAccount:    {"username", "password", "api-key", "api-secret", "credential-source", "credential-path"},
 		settingsScrobbling: {"loop", "interval", "retry-count", "retry-delay", "duplicate-guard", "clean-top-albums"},
-		settingsTools:      {"export-dir", "update-url", "connection-test", "diagnostics", "check-updates"},
+		settingsTools:      {"export-dir", "update-url", "connection-test", "diagnostics", "completions", "check-updates"},
 		settingsInterface:  {"notifications", "compact-header", "mouse-support"},
 	}
 	seen := map[string]settingsSection{}

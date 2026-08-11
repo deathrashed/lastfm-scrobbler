@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/deathrashed/lastfm-scrobbler/internal/platform"
 	"github.com/deathrashed/lastfm-scrobbler/internal/setup"
 )
 
@@ -125,10 +126,16 @@ func footerSpec(m model) [][]footerItem {
 			{esc(" previous", "return to the previous setup step"), help()},
 		}
 	case stageImportSource:
+		if m.filePathFocused {
+			return [][]footerItem{
+				{s("tab", " source"), enter(" import", "load albums from the current path")},
+				{a("footer:o", "o", " picker", platform.PickerDescription()), esc(" menu", "return to the main menu"), help()},
+			}
+		}
 		return [][]footerItem{
-			{s("→ ↑ ↓ ←", " navigate"), enter(" choose", "use the highlighted import source")},
+			{s("→ ↑ ↓ ←", " source"), enter(" path", "move focus to the import path")},
 			{
-				a("footer:o", "o", " picker", "open the native macOS file or folder picker"),
+				a("footer:o", "o", " picker", platform.PickerDescription()),
 				esc(" menu", "return to the main menu"),
 				help(),
 			},
@@ -140,7 +147,7 @@ func footerSpec(m model) [][]footerItem {
 		}
 		line := []footerItem{enter(" continue", description)}
 		if m.modeChoice == "file" {
-			line = append(line, a("footer:o", "o", " picker", "open the native macOS file or folder picker"))
+			line = append(line, a("footer:o", "o", " picker", platform.PickerDescription()))
 		}
 		return [][]footerItem{append(line,
 			esc(" back", "return to the previous screen"),
@@ -326,6 +333,15 @@ func footerSpec(m model) [][]footerItem {
 			esc(" tools", "return to Tools"),
 			a("footer:q", "q", " quit", "quit Last.fm Scrobbler"),
 		}}
+	case stageCompletions:
+		return [][]footerItem{{
+			s("↑ ↓", " navigate"),
+			enter(" install", "install completion for the selected shell"),
+			a("footer:r", "r", " refresh", "refresh completion status"),
+		}, {
+			esc(" tools", "return to Tools"),
+			a("footer:q", "q", " quit", "quit Last.fm Scrobbler"),
+		}}
 	}
 	return nil
 }
@@ -445,12 +461,12 @@ func (m model) screenRegions() []mouseRegion {
 		}
 	case stageSetup:
 		regions = append(regions, setupScreenRegions(m, bodyY)...)
+	case stageCompletions:
+		regions = append(regions, completionScreenRegions(m, bodyY)...)
 	case stageSearch:
 		regions = append(regions, mouseRegion{id: "search:input", x: 1, y: bodyY, width: 65, height: 3})
 	case stageImportSource:
-		for i, box := range []struct{ x, y, w int }{{12, 0, 22}, {35, 0, 19}, {5, 3, 27}, {33, 3, 29}} {
-			regions = append(regions, mouseRegion{id: "import:" + strconv.Itoa(i), x: box.x, y: bodyY + box.y, width: box.w, height: 3, message: keyMessage("enter")})
-		}
+		regions = append(regions, fileSourceRegions(bodyY)...)
 	case stageConfig:
 		regions = append(regions, m.settingsRowRegions()...)
 	case stageResults:
