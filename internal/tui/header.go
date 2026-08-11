@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	minHeaderWidth     = 67
-	fullHeaderWidth    = 67
-	fullHeaderLines    = 11
-	compactHeaderLines = 4
+	minHeaderWidth          = 67
+	fullHeaderWidth         = 67
+	fullHeaderLines         = 11
+	compactHeaderLines      = 4
+	compactHeaderInnerWidth = fullHeaderWidth - 2
 )
 
 type compactHeaderSpec struct {
@@ -95,7 +96,7 @@ func RenderHeaderWithHover(width int, stg stage, modeChoice, username, settingsL
 
 func RenderHeaderWithHoverArtist(width int, stg stage, modeChoice, username, settingsLine string, compact, urlHover bool, artist string) string {
 	if compact {
-		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover)
+		return renderCompactHeader(stg, modeChoice, username, settingsLine, urlHover, compactHeaderArtistFor(modeChoice, artist))
 	}
 	return renderFullHeader(fullHeaderWidth, stg, modeChoice, username, settingsLine, urlHover, artist)
 }
@@ -106,6 +107,9 @@ func (m model) compactHeaderEnabled() bool {
 
 func (m model) headerHeight() int {
 	if m.compactHeaderEnabled() {
+		if m.compactHeaderArtist() != "" {
+			return compactHeaderLines + 1
+		}
 		return compactHeaderLines
 	}
 	if m.headerArtist() != "" {
@@ -114,7 +118,7 @@ func (m model) headerHeight() int {
 	return fullHeaderLines
 }
 
-func renderCompactHeader(stg stage, modeChoice, username, settingsLine string, urlHover bool) string {
+func renderCompactHeader(stg stage, modeChoice, username, settingsLine string, urlHover bool, artist string) string {
 	_ = stg
 	_ = username
 	_ = urlHover
@@ -126,12 +130,39 @@ func renderCompactHeader(stg stage, modeChoice, username, settingsLine string, u
 	if settingsLine != "" {
 		subtitle = renderSettingsContext(settingsLine)
 	}
-	return strings.Join([]string{
+	lines := []string{
 		renderCompactBorder('╭', '╮'),
 		renderCompactContent(spec.Title, theme.HeaderTextStyle),
 		renderCompactContentStyled(subtitle),
-		renderCompactBottom(spec.Icon),
-	}, "\n")
+	}
+	if artist != "" {
+		lines = append(lines, renderCompactArtistRow(artist))
+	}
+	lines = append(lines, renderCompactBottom(spec.Icon))
+	return strings.Join(lines, "\n")
+}
+
+func (m model) compactHeaderArtist() string {
+	if !m.compactHeaderEnabled() {
+		return ""
+	}
+	return compactHeaderArtistFor(m.modeChoice, m.headerArtist())
+}
+
+func compactHeaderArtistFor(modeChoice, artist string) string {
+	if modeChoice != "manual" && modeChoice != "discography" {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimSpace(artist))
+}
+
+func renderCompactArtistRow(artist string) string {
+	const prefix = "ARTIST ❯ "
+	artist = truncateToWidth(strings.ToUpper(strings.TrimSpace(artist)), compactHeaderInnerWidth-lipgloss.Width(prefix))
+	row := theme.AccentTextStyle.Render("ARTIST") + " " +
+		theme.PrimaryTextStyle.Render("❯") + " " +
+		theme.ArtistStyle.Render(artist)
+	return renderCompactContentStyled(row)
 }
 
 func compactHeaderSpecFor(modeChoice string) compactHeaderSpec {
@@ -154,7 +185,7 @@ func renderCompactContentStyled(value string) string {
 }
 
 func renderCompactBottom(icon string) string {
-	innerWidth := fullHeaderWidth - 2
+	innerWidth := compactHeaderInnerWidth
 	iconWidth := lipgloss.Width(icon)
 	dashes := maxInt(0, innerWidth-iconWidth)
 	left := dashes / 2
@@ -204,9 +235,6 @@ func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine s
 }
 
 func (m model) headerArtist() string {
-	if m.compactHeaderEnabled() {
-		return ""
-	}
 	if m.modeChoice != "manual" && m.modeChoice != "discography" {
 		return ""
 	}

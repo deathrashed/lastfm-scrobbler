@@ -74,6 +74,95 @@ func TestCompactHeaderLongestSubtitleFits(t *testing.T) {
 	}
 }
 
+func TestCompactManualHeaderAddsArtistOnlyAfterResolution(t *testing.T) {
+	unresolved := model{stage: stageSearch, modeChoice: "manual", cfg: config.Config{CompactHeader: true}}
+	before := RenderHeaderWithHoverArtist(140, unresolved.stage, unresolved.modeChoice, "", "", true, false, unresolved.headerArtist())
+	if lines := strings.Split(before, "\n"); len(lines) != compactHeaderLines {
+		t.Fatalf("unresolved compact Manual header lines = %d, want %d", len(lines), compactHeaderLines)
+	}
+	if strings.Contains(stripANSI(before), "ARTIST ❯") {
+		t.Fatalf("unresolved compact Manual header contains an artist row:\n%s", stripANSI(before))
+	}
+
+	resolved := model{
+		stage:         stageResults,
+		modeChoice:    "manual",
+		cfg:           config.Config{CompactHeader: true},
+		results:       []lastfm.Album{{Artist: "Enforced", Title: "War Remains"}},
+		resultsCursor: 0,
+	}
+	header := RenderHeaderWithHoverArtist(140, resolved.stage, resolved.modeChoice, "", "", true, false, resolved.headerArtist())
+	lines := strings.Split(header, "\n")
+	if len(lines) != compactHeaderLines+1 {
+		t.Fatalf("resolved compact Manual header lines = %d, want %d", len(lines), compactHeaderLines+1)
+	}
+	if !strings.Contains(stripANSI(lines[3]), "ARTIST ❯ ENFORCED") {
+		t.Fatalf("resolved compact Manual header is missing artist row:\n%s", stripANSI(header))
+	}
+}
+
+func TestCompactDiscographyHeaderAddsResolvedArtist(t *testing.T) {
+	m := model{
+		stage:             stageDiscographySelect,
+		modeChoice:        "discography",
+		cfg:               config.Config{CompactHeader: true},
+		discographyArtist: "Oxygen Destroyer",
+	}
+	header := RenderHeaderWithHoverArtist(140, m.stage, m.modeChoice, "", "", true, false, m.headerArtist())
+	lines := strings.Split(header, "\n")
+	if len(lines) != compactHeaderLines+1 {
+		t.Fatalf("compact Discography header lines = %d, want %d", len(lines), compactHeaderLines+1)
+	}
+	if !strings.Contains(stripANSI(lines[3]), "ARTIST ❯ OXYGEN DESTROYER") {
+		t.Fatalf("compact Discography header is missing artist row:\n%s", stripANSI(header))
+	}
+}
+
+func TestCompactArtistHeaderUsesRequestedStyles(t *testing.T) {
+	previousProfile := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(previousProfile) })
+
+	header := RenderHeaderWithHoverArtist(140, stageResults, "manual", "", "", true, false, "Enforced")
+	artistLine := strings.Split(header, "\n")[3]
+	if !strings.Contains(artistLine, theme.AccentTextStyle.Render("ARTIST")) {
+		t.Fatal("compact artist label is not Torch Red")
+	}
+	if !strings.Contains(artistLine, theme.PrimaryTextStyle.Render("❯")) {
+		t.Fatal("compact artist arrow is not white")
+	}
+	if !strings.Contains(artistLine, theme.ArtistStyle.Render("ENFORCED")) {
+		t.Fatal("compact artist value is not bold Torch Red")
+	}
+}
+
+func TestCompactArtistHeaderTruncatesLongNamesWithoutChangingWidth(t *testing.T) {
+	artist := "An Artist Name That Is Deliberately Much Longer Than The Compact Header Can Display"
+	m := model{
+		stage:      stageResults,
+		modeChoice: "manual",
+		cfg:        config.Config{CompactHeader: true},
+		results:    []lastfm.Album{{Artist: artist, Title: "Long Name"}},
+	}
+	header := RenderHeaderWithHoverArtist(140, m.stage, m.modeChoice, "", "", true, false, m.headerArtist())
+	lines := strings.Split(header, "\n")
+	if len(lines) != compactHeaderLines+1 {
+		t.Fatalf("long compact artist header lines = %d, want %d", len(lines), compactHeaderLines+1)
+	}
+	for lineNumber, line := range lines {
+		if got := lipgloss.Width(stripANSI(line)); got != fullHeaderWidth {
+			t.Fatalf("long compact artist line %d width = %d, want %d\n%q", lineNumber+1, got, fullHeaderWidth, line)
+		}
+	}
+	plain := stripANSI(lines[3])
+	if !strings.Contains(plain, "ARTIST ❯ ") || !strings.Contains(plain, "…") {
+		t.Fatalf("long compact artist row does not preserve its prefix and ellipsis: %q", plain)
+	}
+	if strings.Contains(plain, strings.ToUpper(artist)) {
+		t.Fatal("long compact artist value was not truncated")
+	}
+}
+
 func TestHeaderHeightMatchesRenderedMode(t *testing.T) {
 	full := model{width: 140}
 	if got := full.headerHeight(); got != fullHeaderLines {
@@ -599,8 +688,73 @@ func TestHeaderHeightIncludesArtistExtensionOnlyForFullHeader(t *testing.T) {
 		t.Fatalf("full artist header height = %d, want %d", got, fullHeaderLines+2)
 	}
 	full.cfg.CompactHeader = true
-	if got := full.headerHeight(); got != compactHeaderLines {
-		t.Fatalf("compact artist header height = %d, want %d", got, compactHeaderLines)
+	if got := full.headerHeight(); got != compactHeaderLines+1 {
+		t.Fatalf("compact artist header height = %d, want %d", got, compactHeaderLines+1)
+	}
+}
+
+func TestCompactArtistHeaderKeepsMouseBodyOffsetsAligned(t *testing.T) {
+	manual := model{
+		width:      140,
+		stage:      stageResults,
+		modeChoice: "manual",
+		cfg:        config.Config{CompactHeader: true, MouseEnabled: true},
+		results:    []lastfm.Album{{Artist: "Enforced", Title: "War Remains"}},
+	}
+	if got := manual.headerHeight(); got != compactHeaderLines+1 {
+		t.Fatalf("compact Manual header height = %d, want %d", got, compactHeaderLines+1)
+	}
+	var manualRow mouseRegion
+	for _, region := range manual.screenRegions() {
+		if region.id == "results:0" {
+			manualRow = region
+			break
+		}
+	}
+	if manualRow.y != manual.headerHeight()+4 {
+		t.Fatalf("compact Manual result row y = %d, want %d", manualRow.y, manual.headerHeight()+4)
+	}
+	updated, _ := manual.updateMouse(tea.MouseMsg{X: manualRow.x, Y: manualRow.y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if got := updated.(model).resultsCursor; got != 0 {
+		t.Fatalf("compact Manual result click moved cursor to %d, want 0", got)
+	}
+
+	discography := model{
+		width:               140,
+		stage:               stageDiscographySelect,
+		modeChoice:          "discography",
+		cfg:                 config.Config{CompactHeader: true, MouseEnabled: true},
+		discographyArtist:   "Oxygen Destroyer",
+		discography:         makeAlbums(3),
+		discographySelected: map[int]bool{},
+	}
+	if got := discography.headerHeight(); got != compactHeaderLines+1 {
+		t.Fatalf("compact Discography header height = %d, want %d", got, compactHeaderLines+1)
+	}
+	var discographyRow mouseRegion
+	for _, region := range discography.screenRegions() {
+		if region.id == "discography:0" {
+			discographyRow = region
+			break
+		}
+	}
+	if discographyRow.y != discography.headerHeight()+discographyChooserListRowOffset(discography) {
+		t.Fatalf("compact Discography row y = %d, want %d", discographyRow.y, discography.headerHeight()+discographyChooserListRowOffset(discography))
+	}
+	updated, _ = discography.updateMouse(tea.MouseMsg{X: discographyRow.x, Y: discographyRow.y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if got := updated.(model).discographyCursor; got != 0 {
+		t.Fatalf("compact Discography click moved cursor to %d, want 0", got)
+	}
+
+	full := manual
+	full.cfg.CompactHeader = false
+	if got := full.headerHeight(); got != fullHeaderLines+2 {
+		t.Fatalf("full artist header height = %d, want %d", got, fullHeaderLines+2)
+	}
+	for _, region := range full.screenRegions() {
+		if region.id == "results:0" && region.y != full.headerHeight()+4 {
+			t.Fatalf("full Manual result row y = %d, want %d", region.y, full.headerHeight()+4)
+		}
 	}
 }
 
