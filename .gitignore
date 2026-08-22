@@ -10,7 +10,7 @@ dist/
 *.log
 *.zip
 coverage.out
-.codegraph
+.codegraph*
 
 # macOS
 .DS_Store

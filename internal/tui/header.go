@@ -10,11 +10,28 @@ import (
 )
 
 const (
-	minHeaderWidth          = minAppWidth
-	fullHeaderWidth         = minAppWidth
-	fullHeaderLines         = 11
+	minHeaderWidth  = minAppWidth
+	fullHeaderWidth = minAppWidth
+	fullHeaderLines = 11
+	// The restored hero matches the original Scrobbler header: URL capsule
+	// over the top border (3 rows), six ASCII brand rows, one subheader row,
+	// and the stage badge interrupting the bottom border with the icon badge
+	// beneath (3 rows). When a workflow carries artist context the contextual
+	// artist badge adds two further rows, exactly like the original classic
+	// header.
+	heroHeaderLines         = 13
 	compactHeaderLines      = 4
 	compactHeaderInnerWidth = fullHeaderWidth - 2
+	autoCompactHeaderHeight = 23
+	autoHeroHeaderHeight    = 31
+)
+
+type headerLayout uint8
+
+const (
+	headerCompact headerLayout = iota
+	headerClassic
+	headerHero
 )
 
 type compactHeaderSpec struct {
@@ -84,6 +101,11 @@ var compactHeaderSpecs = map[string]compactHeaderSpec{
 		Subtitle: "check the configured release source",
 		Icon:     theme.IconSettings,
 	},
+	"auth": {
+		Title:    "L A S T . F M   A U T H",
+		Subtitle: "authorize this application with Last.fm",
+		Icon:     theme.IconProfile,
+	},
 	"completions": {
 		Title:    "C O M P L E T I O N S",
 		Subtitle: "install shell completion for this user",
@@ -114,35 +136,62 @@ func RenderHeaderWithHoverArtist(width int, stg stage, modeChoice, username, set
 }
 
 func (m model) renderHeader() string {
-	if m.cfg.CompactHeader {
+	switch m.headerLayout() {
+	case headerCompact:
 		compactHeader := renderCompactHeader(fullHeaderWidth, m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.compactHeaderArtist())
 		return centerToWidth(compactHeader, m.appWidth())
+	case headerHero:
+		return renderHeroHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.headerArtist(), m.activityContent())
+	default:
+		return renderFullHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.headerArtist(), m.activityContent())
 	}
-	return renderFullHeader(m.appWidth(), m.stage, m.modeChoice, m.cfg.Username, m.headerSettingsLine(), m.headerURLHover, m.headerArtist(), m.activityContent())
+}
+
+func (m model) headerLayout() headerLayout {
+	if m.cfg.CompactHeader {
+		return headerCompact
+	}
+	if m.height > 0 && m.height <= autoCompactHeaderHeight {
+		return headerCompact
+	}
+	if m.height >= autoHeroHeaderHeight {
+		return headerHero
+	}
+	return headerClassic
 }
 
 func (m model) compactHeaderEnabled() bool {
-	return m.cfg.CompactHeader
+	return m.headerLayout() == headerCompact
 }
 
 func (m model) headerHeight() int {
-	if m.compactHeaderEnabled() {
+	switch m.headerLayout() {
+	case headerHero:
+		height := heroHeaderLines
+		if m.headerArtist() != "" {
+			// Contextual artist badge renders two more rows beneath the
+			// stage badge, exactly like the original classic header.
+			height += 2
+		}
+		return height
+	case headerCompact:
 		if m.compactHeaderArtist() != "" {
 			return compactHeaderLines + 1
 		}
 		return compactHeaderLines
+	default:
+		height := fullHeaderLines
+		if m.nowPlayingEnabled() {
+			// The activity treatment also promotes the profile URL into the attached
+			// top badge requested for Now Playing, which adds one structural row in
+			// addition to the activity row itself.
+			height += 2
+		}
+		if m.headerArtist() != "" {
+			height += 2
+		}
+		return height
 	}
-	height := fullHeaderLines
-	if m.nowPlayingEnabled() {
-		// The activity treatment also promotes the profile URL into the attached
-		// top badge requested for Now Playing, which adds one structural row in
-		// addition to the activity row itself.
-		height += 2
-	}
-	if m.headerArtist() != "" {
-		height += 2
-	}
-	return height
 }
 
 func renderCompactHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool, artist string) string {
@@ -220,6 +269,91 @@ func renderCompactBottom(width int, icon string) string {
 	return theme.BorderStyle.Render("╰"+strings.Repeat("─", left)) +
 		theme.TitleIconStyle.Render(icon) +
 		theme.BorderStyle.Render(strings.Repeat("─", right)+"╯")
+}
+
+func renderHeroHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool, artist, activity string) string {
+	width = appWidth(width)
+	border := theme.BorderStyle
+
+	// The restored original structure: one outer frame carrying the user URL
+	// capsule over the top border, the ASCII brand and a single subheader row
+	// inside, and the stage badge interrupting the bottom border with the
+	// small icon badge beneath.
+	lines := renderAttachedProfileHeader(width, username, urlHover)
+	innerWidth := maxInt(1, width-2)
+	for _, line := range heroWordmarkLines() {
+		content := centerText(theme.HeroWordmarkLine(line), innerWidth)
+		lines = append(lines, border.Render("│")+content+border.Render("│"))
+	}
+	// Now Playing is a dashboard-only enhancement: it belongs in the subheader
+	// row only when no workflow/artist context is active. When context exists
+	// the subheader stays static and the context is shown in the badge
+	// beneath the stage badge, so Now Playing never overwrites it.
+	subheaderActivity := activity
+	if strings.TrimSpace(artist) != "" {
+		subheaderActivity = ""
+	}
+	lines = append(lines, border.Render("│")+centerText(renderHeroSubheader(subheaderActivity), innerWidth)+border.Render("│"))
+
+	_, badgeText, badgeIcon := headerBadge(stg, modeChoice)
+	badgeTop, bottomLine, badgeUnderline := renderBadgeBottom(width, badgeText, badgeIcon)
+	lines = append(lines, badgeTop, bottomLine)
+	if strings.TrimSpace(artist) == "" {
+		lines = append(lines, badgeUnderline)
+	} else {
+		// Workflow context (searched/selected artist, discography, etc.)
+		// takes priority over Now Playing and is rendered as a contextual
+		// badge directly beneath the stage badge, exactly as the original
+		// Scrobbler did.
+		lines = append(lines, renderArtistBadgeExtension(width, badgeText, badgeIcon, artist)...)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// renderHeroSubheader returns the single subheader row inside the hero frame.
+// Valid Now Playing activity is rendered as-is (already styled and truncated
+// by the activity state) — but only on the dashboard where no workflow
+// context is present. Every temporary, empty, or unusable state falls back to
+// the static tagline so the header never shows loading/no-history noise.
+func renderHeroSubheader(activity string) string {
+	if validHeroActivity(activity) {
+		return activity
+	}
+	return theme.MutedStyle.Render("SEARCH  •  SELECT  •  SCROBBLE")
+}
+
+func validHeroActivity(activity string) bool {
+	plain := strings.TrimSpace(stripANSI(activity))
+	if plain == "" || isPassiveActivityText(activity) {
+		return false
+	}
+	// Drop the leading status icon (e.g. "  Artist - Track") and require a
+	// real artist/track pair either side of the separator. Anything less is
+	// not useful track data and must not be shown in the hero.
+	if split := strings.Index(plain, "  "); split >= 0 {
+		plain = strings.TrimSpace(plain[split+2:])
+	}
+	parts := strings.SplitN(plain, " - ", 2)
+	return len(parts) == 2 && strings.TrimSpace(parts[0]) != "" && strings.TrimSpace(parts[1]) != ""
+}
+
+func heroWordmarkLines() []string {
+	return []string{
+		"██╗      █████╗ ███████╗████████╗   ███████╗███╗   ███╗",
+		"██║     ██╔══██╗██╔════╝╚══██╔══╝   ██╔════╝████╗ ████║",
+		"██║     ███████║███████╗   ██║      █████╗  ██╔████╔██║",
+		"██║     ██╔══██║╚════██║   ██║      ██╔══╝  ██║╚██╔╝██║",
+		"███████╗██║  ██║███████║   ██║   ██╗██║     ██║ ╚═╝ ██║",
+		"╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝╚═╝     ╚═╝     ╚═╝",
+	}
+}
+
+func isPassiveActivityText(activity string) bool {
+	plain := strings.ToLower(strings.TrimSpace(stripANSI(activity)))
+	return plain == "" ||
+		plain == "loading last.fm activity" ||
+		plain == "no recent scrobbles" ||
+		plain == "last.fm activity unavailable"
 }
 
 func renderFullHeader(width int, stg stage, modeChoice, username, settingsLine string, urlHover bool, artist, activity string) string {

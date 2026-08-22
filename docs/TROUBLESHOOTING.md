@@ -15,6 +15,18 @@ password or session key. Confirm that the selected credential source and
 `LASTFM_ENV_FILE` point to the intended values. Never include secrets in a bug
 report; share only a redacted diagnostics bundle.
 
+## Scrobbling reports “Invalid session key” (error 9)
+
+The stored session key expired or was revoked on Last.fm's side. Press `A` on
+the paused scrobble screen or use **Settings → Account → RE-AUTHENTICATE**:
+the app requests a fresh token, opens the Last.fm authorization page in your
+browser, and exchanges the authorized token for a new session key after you
+grant permission. The new key is saved through your normal credential source,
+the running client updates immediately, and the interrupted queue keeps its
+progress — already-scrobbled tracks are not repeated. If the browser cannot
+open, copy the auth URL into a browser manually. Other Last.fm API errors are
+not authentication failures and keep their existing behavior.
+
 ## Credentials appear missing
 
 Review **Settings → Account → Credential Source** and **Credential Path**.

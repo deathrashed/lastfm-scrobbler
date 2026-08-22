@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
@@ -116,7 +117,15 @@ func (activityTestError) Error() string { return "test activity failure" }
 
 type activityClientStub struct{}
 
-func (activityClientStub) Authenticate(context.Context) error { return nil }
+func (activityClientStub) Authenticate(context.Context) error           { return nil }
+func (activityClientStub) GetAuthToken(context.Context) (string, error) { return "token", nil }
+func (activityClientStub) GetSession(context.Context, string) (lastfm.Session, error) {
+	return lastfm.Session{Name: "user", Key: "key"}, nil
+}
+func (activityClientStub) AuthURL(token string) string {
+	return "https://www.last.fm/api/auth/?token=" + token
+}
+func (activityClientStub) SessionKey() string { return "key" }
 func (activityClientStub) SearchAlbums(context.Context, string) ([]lastfm.Album, error) {
 	return nil, nil
 }
@@ -154,5 +163,29 @@ func TestCurrentActivityAnimationAdvancesAndReschedules(t *testing.T) {
 	}
 	if plain := stripANSI(got.activityContent()); !strings.Contains(plain, activityVolumeFrames[1]) {
 		t.Fatalf("activity content did not render advanced frame: %q", plain)
+	}
+}
+
+func TestResizeFromCompactToHeroStartsActivityPolling(t *testing.T) {
+	m := model{
+		width:       100,
+		height:      20,
+		cfg:         config.Config{Username: "deathrashed", APIKey: "test-key", NowPlaying: true},
+		client:      activityClientStub{},
+		activitySeq: 3,
+	}
+	if m.activityPollingEnabled() {
+		t.Fatal("short compact layout unexpectedly enabled activity polling")
+	}
+	updated, cmd := updateModel(m, tea.WindowSizeMsg{Width: 100, Height: 40})
+	got := updated.(model)
+	if got.headerLayout() != headerHero {
+		t.Fatalf("resized header layout=%d want hero", got.headerLayout())
+	}
+	if !got.activityPollingEnabled() {
+		t.Fatal("hero layout did not re-enable activity polling")
+	}
+	if cmd == nil {
+		t.Fatal("resizing into hero layout did not schedule an activity fetch")
 	}
 }

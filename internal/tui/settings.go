@@ -47,6 +47,7 @@ const (
 	settingsChoice
 	settingsPathAction
 	settingsAction
+	settingsReadOnly
 )
 
 type settingsSectionSpec struct {
@@ -88,6 +89,8 @@ var settingsRowsBySection = map[settingsSection][]settingsRowSpec{
 		{ID: "api-secret", Label: "API SECRET", Description: "Last.fm application shared secret", Kind: settingsSecret, MaskOverview: true},
 		{ID: "credential-source", Label: "CREDENTIAL SOURCE", Description: "choose auto, file, environment, or keychain", Kind: settingsChoice},
 		{ID: "credential-path", Label: "CREDENTIAL PATH", Description: "credentials file used for file-backed settings", Placeholder: "~/.config/lastfm-scrobbler/.env", Kind: settingsPathAction},
+		{ID: "auth-status", Label: "AUTH STATUS", Description: "current Last.fm authentication state", Kind: settingsReadOnly},
+		{ID: "reauthenticate", Label: "RE-AUTHENTICATE", Description: "start a fresh Last.fm authorization flow", Kind: settingsAction},
 	},
 	settingsScrobbling: {
 		{ID: "loop", Label: "LOOP", Description: "how many times to scrobble each selected album", Kind: settingsText},
@@ -341,6 +344,8 @@ func (m model) settingsRawValue(row settingsRowSpec) string {
 
 func (m model) settingsOverviewValue(row settingsRowSpec) string {
 	switch row.ID {
+	case "auth-status":
+		return m.authStatusOverview()
 	case "credential-path":
 		if strings.TrimSpace(m.cfg.EnvPath) == "" {
 			return "not configured"
@@ -521,6 +526,8 @@ func (m model) openSettingsRowAction() (tea.Model, tea.Cmd) {
 		return m.openCompletions()
 	case "check-updates":
 		return m.openUpdateCheck()
+	case "reauthenticate":
+		return m.reauthenticate()
 	}
 	return m, nil
 }
@@ -731,6 +738,9 @@ func renderSettingsEditValue(m model, row settingsRowSpec) string {
 func renderSettingsDetail(m model, row settingsRowSpec) string {
 	active := m.settingsFocus == settingsFocusContent
 	hovered := m.hoverRegion == "settings:detail"
+	if row.Kind == settingsReadOnly {
+		return renderSettingsDetailLine(row.Label, m.settingsOverviewValue(row), "", active, hovered, false, m.panelWidth())
+	}
 	if row.Kind == settingsAction {
 		return renderSettingsDetailLine(row.Label, "", "ENTER", active, hovered, true, m.panelWidth())
 	}

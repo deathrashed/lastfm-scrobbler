@@ -18,16 +18,16 @@ available from the binary generator or TUI installer.
 
 ## GitHub release binaries
 
-Download [v1.1.0](https://github.com/deathrashed/lastfm-scrobbler/releases/tag/v1.1.0)
+Download [v1.2.0](https://github.com/deathrashed/lastfm-scrobbler/releases/tag/v1.2.0)
 and verify the matching entry in `checksums.txt`:
 
 | Platform | Archive |
 | --- | --- |
-| macOS Apple Silicon | `scrobbler-v1.1.0-darwin-arm64.tar.gz` |
-| macOS Intel | `scrobbler-v1.1.0-darwin-amd64.tar.gz` |
-| Linux x86_64 | `scrobbler-v1.1.0-linux-amd64.tar.gz` |
-| Linux ARM64 | `scrobbler-v1.1.0-linux-arm64.tar.gz` |
-| Windows x64 | `scrobbler-v1.1.0-windows-amd64.zip` |
+| macOS Apple Silicon | `scrobbler-v1.2.0-darwin-arm64.tar.gz` |
+| macOS Intel | `scrobbler-v1.2.0-darwin-amd64.tar.gz` |
+| Linux x86_64 | `scrobbler-v1.2.0-linux-amd64.tar.gz` |
+| Linux ARM64 | `scrobbler-v1.2.0-linux-arm64.tar.gz` |
+| Windows x64 | `scrobbler-v1.2.0-windows-amd64.zip` |
 
 Unix archives contain `scrobbler`, `LICENSE`, and all four completion files.
 The Windows archive contains `scrobbler.exe`, `LICENSE`, and the same

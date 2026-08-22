@@ -698,7 +698,7 @@ func TestDashboardFooterMatchesApprovedOrder(t *testing.T) {
 
 func TestSettingsSectionsContainEachExpectedRowExactlyOnce(t *testing.T) {
 	want := map[settingsSection][]string{
-		settingsAccount:    {"username", "password", "api-key", "api-secret", "credential-source", "credential-path"},
+		settingsAccount:    {"username", "password", "api-key", "api-secret", "credential-source", "credential-path", "auth-status", "reauthenticate"},
 		settingsScrobbling: {"loop", "interval", "retry-count", "retry-delay", "duplicate-guard", "clean-top-albums"},
 		settingsTools:      {"export-dir", "update-url", "connection-test", "diagnostics", "completions", "check-updates"},
 		settingsInterface:  {"notifications", "now-playing", "compact-header", "mouse-support"},
@@ -1363,6 +1363,420 @@ func TestNowPlayingPromotesProfileURLIntoAttachedTopBadge(t *testing.T) {
 	for index, line := range lines {
 		if got := displayWidth(line); got != 67 {
 			t.Fatalf("attached profile line %d width=%d want=67: %q", index+1, got, line)
+		}
+	}
+}
+
+func TestHeaderLayoutAdaptsToTerminalHeight(t *testing.T) {
+	tests := []struct {
+		name   string
+		height int
+		want   headerLayout
+	}{
+		{name: "short", height: 20, want: headerCompact},
+		{name: "medium", height: 27, want: headerClassic},
+		{name: "tall", height: 40, want: headerHero},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			m := model{width: 100, height: test.height}
+			if got := m.headerLayout(); got != test.want {
+				t.Fatalf("height %d header layout=%d want=%d", test.height, got, test.want)
+			}
+			if got := len(strings.Split(m.renderHeader(), "\n")); got != m.headerHeight() {
+				t.Fatalf("height %d rendered header lines=%d headerHeight=%d", test.height, got, m.headerHeight())
+			}
+		})
+	}
+
+	forced := model{width: 100, height: 60, cfg: config.Config{CompactHeader: true}}
+	if got := forced.headerLayout(); got != headerCompact {
+		t.Fatalf("forced compact layout=%d want=%d", got, headerCompact)
+	}
+}
+
+func TestHeroHeaderRestoresOriginalFrameStructure(t *testing.T) {
+	m := model{width: 100, height: 40, stage: stageInput, modeChoice: "", cfg: config.Config{Username: "deathrashed"}}
+	lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+	if got, want := len(lines), heroHeaderLines; got != want {
+		t.Fatalf("hero header lines=%d want=%d\n%s", got, want, stripANSI(m.renderHeader()))
+	}
+	// Top: one outer frame whose border is interrupted by the centered URL
+	// capsule, exactly like the original Scrobbler header.
+	if !strings.HasPrefix(lines[1], "╭") || !strings.HasSuffix(lines[1], "╮") ||
+		!strings.Contains(lines[1], "┤") || !strings.Contains(lines[1], "├") {
+		t.Fatalf("top border is not a single frame interrupted by the URL capsule: %q", lines[1])
+	}
+	if !strings.Contains(lines[1], "last.fm/user/deathrashed") {
+		t.Fatalf("URL capsule does not carry the dynamic profile URL: %q", lines[1])
+	}
+	if !strings.HasPrefix(lines[2], "│") || !strings.HasSuffix(lines[2], "│") ||
+		!strings.Contains(lines[2], "╰") || !strings.Contains(lines[2], "╯") {
+		t.Fatalf("URL capsule has no closure row inside the frame: %q", lines[2])
+	}
+	// The floating design caption above the frame is gone.
+	if strings.Contains(stripANSI(m.renderHeader()), "•  SCROBBLER  •") {
+		t.Fatal("hero header still carries the floating scrobbler caption")
+	}
+	// Wordmark sits inside the outer frame.
+	for row := 3; row < 3+len(heroWordmarkLines()); row++ {
+		if !strings.HasPrefix(lines[row], "│") || !strings.HasSuffix(lines[row], "│") {
+			t.Fatalf("wordmark row %d is not inside the outer frame: %q", row, lines[row])
+		}
+	}
+	if !strings.Contains(lines[3], "███████╗") {
+		t.Fatalf("hero wordmark is missing the block brand: %q", lines[3])
+	}
+	// A single subheader line sits inside the frame, directly below the
+	// wordmark, with the static fallback when nothing is playing.
+	subheaderRow := 3 + len(heroWordmarkLines())
+	if !strings.HasPrefix(lines[subheaderRow], "│") || !strings.HasSuffix(lines[subheaderRow], "│") {
+		t.Fatalf("subheader row is not inside the outer frame: %q", lines[subheaderRow])
+	}
+	if !strings.Contains(lines[subheaderRow], "SEARCH  •  SELECT  •  SCROBBLE") {
+		t.Fatalf("subheader row does not show the static SEARCH • SELECT • SCROBBLE line: %q", lines[subheaderRow])
+	}
+	// Bottom: stage badge interrupts the lower border; the small icon badge
+	// sits directly beneath it.
+	badgeTopRow := subheaderRow + 1
+	bottomRow := subheaderRow + 2
+	iconRow := subheaderRow + 3
+	if !strings.HasPrefix(lines[badgeTopRow], "│") || !strings.Contains(lines[badgeTopRow], "╭") {
+		t.Fatalf("stage badge top is not attached inside the frame: %q", lines[badgeTopRow])
+	}
+	if !strings.HasPrefix(lines[bottomRow], "╰") || !strings.Contains(lines[bottomRow], "┤ D A S H B O A R D ├") {
+		t.Fatalf("stage badge does not interrupt the bottom border: %q", lines[bottomRow])
+	}
+	if !strings.Contains(lines[iconRow], "╰") || !strings.Contains(lines[iconRow], theme.IconDashboard) || !strings.Contains(lines[iconRow], "╯") {
+		t.Fatalf("icon badge is not directly beneath the stage badge: %q", lines[iconRow])
+	}
+	for index, line := range lines {
+		if got := displayWidth(line); got != m.appWidth() {
+			t.Fatalf("hero line %d width=%d want=%d: %q", index+1, got, m.appWidth(), line)
+		}
+	}
+}
+
+func TestHeroHeaderShowsNowPlayingInSubheaderRow(t *testing.T) {
+	m := model{
+		width:         100,
+		height:        40,
+		stage:         stageInput,
+		cfg:           config.Config{Username: "deathrashed", NowPlaying: true},
+		activityState: activityCurrent,
+		activityTrack: lastfm.RecentTrack{Artist: "Overpower", Title: "They Came From Beyond", NowPlaying: true},
+		activityFrame: 1,
+	}
+	lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+	if got, want := len(lines), heroHeaderLines; got != want {
+		t.Fatalf("hero activity header lines=%d want=%d", got, want)
+	}
+	subheaderRow := 1 + len(heroWordmarkLines()) + 2
+	subheader := lines[subheaderRow]
+	// Now Playing is a plain centered row inside the frame — never a ┤caption├
+	// treatment on the frame border.
+	if !strings.HasPrefix(subheader, "│") || !strings.HasSuffix(subheader, "│") || strings.Contains(subheader, "┤") {
+		t.Fatalf("Now Playing is not a plain row inside the frame: %q", subheader)
+	}
+	if !strings.Contains(subheader, "Overpower - They Came From Beyond") {
+		t.Fatalf("Now Playing is missing from the subheader row: %q", subheader)
+	}
+	if !strings.Contains(subheader, activityVolumeFrames[1]) {
+		t.Fatalf("current activity does not render its volume icon: %q", subheader)
+	}
+
+	// Most-recently-played keeps the static history icon and no animation.
+	recent := m
+	recent.activityState = activityRecent
+	recent.activityFrame = 0
+	recentLines := strings.Split(stripANSI(recent.renderHeader()), "\n")
+	recentSubheader := recentLines[subheaderRow]
+	if !strings.Contains(recentSubheader, "Overpower - They Came From Beyond") || !strings.Contains(recentSubheader, theme.IconHistory) {
+		t.Fatalf("recent activity lost its static history icon: %q", recentSubheader)
+	}
+	if strings.Contains(recentSubheader, activityVolumeFrames[1]) {
+		t.Fatalf("recent activity incorrectly animates the volume icon: %q", recentSubheader)
+	}
+	for index, line := range lines {
+		if got := displayWidth(line); got != m.appWidth() {
+			t.Fatalf("hero activity line %d width=%d want=%d: %q", index+1, got, m.appWidth(), line)
+		}
+	}
+}
+
+func TestHeroHeaderFallsBackToStaticSubheader(t *testing.T) {
+	cases := []struct {
+		name       string
+		state      activityState
+		nowPlaying bool
+	}{
+		{name: "disabled", state: activityLoading, nowPlaying: false},
+		{name: "loading", state: activityLoading, nowPlaying: true},
+		{name: "no tracks", state: activityNoTracks, nowPlaying: true},
+		{name: "unavailable", state: activityUnavailable, nowPlaying: true},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			m := model{
+				width:         100,
+				height:        40,
+				stage:         stageInput,
+				cfg:           config.Config{Username: "deathrashed", NowPlaying: test.nowPlaying},
+				activityState: test.state,
+			}
+			lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+			subheader := lines[1+len(heroWordmarkLines())+2]
+			if !strings.Contains(subheader, "SEARCH  •  SELECT  •  SCROBBLE") {
+				t.Fatalf("subheader=%q want static SEARCH • SELECT • SCROBBLE", subheader)
+			}
+			for _, banned := range []string{"loading", "unavailable", "no recent", "error"} {
+				if strings.Contains(strings.ToLower(subheader), banned) {
+					t.Fatalf("subheader leaks transient state %q: %q", banned, subheader)
+				}
+			}
+		})
+	}
+}
+
+func TestHeroHeaderTruncatesLongNowPlayingWithinFrame(t *testing.T) {
+	artist := strings.Repeat("A Very Long Artist ", 8)
+	title := strings.Repeat("A Very Long Track ", 8)
+	for _, width := range []int{67, 104, 127} {
+		m := model{
+			width:         width,
+			height:        40,
+			stage:         stageInput,
+			cfg:           config.Config{Username: "deathrashed", NowPlaying: true},
+			activityState: activityCurrent,
+			activityTrack: lastfm.RecentTrack{Artist: artist, Title: title, NowPlaying: true},
+			activityFrame: 1,
+		}
+		lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+		if got, want := len(lines), heroHeaderLines; got != want {
+			t.Fatalf("width %d hero lines=%d want=%d", width, got, want)
+		}
+		for index, line := range lines {
+			if got := displayWidth(line); got != m.appWidth() {
+				t.Fatalf("width %d line %d width=%d want=%d", width, index+1, got, m.appWidth())
+			}
+		}
+		if !strings.Contains(lines[1+len(heroWordmarkLines())+2], "…") {
+			t.Fatalf("width %d long Now Playing text was not ellipsis-truncated", width)
+		}
+	}
+}
+
+func TestHeroHeaderFitsResponsiveWidths(t *testing.T) {
+	for _, width := range []int{67, 80, 104, 127, 160} {
+		m := model{width: width, height: 40, stage: stageInput, cfg: config.Config{Username: "deathrashed"}}
+		for lineIndex, line := range strings.Split(stripANSI(m.renderHeader()), "\n") {
+			if got := displayWidth(line); got > m.appWidth() {
+				t.Fatalf("width %d hero line %d=%d want <=%d: %q", width, lineIndex+1, got, m.appWidth(), line)
+			}
+		}
+	}
+}
+
+func TestFooterDetailRowsAdaptToTerminalHeight(t *testing.T) {
+	if got := footerDetailRows(model{height: 20}); got != 0 {
+		t.Fatalf("short footer detail rows=%d want=0", got)
+	}
+	if got := footerDetailRows(model{height: 28}); got != 1 {
+		t.Fatalf("medium footer detail rows=%d want=1", got)
+	}
+	if got := footerDetailRows(model{height: 40}); got != 2 {
+		t.Fatalf("tall footer detail rows=%d want=2", got)
+	}
+}
+
+func TestHeroHeaderURLMouseBoundsMatchRenderedCapsule(t *testing.T) {
+	m := model{width: 100, height: 40, stage: stageInput, cfg: config.Config{Username: "deathrashed", MouseEnabled: true}}
+	lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+	borderLine := lines[1]
+
+	// The interrupted top border is the Unicode regression fixture: the
+	// capsule is built from box-drawing characters, so column math must be
+	// display-width aware, never raw byte offsets.
+	if !strings.HasPrefix(borderLine, "╭") || !strings.HasSuffix(borderLine, "╮") ||
+		!strings.Contains(borderLine, "┤") || !strings.Contains(borderLine, "├") {
+		t.Fatalf("hero top border is not interrupted by the URL capsule: %q", borderLine)
+	}
+
+	profile := headerURLDisplay(m.cfg.Username)
+	index := strings.Index(borderLine, profile)
+	if index < 0 {
+		t.Fatalf("URL is not embedded in the interrupted top border: %q", borderLine)
+	}
+	left := displayWidth(borderLine[:index])
+	right := displayWidth(borderLine[index+len(profile):])
+	if absInt(left-right) > 1 {
+		t.Fatalf("URL capsule is not centered on the top border: left=%d right=%d", left, right)
+	}
+
+	top := 1
+	if !m.headerURLContains(left, top) {
+		t.Fatalf("URL hover did not activate at its rendered capsule columns: left=%d top=%d", left, top)
+	}
+	for _, probe := range []struct{ x, y int }{
+		{left - 1, top},                     // left border ┤ edge
+		{left + displayWidth(profile), top}, // right border ├ edge
+		{left, top - 1},                     // capsule cap row
+		{left, top + 1},                     // capsule closure row
+	} {
+		if m.headerURLContains(probe.x, probe.y) {
+			t.Fatalf("hero URL hitbox leaked outside the capsule at (%d,%d)", probe.x, probe.y)
+		}
+	}
+}
+
+func TestHeroHeaderShowsSearchedArtistContext(t *testing.T) {
+	m := model{
+		width:         100,
+		height:        40,
+		stage:         stageResults,
+		modeChoice:    "manual",
+		results:       []lastfm.Album{{Artist: "Death", Title: "Scream Bloody Gore"}},
+		resultsCursor: 0,
+		cfg:           config.Config{Username: "deathrashed"},
+	}
+	lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+	// Active workflow context (a searched artist) adds the contextual badge
+	// beneath the stage badge, exactly like the original Scrobbler header.
+	if got, want := len(lines), heroHeaderLines+2; got != want {
+		t.Fatalf("searched-artist hero lines=%d want=%d", got, want)
+	}
+	joined := strings.ToUpper(strings.ReplaceAll(strings.Join(lines[len(lines)-3:], ""), " ", ""))
+	if !strings.Contains(joined, "DEATH") {
+		t.Fatalf("searched artist context not shown in badge: %q", strings.Join(lines, "\n"))
+	}
+	// The subheader keeps the static tagline; Now Playing is a dashboard-only
+	// enhancement and must not overwrite the active context.
+	subheader := lines[1+len(heroWordmarkLines())+2]
+	if !strings.Contains(subheader, "SEARCH  •  SELECT  •  SCROBBLE") {
+		t.Fatalf("searched-artist subheader lost the static tagline: %q", subheader)
+	}
+	for index, line := range lines {
+		if got := displayWidth(line); got != m.appWidth() {
+			t.Fatalf("searched-artist hero line %d width=%d want=%d: %q", index+1, got, m.appWidth(), line)
+		}
+	}
+}
+
+func TestHeroHeaderShowsDiscographyArtistContext(t *testing.T) {
+	m := model{
+		width:             100,
+		height:            40,
+		stage:             stageDiscographySelect,
+		modeChoice:        "discography",
+		discography:       []lastfm.Album{{Artist: "Oxygen Destroyer", Title: "Best Logic"}},
+		discographyArtist: "Oxygen Destroyer",
+		cfg:               config.Config{Username: "deathrashed"},
+	}
+	lines := strings.Split(stripANSI(m.renderHeader()), "\n")
+	if got, want := len(lines), heroHeaderLines+2; got != want {
+		t.Fatalf("discography hero lines=%d want=%d", got, want)
+	}
+	joined := strings.ToUpper(strings.ReplaceAll(strings.Join(lines[len(lines)-3:], ""), " ", ""))
+	if !strings.Contains(joined, "OXYGENDESTROYER") {
+		t.Fatalf("discography artist context not shown in badge: %q", strings.Join(lines, "\n"))
+	}
+	subheader := lines[1+len(heroWordmarkLines())+2]
+	if !strings.Contains(subheader, "SEARCH  •  SELECT  •  SCROBBLE") {
+		t.Fatalf("discography subheader lost the static tagline: %q", subheader)
+	}
+}
+
+func TestHeroHeaderContextualArtistSuppressesNowPlaying(t *testing.T) {
+	withActivity := model{
+		width:         100,
+		height:        40,
+		stage:         stageResults,
+		modeChoice:    "manual",
+		results:       []lastfm.Album{{Artist: "Death", Title: "Scream Bloody Gore"}},
+		resultsCursor: 0,
+		cfg:           config.Config{Username: "deathrashed", NowPlaying: true},
+		activityState: activityCurrent,
+		activityTrack: lastfm.RecentTrack{Artist: "Hellwitch", Title: "Nosferatu", NowPlaying: true},
+		activityFrame: 1,
+	}
+	lines := strings.Split(stripANSI(withActivity.renderHeader()), "\n")
+	subheader := lines[1+len(heroWordmarkLines())+2]
+	// Now Playing must NOT overwrite the active workflow context.
+	if strings.Contains(subheader, "Hellwitch") || strings.Contains(subheader, "Nosferatu") {
+		t.Fatalf("Now Playing overwrote searched artist context: %q", subheader)
+	}
+	joined := strings.ToUpper(strings.ReplaceAll(strings.Join(lines[len(lines)-3:], ""), " ", ""))
+	if !strings.Contains(joined, "DEATH") {
+		t.Fatalf("searched artist lost under Now Playing: %q", strings.Join(lines, "\n"))
+	}
+	// Returning to the dashboard restores Now Playing in the subheader.
+	dash := withActivity
+	dash.stage = stageInput
+	dash.modeChoice = ""
+	dash.results = nil
+	dash.resultsCursor = 0
+	dashLines := strings.Split(stripANSI(dash.renderHeader()), "\n")
+	if got, want := len(dashLines), heroHeaderLines; got != want {
+		t.Fatalf("dashboard-after-context hero lines=%d want=%d", got, want)
+	}
+	dashSubheader := dashLines[1+len(heroWordmarkLines())+2]
+	if !strings.Contains(dashSubheader, "Hellwitch - Nosferatu") {
+		t.Fatalf("returning to dashboard did not restore Now Playing: %q", dashSubheader)
+	}
+}
+
+func TestHeroWordmarkTwoTonePreservesVisibleASCII(t *testing.T) {
+	lines := heroWordmarkLines()
+	if len(lines) != 6 {
+		t.Fatalf("block wordmark rows=%d want=6", len(lines))
+	}
+	for _, line := range lines {
+		styled := theme.HeroWordmarkLine(line)
+		if got, want := stripANSI(styled), line; got != want {
+			t.Fatalf("two-tone styling changed the visible ASCII:\n got %q\nwant %q", got, want)
+		}
+		if got, want := displayWidth(styled), displayWidth(line); got != want {
+			t.Fatalf("two-tone styling changed display width: %d -> %d for %q", want, got, line)
+		}
+	}
+	// The hero header is width-stable once its wordmark is painted.
+	m := model{width: 100, height: 40, stage: stageInput, cfg: config.Config{Username: "deathrashed"}}
+	for index, line := range strings.Split(stripANSI(m.renderHeader()), "\n") {
+		if got := displayWidth(line); got != m.appWidth() {
+			t.Fatalf("painted hero line %d width=%d want=%d", index+1, got, m.appWidth())
+		}
+	}
+}
+
+func TestHeroWordmarkTwoToneColorsByGlyph(t *testing.T) {
+	previousProfile := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(previousProfile) })
+
+	outlineGlyphs := []rune{'╔', '╗', '╚', '╝', '═', '║'}
+	for _, line := range heroWordmarkLines() {
+		styled := theme.HeroWordmarkLine(line)
+		// Every full block cell is painted with the Last.fm red style.
+		if got, want := strings.Count(styled, theme.HeroWordmarkRed.Render("█")), strings.Count(line, "█"); got != want {
+			t.Fatalf("row %q has %d red blocks, want %d", line, got, want)
+		}
+		// Every outline/shadow cell is painted with the dim hint tone.
+		for _, glyph := range outlineGlyphs {
+			got := strings.Count(styled, theme.HeroWordmarkShadow.Render(string(glyph)))
+			want := strings.Count(line, string(glyph))
+			if got != want {
+				t.Fatalf("row %q has %d dim-toned %q, want %d", line, got, string(glyph), want)
+			}
+		}
+		// Spaces and the literal row are otherwise untouched.
+		if strings.Contains(styled, theme.HeroWordmarkRed.Render(" ")) || strings.Contains(styled, theme.HeroWordmarkShadow.Render(" ")) {
+			t.Fatalf("row %q paints spaces: %q", line, styled)
+		}
+		// The removed gradient palette must not survive anywhere.
+		for _, stale := range []string{"#ff5964", "#ff9aa3", "#ffe8eb"} {
+			if strings.Contains(styled, stale) {
+				t.Fatalf("row %q still carries gradient color %s", line, stale)
+			}
 		}
 	}
 }

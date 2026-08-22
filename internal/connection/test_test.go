@@ -11,7 +11,15 @@ import (
 
 type fakeClient struct{ authErr, searchErr error }
 
-func (f fakeClient) Authenticate(context.Context) error { return f.authErr }
+func (f fakeClient) Authenticate(context.Context) error           { return f.authErr }
+func (f fakeClient) GetAuthToken(context.Context) (string, error) { return "token", nil }
+func (f fakeClient) GetSession(context.Context, string) (lastfm.Session, error) {
+	return lastfm.Session{Name: "user", Key: "key"}, nil
+}
+func (f fakeClient) AuthURL(token string) string {
+	return "https://www.last.fm/api/auth/?token=" + token
+}
+func (f fakeClient) SessionKey() string { return "key" }
 func (f fakeClient) SearchAlbums(context.Context, string) ([]lastfm.Album, error) {
 	return []lastfm.Album{{Artist: "A", Title: "B"}}, f.searchErr
 }

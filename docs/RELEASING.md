@@ -23,8 +23,8 @@ GitHub's tracked source archive or `git archive`.
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Create a release
 
 ```bash
-git tag -a v1.1.0 -m "v1.1.0"
-git push origin v1.1.0
+git tag -a v1.2.0 -m "v1.2.0"
+git push origin v1.2.0
 ```
 
 The tag-triggered workflow builds exactly these release targets:
@@ -74,7 +74,7 @@ The update checker uses the official GitHub Releases source by default;
 The public module path supports:
 
 ```bash
-go install github.com/deathrashed/lastfm-scrobbler/cmd/scrobbler@v1.1.0
+go install github.com/deathrashed/lastfm-scrobbler/cmd/scrobbler@v1.2.0
 ```
 
 A Homebrew formula belongs in a separate `deathrashed/homebrew-tap` repository

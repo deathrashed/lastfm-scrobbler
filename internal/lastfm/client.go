@@ -32,6 +32,10 @@ func (e *ErrWithSuggestion) Unwrap() error { return e.Err }
 
 type Client interface {
 	Authenticate(ctx context.Context) error
+	GetAuthToken(ctx context.Context) (string, error)
+	GetSession(ctx context.Context, token string) (Session, error)
+	AuthURL(token string) string
+	SessionKey() string
 	SearchAlbums(ctx context.Context, query string) ([]Album, error)
 	GetAlbumTracks(ctx context.Context, artist, album string) (Album, error)
 	GetDiscography(ctx context.Context, artist string) ([]Album, error)
@@ -77,7 +81,8 @@ func (c *client) doRequest(ctx context.Context, input map[string]string, v inter
 	}
 
 	methodName := params["method"]
-	signed := methodName == "auth.getMobileSession" || methodName == "track.scrobble"
+	signed := methodName == "auth.getMobileSession" || methodName == "track.scrobble" ||
+		methodName == "auth.getToken" || methodName == "auth.getSession"
 	httpMethod := http.MethodGet
 	params["api_key"] = c.apiKey
 	if signed {
@@ -137,7 +142,7 @@ func (c *client) doRequest(ctx context.Context, input map[string]string, v inter
 		Message string `json:"message"`
 	}
 	if json.Unmarshal(responseBody, &apiError) == nil && apiError.Error != 0 {
-		return fmt.Errorf("last.fm API error %d: %s", apiError.Error, apiError.Message)
+		return &AuthError{Code: apiError.Error, Message: apiError.Message}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("last.fm API returned HTTP %d: %s", resp.StatusCode, compactBody(responseBody))

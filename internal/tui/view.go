@@ -96,6 +96,8 @@ func (m model) renderBody() string {
 		body = renderUpdateCheckView(m)
 	case stageCompletions:
 		body = renderCompletionsView(m)
+	case stageAuth:
+		body = m.renderAuthView()
 	case stageSetup:
 		body = renderSetupView(m)
 	}
@@ -145,16 +147,44 @@ func renderFooter(m model) string {
 	}
 
 	description, accent := footerHoverDescription(m, spec)
-	descriptionLine := ""
-	accentLine := ""
-	if description != "" {
-		descriptionLine = theme.PrimaryTextStyle.Render(truncateToWidth(description, m.contentWidth()))
+	switch footerDetailRows(m) {
+	case 0:
+		// Short terminals keep only actionable controls. Hover details remain
+		// available again as soon as there is enough vertical room.
+	case 1:
+		parts := make([]string, 0, 2)
+		if description != "" {
+			parts = append(parts, theme.PrimaryTextStyle.Render(description))
+		}
+		if accent != "" {
+			parts = append(parts, theme.AccentTextStyle.Render(accent))
+		}
+		line := strings.Join(parts, theme.MutedStyle.Render("  •  "))
+		lines = append(lines, fitStyled(line, m.contentWidth()))
+	default:
+		descriptionLine := ""
+		accentLine := ""
+		if description != "" {
+			descriptionLine = theme.PrimaryTextStyle.Render(truncateToWidth(description, m.contentWidth()))
+		}
+		if accent != "" {
+			accentLine = theme.AccentTextStyle.Render(truncateToWidth(accent, m.contentWidth()))
+		}
+		lines = append(lines, descriptionLine, accentLine)
 	}
-	if accent != "" {
-		accentLine = theme.AccentTextStyle.Render(truncateToWidth(accent, m.contentWidth()))
-	}
-	lines = append(lines, descriptionLine, accentLine)
 	return strings.Join(lines, "\n")
+}
+
+func footerDetailRows(m model) int {
+	if m.height > 0 {
+		switch {
+		case m.height <= 24:
+			return 0
+		case m.height <= 32:
+			return 1
+		}
+	}
+	return 2
 }
 
 func footerHoverDescription(m model, spec [][]footerItem) (string, string) {

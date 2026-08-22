@@ -44,18 +44,23 @@ The visual system is deliberately consistent across every screen:
 
 - responsive terminal layout that live-resizes from 67 to 127 columns, then remains centered on wider terminals
 - bounded responsive working panels that expand where useful without stretching natural-size controls
-- white structural borders
-- Last.fm Torch Red (`#f8211c`) active controls
-- centered panels and footer hints
+- warm-white structural borders and higher-contrast muted text
+- Last.fm red active controls
+- height-aware hero / classic / compact header density
+- centered panels and footer hints that collapse on short terminals
 - wrapped or clipped long text that cannot break a border
 - Nerd Font icons with plain-text fallbacks where practical
 
-The TUI requires at least 67 terminal columns. Compact Header is a user
-setting, not an automatic narrow-terminal fallback. It normally uses a
-compact four-line header; Manual and Discography add one centered `ARTIST ❯`
-metadata row after an artist has been resolved. Full-header profile URLs
-highlight on hover and open on click; compact mode has no profile URL. Optional
-Now Playing reads current or recent activity in the full header only and never
+The TUI requires at least 67 terminal columns. Header density adapts to
+terminal height: tall windows use the new framed Last.fm hero header, medium
+windows retain the classic header, and short windows automatically use the
+compact four-line header. **Compact Header** remains available as a force-compact
+preference. Manual and Discography add artist context after resolution. Hero
+and classic profile URLs highlight on hover and open on click; compact mode has
+no profile URL. In the hero layout the user URL is embedded in the top frame
+and current/recent activity becomes the lower frame caption, keeping live
+account and playback context attached to the brand instead of spending a
+separate metadata row. Optional Now Playing remains display-only and never
 submits playback state.
 
 <details>
@@ -111,17 +116,17 @@ completion generator or the TUI completion installer.
 
 ### GitHub release binaries
 
-Download [Last.fm Scrobbler v1.1.0](https://github.com/deathrashed/lastfm-scrobbler/releases/tag/v1.1.0),
+Download [Last.fm Scrobbler v1.2.0](https://github.com/deathrashed/lastfm-scrobbler/releases/tag/v1.2.0),
 verify the matching entry in `checksums.txt`, and put the executable on your
 PATH:
 
 | Platform | Archive |
 | --- | --- |
-| macOS Apple Silicon | `scrobbler-v1.1.0-darwin-arm64.tar.gz` |
-| macOS Intel | `scrobbler-v1.1.0-darwin-amd64.tar.gz` |
-| Linux x86_64 | `scrobbler-v1.1.0-linux-amd64.tar.gz` |
-| Linux ARM64 | `scrobbler-v1.1.0-linux-arm64.tar.gz` |
-| Windows x64 | `scrobbler-v1.1.0-windows-amd64.zip` |
+| macOS Apple Silicon | `scrobbler-v1.2.0-darwin-arm64.tar.gz` |
+| macOS Intel | `scrobbler-v1.2.0-darwin-amd64.tar.gz` |
+| Linux x86_64 | `scrobbler-v1.2.0-linux-amd64.tar.gz` |
+| Linux ARM64 | `scrobbler-v1.2.0-linux-arm64.tar.gz` |
+| Windows x64 | `scrobbler-v1.2.0-windows-amd64.zip` |
 
 Unix archives contain `scrobbler`, `LICENSE`, and all four completion files.
 The Windows archive contains `scrobbler.exe`, `LICENSE`, and the same
@@ -242,7 +247,7 @@ full guides cover the details without making the main page a wall of text:
 | [Automation and Keyboard Maestro](docs/AUTOMATION.md) | JSON workflows, launch agents, and automation integration |
 | [Updates](docs/UPDATES.md) | Official GitHub Releases checks and custom update sources |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Configuration, connectivity, terminal, and diagnostics problems |
-| [v1.1.0 release notes](docs/RELEASE_NOTES_v1.1.0.md) | User-facing changes and supported release assets |
+| [v1.2.0 release notes](docs/RELEASE_NOTES_v1.2.0.md) | User-facing changes and supported release assets |
 | [Release checklist](docs/RELEASING.md) | Maintainer validation, packaging, checksums, and publishing |
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
@@ -270,97 +275,66 @@ Profiles.
       <p align="center"><strong>Dashboard</strong><br><sub>Choose Manual, Discography, or File; use the current footer shortcuts</sub></p>
     </td>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/2-manual-search.png"><img src="assets/screenshots/2-manual-search.png" alt="Last.fm Scrobbler Manual search"></a>
-      <p align="center"><strong>Manual search</strong><br><sub>Search by artist, album, or both</sub></p>
+      <a href="assets/screenshots/2-info.png"><img src="assets/screenshots/2-info.png" alt="Last.fm Scrobbler Info reference"></a>
+      <p align="center"><strong>Info</strong><br><sub>Modes, Automation, Data, Curation, and Imports reference</sub></p>
     </td>
     <td width="33%" valign="top">
-      <a href="assets/screenshots/3-manual-select.png"><img src="assets/screenshots/3-manual-select.png" alt="Last.fm Scrobbler Manual track selection"></a>
-      <p align="center"><strong>Manual track selection</strong><br><sub>Choose tracks with album-specific controls</sub></p>
+      <a href="assets/screenshots/3-help.png"><img src="assets/screenshots/3-help.png" alt="Last.fm Scrobbler Help screen"></a>
+      <p align="center"><strong>Help</strong><br><sub>Keyboard and mouse controls with clickable close</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/4-manual-queue.png"><img src="assets/screenshots/4-manual-queue.png" alt="Last.fm Scrobbler Manual queue preview"></a>
+      <a href="assets/screenshots/4-history.png"><img src="assets/screenshots/4-history.png" alt="Last.fm Scrobbler session history"></a>
+      <p align="center"><strong>History</strong><br><sub>Review, export, delete, or rerun sessions</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/5-manual-search.png"><img src="assets/screenshots/5-manual-search.png" alt="Last.fm Scrobbler Manual search"></a>
+      <p align="center"><strong>Manual search</strong><br><sub>Search by artist, album, or both</sub></p>
+    </td>
+    <td valign="top">
+      <a href="assets/screenshots/6-manual-queue.png"><img src="assets/screenshots/6-manual-queue.png" alt="Last.fm Scrobbler Manual queue preview"></a>
       <p align="center"><strong>Manual queue</strong><br><sub>Review tracks, interval, loops, and ETA</sub></p>
     </td>
-    <td valign="top">
-      <a href="assets/screenshots/5-manual-progress.png"><img src="assets/screenshots/5-manual-progress.png" alt="Last.fm Scrobbler Manual scrobble progress"></a>
-      <p align="center"><strong>Manual progress</strong><br><sub>Watch track progress and ETA</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/6-manual-complete.png"><img src="assets/screenshots/6-manual-complete.png" alt="Last.fm Scrobbler completed Manual scrobble"></a>
-      <p align="center"><strong>Manual complete</strong><br><sub>Confirm completion and rerun or export</sub></p>
-    </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/7-discog-search.png"><img src="assets/screenshots/7-discog-search.png" alt="Last.fm Scrobbler Discography search"></a>
-      <p align="center"><strong>Discography search</strong><br><sub>Resolve an artist before loading results</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/8-discog-select.png"><img src="assets/screenshots/8-discog-select.png" alt="Last.fm Scrobbler Discography album selection"></a>
+      <a href="assets/screenshots/7-discography-select.png"><img src="assets/screenshots/7-discography-select.png" alt="Last.fm Scrobbler Discography album selection"></a>
       <p align="center"><strong>Discography selection</strong><br><sub>Select returned albums before loading tracks</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/9-discog-queue.png"><img src="assets/screenshots/9-discog-queue.png" alt="Last.fm Scrobbler Discography queue preview"></a>
-      <p align="center"><strong>Discography queue</strong><br><sub>Review the multi-album queue before scrobbling</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <a href="assets/screenshots/10-discog-progress.png"><img src="assets/screenshots/10-discog-progress.png" alt="Last.fm Scrobbler Discography scrobble progress"></a>
-      <p align="center"><strong>Discography progress</strong><br><sub>Track multi-album scrobble progress</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/11-discog-filter.png"><img src="assets/screenshots/11-discog-filter.png" alt="Last.fm Scrobbler Discography filter"></a>
+      <a href="assets/screenshots/8-discography-filter.png"><img src="assets/screenshots/8-discography-filter.png" alt="Last.fm Scrobbler Discography filter"></a>
       <p align="center"><strong>Discography filter</strong><br><sub>Use the connected FILTER input with RESULTS and SELECTED counters</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/12-file.png"><img src="assets/screenshots/12-file.png" alt="Last.fm Scrobbler File workflow"></a>
-      <p align="center"><strong>File workflow</strong><br><sub>Choose LIST FILE, PLAYLIST, ALBUM FOLDER, or ARTIST FOLDER and enter PATH</sub></p>
+      <a href="assets/screenshots/9-discography-run.png"><img src="assets/screenshots/9-discography-run.png" alt="Last.fm Scrobbler Discography scrobble run"></a>
+      <p align="center"><strong>Discography progress</strong><br><sub>Track multi-album scrobble progress</sub></p>
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <a href="assets/screenshots/13-info.png"><img src="assets/screenshots/13-info.png" alt="Last.fm Scrobbler Info reference"></a>
-      <p align="center"><strong>Info</strong><br><sub>Modes, Automation, Data, Curation, and Imports reference</sub></p>
+      <a href="assets/screenshots/10-discography-complete.png"><img src="assets/screenshots/10-discography-complete.png" alt="Last.fm Scrobbler completed Discography scrobble"></a>
+      <p align="center"><strong>Discography complete</strong><br><sub>Confirm completion and rerun or export</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/14-settings.png"><img src="assets/screenshots/14-settings.png" alt="Last.fm Scrobbler unified Settings"></a>
+      <a href="assets/screenshots/11-settings.png"><img src="assets/screenshots/11-settings.png" alt="Last.fm Scrobbler unified Settings"></a>
       <p align="center"><strong>Settings</strong><br><sub>Account, Scrobbling, History, Tools, Interface, and Profiles</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/15-history.png"><img src="assets/screenshots/15-history.png" alt="Last.fm Scrobbler session history"></a>
-      <p align="center"><strong>History</strong><br><sub>Review, export, delete, or rerun sessions</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <a href="assets/screenshots/16-help.png"><img src="assets/screenshots/16-help.png" alt="Last.fm Scrobbler Help screen"></a>
-      <p align="center"><strong>Help</strong><br><sub>Keyboard and mouse controls with clickable close</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/17-rerun.png"><img src="assets/screenshots/17-rerun.png" alt="Last.fm Scrobbler Last Session rerun"></a>
-      <p align="center"><strong>Last Session</strong><br><sub>Confirm <code>enter</code> rerun or <code>e</code> edit-first rerun</sub></p>
-    </td>
-    <td valign="top">
-      <a href="assets/screenshots/18-header-now-playing-off.png"><img src="assets/screenshots/18-header-now-playing-off.png" alt="Last.fm Scrobbler Interface settings with Now Playing off"></a>
-      <p align="center"><strong>Now Playing off</strong><br><sub>Interface setting for activity-free full headers</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <a href="assets/screenshots/19-header-now-playing-on.png"><img src="assets/screenshots/19-header-now-playing-on.png" alt="Last.fm Scrobbler Interface settings with Now Playing on"></a>
+      <a href="assets/screenshots/12-settings-nowplaying-header.png"><img src="assets/screenshots/12-settings-nowplaying-header.png" alt="Last.fm Scrobbler Interface settings with Now Playing on"></a>
       <p align="center"><strong>Now Playing on</strong><br><sub>Enable current or recent Last.fm activity in the full header</sub></p>
     </td>
+  </tr>
+  <tr>
     <td valign="top">
-      <a href="assets/screenshots/20-header-compact-on.png"><img src="assets/screenshots/20-header-compact-on.png" alt="Last.fm Scrobbler Interface settings with Compact Header on"></a>
+      <a href="assets/screenshots/13-settings-compact-header.png"><img src="assets/screenshots/13-settings-compact-header.png" alt="Last.fm Scrobbler Interface settings with Compact Header on"></a>
       <p align="center"><strong>Compact Header on</strong><br><sub>Interface setting for the four-line header</sub></p>
     </td>
     <td valign="top">
-      <a href="assets/screenshots/21-header-compact-artist.png"><img src="assets/screenshots/21-header-compact-artist.png" alt="Last.fm Scrobbler compact Discography view with artist context"></a>
-      <p align="center"><strong>Compact Discography with artist</strong><br><sub>Resolved artist context above the Discography results</sub></p>
+      <a href="assets/screenshots/14-file.png"><img src="assets/screenshots/14-file.png" alt="Last.fm Scrobbler File workflow"></a>
+      <p align="center"><strong>File workflow</strong><br><sub>Choose LIST FILE, PLAYLIST, ALBUM FOLDER, or ARTIST FOLDER and enter PATH</sub></p>
     </td>
+    <td valign="top"></td>
   </tr>
 </table>
 
@@ -438,7 +412,7 @@ the responsive application grows:
 The sections are grouped by purpose:
 
 - **Account** — Last.fm username/password, API key/secret, credential source,
-  and credential path.
+  credential path, authentication status, and reauthentication.
 - **Scrobbling** — loop, interval, retries, duplicate guard, and Discography
   cleanup.
 - **History** — saved sessions, edit/exact re-runs, export, and delete.
@@ -468,6 +442,22 @@ readiness without sending a scrobble. Diagnostics creates a ZIP with runtime
 details, redacted configuration, a history summary, and the tail of the
 application log. Passwords, API secrets, session keys, and complete API keys
 are excluded.
+
+### Last.fm authentication
+
+**Settings → Account** shows whether a session is stored (`✓ username` or
+`✗ not authenticated`) without ever displaying the key itself, plus a
+reauthentication action that starts the browser authorization flow.
+
+When scrobbling fails with Last.fm error 9 (`Invalid session key`), the run
+pauses instead of retrying: completed tracks are never resubmitted, the queue
+is preserved, and the screen offers `a re-authenticate`. The auth screen
+requests a fresh token, opens `https://www.last.fm/api/auth/`, and exchanges
+the same token for a new session once you have granted permission — no restart
+required, and returning resumes the interrupted run with its progress intact.
+A failed exchange is summarized as `Error N · reason`; raw API messages stay
+out of the main UI. See [docs/RELEASE_NOTES_v1.2.0.md](docs/RELEASE_NOTES_v1.2.0.md)
+for the full walkthrough.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Credentials
 
@@ -723,6 +713,19 @@ LASTFM_ENV_FILE=/absolute/path/to/file.env scrobbler test
 `.env` is ignored by Git and should have owner-only permissions. See
 [Environment file precedence](#environment-file-precedence) for the complete
 discovery and overlay order.
+
+</details>
+
+<details>
+  <summary><strong>Scrobbling fails with “Invalid session key” (API error 9)</strong></summary>
+
+Your stored Last.fm session expired or was revoked. Start the app and press
+`A` on the paused scrobble screen, or open **Settings → Account →
+RE-AUTHENTICATE**: the browser opens Last.fm's authorization page, and after
+granting permission `enter` exchanges a fresh session key. The new key is
+saved through your normal credential source, the client updates immediately,
+and your interrupted queue keeps its progress. If the browser cannot open,
+copy the URL shown by the auth screen into a browser manually.
 
 </details>
 

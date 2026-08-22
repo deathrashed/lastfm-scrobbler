@@ -164,6 +164,8 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateCompletions(msg)
 		case stageSetup:
 			return m.updateSetup(msg)
+		case stageAuth:
+			return m.updateAuth(msg)
 		}
 	case tea.MouseMsg:
 		if !m.cfg.MouseEnabled {
@@ -171,9 +173,13 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.updateMouse(msg)
 	case tea.WindowSizeMsg:
+		wasPolling := m.activityPollingEnabled()
 		m.width, m.height = msg.Width, msg.Height
 		m.headerURLHover = false
 		m.resizeInputs()
+		if !wasPolling && m.activityPollingEnabled() {
+			return m, m.activityFetchCmd()
+		}
 		return m, nil
 	case activityRefreshMsg:
 		if msg.seq != m.activitySeq {
@@ -351,6 +357,14 @@ func updateModel(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.completionStatus = msg.result.Status
 		m.completionMessage = msg.result.Path
 		return m, nil
+	case authTokenMsg:
+		updated, cmd := m.updateAuthMsg(msg)
+		m = updated.(model)
+		return m, cmd
+	case authSessionMsg:
+		updated, cmd := m.updateAuthMsg(msg)
+		m = updated.(model)
+		return m, cmd
 	case headerURLMsg:
 		m.err = msg.err
 		if msg.err != nil {
@@ -1083,6 +1097,10 @@ func (m model) updateScrobbling(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "a":
+			// Re-authenticate from a failed scrobble run: remember the
+			// interrupted workflow and enter the auth screen.
+			return m.reauthenticate()
 		case "q":
 			m.cancelScrobbleSession()
 			return m, tea.Quit
@@ -1116,6 +1134,14 @@ func (m model) updateScrobbling(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scrobbleQueue[msg.idx-1] = item
 			m.scrobbleIdx = msg.idx
 			_ = m.store.SavePending(m.queueRecord("pending"))
+		}
+		// Last.fm error 9 means the persisted session key is invalid or
+		// revoked. Treat it as an authentication failure, not a transient
+		// network error: stop retrying with the dead key, mark auth
+		// invalid, preserve the queue/failures, and surface a repair
+		// action. We do NOT re-submit already-successful scrobbles.
+		if msg.err != nil && lastfm.Code(msg.err) == 9 {
+			return m.handleAuthInvalidDuringScrobble()
 		}
 		if m.scrobbleIdx >= len(m.scrobbleQueue) {
 			return m.finishSession()
@@ -1825,15 +1851,30 @@ func openHeaderURLCmd(value string) tea.Cmd {
 }
 
 func (m model) headerURLContains(x, y int) bool {
-	if m.compactHeaderEnabled() {
+	switch m.headerLayout() {
+	case headerCompact:
 		return false
+	case headerHero:
+		// The URL now lives in the capsule that interrupts the top border
+		// (row index 1 inside the rendered hero). Column math uses display
+		// width so the box-drawing frame never offsets the hitbox.
+		lines := renderAttachedProfileHeader(m.appWidth(), m.cfg.Username, false)
+		plain := stripANSI(lines[1])
+		profile := headerURLDisplay(m.cfg.Username)
+		index := strings.Index(plain, profile)
+		if index < 0 {
+			return false
+		}
+		left := displayWidth(plain[:index])
+		return y == 1 && x >= left && x < left+displayWidth(profile)
+	default:
+		maxDisplayWidth := m.appWidth() - 2
+		if m.nowPlayingEnabled() {
+			maxDisplayWidth = m.appWidth() - 8
+		}
+		left, top, width := headerURLBoundsAtWidthWithLimit(m.cfg.Username, m.appWidth(), maxDisplayWidth)
+		return y == top && x >= left && x < left+width
 	}
-	maxDisplayWidth := m.appWidth() - 2
-	if m.nowPlayingEnabled() {
-		maxDisplayWidth = m.appWidth() - 8
-	}
-	left, top, width := headerURLBoundsAtWidthWithLimit(m.cfg.Username, m.appWidth(), maxDisplayWidth)
-	return y == top && x >= left && x < left+width
 }
 
 func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
@@ -1917,6 +1958,10 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		case region.id == "connection:action":
 			return m.updateModelKey(region.message)
 		case region.id == "update:action":
+			return m.updateModelKey(region.message)
+		case strings.HasPrefix(region.id, "auth:"):
+			// auth:action (enter) and auth:open (o) both map to the same
+			// underlying key handling as the keyboard path.
 			return m.updateModelKey(region.message)
 		case strings.HasPrefix(region.id, "completion:shell:"):
 			shell, err := completion.ParseShell(strings.TrimPrefix(region.id, "completion:shell:"))

@@ -16,7 +16,15 @@ type runnerClient struct {
 	timestamps        []int64
 }
 
-func (c *runnerClient) Authenticate(context.Context) error { return nil }
+func (c *runnerClient) Authenticate(context.Context) error           { return nil }
+func (c *runnerClient) GetAuthToken(context.Context) (string, error) { return "token", nil }
+func (c *runnerClient) GetSession(context.Context, string) (lastfm.Session, error) {
+	return lastfm.Session{Name: "user", Key: "key"}, nil
+}
+func (c *runnerClient) AuthURL(token string) string {
+	return "https://www.last.fm/api/auth/?token=" + token
+}
+func (c *runnerClient) SessionKey() string { return "key" }
 func (c *runnerClient) SearchAlbums(context.Context, string) ([]lastfm.Album, error) {
 	return nil, nil
 }

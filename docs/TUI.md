@@ -1,23 +1,24 @@
 # <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="24" height="24" alt="Last.fm icon"> TUI controls and workflows
 
-The Bubble Tea interface uses a responsive 67–127-cell application with Torch
-Red active controls, centered panels, contextual footer hints, and optional
-mouse support. At 67 columns it retains the approved compact design. As the
-terminal grows, the outer header can expand to 127 cells while dense working
-surfaces grow only as far as they remain visually cohesive (currently 103
-cells) and stay centered inside the application. Natural-width navigation
+The Bubble Tea interface uses a responsive 67–127-cell application with
+high-contrast Last.fm red active controls, warm-white structure, centered
+panels, contextual footer hints, and optional mouse support. Header density is
+selected from terminal height rather than width alone, while working surfaces
+grow only as far as they remain visually cohesive (currently 103 cells) and
+stay centered inside the application. Natural-width navigation
 cards use bounded spacing rather than stretching to the edges. Above 127 cells
 the application remains 127 cells wide and centers itself. Terminal resizing
 updates rendered geometry and mouse regions live. Run `scrobbler` without a
 subcommand to open it.
 
-The UI requires a terminal at least 67 columns wide. Compact Header is enabled
-only by `SCROBBLE_COMPACT_HEADER` or **Settings → Interface → Compact Header**;
-it does not switch on automatically for narrow terminals. Compact mode uses a
+The UI requires a terminal at least 67 columns wide. Header density is now
+height-aware: tall terminals use the framed Last.fm hero header, medium-height
+terminals keep the classic header, and short terminals automatically switch to
+the compact header. `SCROBBLE_COMPACT_HEADER` or **Settings → Interface →
+Compact Header** still forces compact mode at every size. Compact mode uses a
 four-line header until Manual or Discography has resolved an artist; then it
-adds one centered `ARTIST ❯ NAME` metadata row inside the responsive working
-surface. The full header retains the profile URL, artwork, and its existing
-attached artist badge.
+adds one centered `ARTIST ❯ NAME` metadata row. The hero and classic headers
+retain the profile URL and optional Last.fm activity.
 
 ## First-run setup wizard
 
@@ -98,19 +99,23 @@ i info • h history • m d quick f q • r rerun • ? help
 
 Profiles are opened through **Settings → Profiles**, not a Dashboard shortcut.
 
-### Full-header activity
+### Hero/classic-header activity
 
-**Settings → Interface → Now Playing** is enabled by default and applies only
-to the full header. The TUI reads one item through Last.fm's
+**Settings → Interface → Now Playing** is enabled by default and applies to
+the hero and classic headers. The TUI reads one item through Last.fm's
 [`user.getRecentTracks`](https://www.last.fm/api/show/user.getRecentTracks)
-method. While this display is enabled, the profile URL is promoted into the
-attached top badge above the activity row. A current track uses the animated
-volume sequence, while the most recent non-playing scrobble uses a distinct
-static history icon. Loading, no-history, and unavailable states keep the same
-reserved activity row. The display refreshes about every 30 seconds and never
-submits playback state.
+method. In the classic header the profile URL remains an attached top badge;
+in the hero header the dynamic profile URL is embedded directly into the top
+frame and useful current/recent activity becomes the bottom-frame caption. The
+hero caption intentionally omits the animated volume glyph so `Artist - Track`
+stays clean inside the border; the classic header keeps the animated current
+track indicator and the recent-history icon. Loading, no-history, and
+unavailable activity do not clutter the hero frame. The display refreshes
+about every 30 seconds and never submits playback state.
 Compact Header deliberately remains activity-free; it only adds its approved
-Manual or Discography artist row after an artist is resolved.
+Manual or Discography artist row after an artist is resolved. On short
+terminals this compact fallback happens automatically so activity never steals
+space from the active workflow.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Settings
 
@@ -135,7 +140,7 @@ workflows inside the same navigation shell.
 
 | Section | Contents |
 | --- | --- |
-| **Account** | Last.fm username/password, API key/secret, credential source, credential path. |
+| **Account** | Last.fm username/password, API key/secret, credential source, credential path, authentication status, reauthentication. |
 | **Scrobbling** | Loop, interval, retry count/delay, duplicate guard, Clean Discography. |
 | **History** | Saved sessions, edit/exact re-runs, export, delete. |
 | **Tools** | Export directory, update source, connection test, diagnostics, completions, update check. |
@@ -190,6 +195,37 @@ the custom Last.fm bounce spinner ` ∙ ∙ → ∙  ∙ → ∙ ∙  �
 Interactive footer actions expose contextual mouse help. Hover a footer action
 to show a concise white description below the controls; when the explanation
 names the current album, that dynamic album name is highlighted in Torch Red.
+
+## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Last.fm authentication
+
+The auth screen follows the app's attached-capsule grammar: a STATUS capsule
+(`WAITING`, `FETCHING`, `AUTHENTICATED`, `FAILED`, `EXPIRED`), an ACCOUNT
+capsule, a state-driven CURRENT ACTION section, step rows for PERMISSION and
+SESSION KEY with restrained glyphs (`✓` complete, `●` active, `○` waiting,
+`✗` failed), and an optional RESULT capsule that summarizes Last.fm API errors
+as `Error N · reason`. Raw API messages and credentials are never shown in the
+main UX.
+
+Open it through **Settings → Account → RE-AUTHENTICATE**, or automatically
+when scrobbling stops on error 9 (`Invalid session key`). The run pauses,
+completed tracks are never resubmitted, and the queue is preserved — the auth
+screen shows preserved progress such as
+`RETURN ❯ SCROBBLING • 7 / 12 preserved`.
+
+Auth screen controls:
+
+| Key | Action |
+| --- | --- |
+| `O` | Reopen the Last.fm authorization page in your browser (pending state). |
+| `Enter` | Exchange the authorized token (`GET SESSION KEY`), start again after failure, or return once authenticated. |
+| `Esc` | Return to the previous screen; the interrupted workflow keeps its state. |
+| Mouse | Click the visible buttons directly — regions match exactly what is rendered per state. |
+
+After a successful exchange the session key persists immediately (macOS
+Keychain for `auto`/`keychain`, the credentials file for `file`), the live
+client is rebuilt without a restart, and the context-aware
+`RETURN TO SCROBBLING` / `RETURN TO SETTINGS` / `RETURN TO DASHBOARD` action
+takes you back to where you came from.
 
 ## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="20" height="20" alt="Last.fm icon"> Info
 

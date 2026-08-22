@@ -82,7 +82,7 @@ func (m model) workX() int {
 
 func (m model) density() layoutDensity { return densityFor(m.width) }
 
-func (m model) nowPlayingEnabled() bool { return !m.cfg.CompactHeader && m.cfg.NowPlaying }
+func (m model) nowPlayingEnabled() bool { return !m.compactHeaderEnabled() && m.cfg.NowPlaying }
 
 func (m *model) resizeInputs() {
 	width := maxInt(1, m.panelWidth()-4)

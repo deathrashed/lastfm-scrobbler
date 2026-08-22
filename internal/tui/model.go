@@ -38,6 +38,7 @@ const (
 	stageSimilarSelect
 	stageProfiles
 	stageProfileName
+	stageAuth
 	stageInfo
 	stageConnectionTest
 	stageDiagnostics
@@ -142,6 +143,14 @@ type model struct {
 	setup             setupstate.State
 	setupInputs       [4]textinput.Model
 	setupOriginal     config.Config
+
+	authState    authState
+	authToken    string
+	authUsername string
+	authError    error
+	authReturn   stage // stage to restore when leaving the auth screen
+
+	scrobblePaused bool // true when an auth failure interrupted an active run
 }
 
 type queuedTrack struct {

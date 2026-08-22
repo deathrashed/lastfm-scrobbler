@@ -234,6 +234,13 @@ func footerSpec(m model) [][]footerItem {
 			esc(" account", "return to Account settings"),
 		}}
 	case stageScrobbling:
+		if m.scrobblePaused || m.authState == authInvalid {
+			return [][]footerItem{{
+				a("footer:a", "a", " re-authenticate", "repair the expired session and resume"),
+				esc(" cancel", "cancel the active scrobble session"),
+				a("footer:q", "q", " quit + resume later", "quit and keep the session available for recovery"),
+			}}
+		}
 		return [][]footerItem{{
 			esc(" cancel", "cancel the active scrobble session"),
 			a("footer:q", "q", " quit + resume later", "quit and keep the session available for recovery"),
@@ -357,6 +364,42 @@ func footerSpec(m model) [][]footerItem {
 			esc(" tools", "return to Tools"),
 			a("footer:q", "q", " quit", "quit Last.fm Scrobbler"),
 		}}
+	case stageAuth:
+		switch m.authState {
+		case authPending:
+			return [][]footerItem{{
+				a("footer:o", "o", " browser", "reopen the Last.fm authorization page"),
+				enter(" get key", "exchange the authorized token for a session key"),
+				esc(" back", "return to the previous screen"),
+			}}
+		case authExchanging:
+			return [][]footerItem{{
+				esc(" back", "return to the previous screen"),
+			}}
+		case authValid:
+			label := " return"
+			switch m.authReturnTarget() {
+			case stageScrobbling:
+				label = " scrobbling"
+			case stageConfig:
+				label = " settings"
+			}
+			return [][]footerItem{{
+				enter(label, "leave the auth screen"),
+				a("footer:q", "q", " quit", "quit Last.fm Scrobbler"),
+			}}
+		default: // authUnknown, authInvalid, authFailed
+			if m.authState == authFailed || m.authState == authInvalid {
+				return [][]footerItem{{
+					enter(" start again", "request a fresh authorization token"),
+					esc(" back", "return to the previous screen"),
+				}}
+			}
+			return [][]footerItem{{
+				enter(" continue", "request an authorization token"),
+				esc(" back", "return to the previous screen"),
+			}}
+		}
 	}
 	return nil
 }
@@ -479,6 +522,62 @@ func (m model) screenRegions() []mouseRegion {
 		regions = append(regions, setupScreenRegions(m, bodyY)...)
 	case stageCompletions:
 		regions = append(regions, completionScreenRegions(m, bodyY)...)
+	case stageAuth:
+		// Exact regions matching the visible action buttons only. Buttons are
+		// centered under the panel; compute their x from the group layout.
+		bodyY := m.headerHeight()
+		totalWidth := m.panelWidth()
+		var boxes []struct {
+			id    string
+			width int
+			key   string
+		}
+		switch m.authState {
+		case authPending:
+			boxes = append(boxes,
+				struct {
+					id    string
+					width int
+					key   string
+				}{"auth:open", 20, "o"},
+				struct {
+					id    string
+					width int
+					key   string
+				}{"auth:get-session", 22, "enter"},
+			)
+		case authFailed, authInvalid:
+			boxes = append(boxes, struct {
+				id    string
+				width int
+				key   string
+			}{"auth:retry", 18, "enter"})
+		case authValid:
+			label, _ := m.authReturnAction()
+			boxes = append(boxes, struct {
+				id    string
+				width int
+				key   string
+			}{"auth:return", maxInt(24, minInt(totalWidth-6, 30)), "enter"})
+			_ = label
+		}
+		if len(boxes) > 0 {
+			gap := 2
+			groupWidth := 0
+			for i, b := range boxes {
+				if i > 0 {
+					groupWidth += gap
+				}
+				groupWidth += b.width
+			}
+			left := maxInt(0, (totalWidth-groupWidth)/2)
+			x := left + m.workX()
+			y := bodyY // first button row is attached to the panel bottom border
+			for _, b := range boxes {
+				regions = append(regions, mouseRegion{id: b.id, x: x, y: y, width: b.width, height: 3, message: keyMessage(b.key)})
+				x += b.width + gap
+			}
+		}
 	case stageSearch:
 		regions = append(regions, mouseRegion{id: "search:input", x: workX, y: bodyY, width: m.panelWidth(), height: 3})
 	case stageImportSource:
