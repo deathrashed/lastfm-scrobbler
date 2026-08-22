@@ -93,9 +93,23 @@ jobs:
           (cd dist && sha256sum scrobbler-* > checksums.txt)
           test -s dist/checksums.txt
 
+      - name: Resolve release notes path
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Notes file matching the tag (docs/RELEASE_NOTES_v1.3.0.md for v1.3.0);
+          # falls back to auto-generated notes when no dedicated file exists.
+          notes="docs/RELEASE_NOTES_${VERSION}.md"
+          if [ -f "${notes}" ]; then
+            echo "notes_path=${notes}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "notes_path=" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: docs/RELEASE_NOTES_v1.2.0.md
-          generate_release_notes: false
+          body_path: ${{ steps.notes.outputs.notes_path }}
+          generate_release_notes: ${{ steps.notes.outputs.notes_path == '' }}
           files: dist/*
