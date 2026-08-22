@@ -96,6 +96,6 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: docs/RELEASE_NOTES_v1.1.0.md
+          body_path: docs/RELEASE_NOTES_v1.2.0.md
           generate_release_notes: false
           files: dist/*
