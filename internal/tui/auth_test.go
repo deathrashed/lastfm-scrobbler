@@ -205,7 +205,9 @@ func TestAuthTokenMessageOpensBrowserWithCorrectURL(t *testing.T) {
 
 func TestGetSessionKeyUsesSamePendingToken(t *testing.T) {
 	client := &fakeAuthClient{token: "p1", session: lastfm.Session{Name: "deathrashed", Key: "ses"}, apiKey: "key123"}
-	m := model{stage: stageAuth, authState: authPending, authToken: "p1", width: 100, cfg: config.Config{Username: "deathrashed", APIKey: "key123"}}
+	// environment credentials make PersistSessionKey a no-op, keeping the test
+	// hermetic on runners without macOS Keychain.
+	m := model{stage: stageAuth, authState: authPending, authToken: "p1", width: 100, cfg: config.Config{Username: "deathrashed", APIKey: "key123", CredentialSource: "environment"}}
 	m, _ = withFakeAuth(t, m, client)
 
 	// Pressing enter in the pending state exchanges the SAME token.
@@ -351,7 +353,7 @@ func TestSuccessfulExchangeReturnsToAuthReturnScreen(t *testing.T) {
 		configInput:  newTextInput(1024, 44),
 		envInput:     newTextInput(1024, 44),
 		profileInput: newTextInput(1024, 44),
-		cfg:          config.Config{Username: "deathrashed", APIKey: "key123"},
+		cfg:          config.Config{Username: "deathrashed", APIKey: "key123", CredentialSource: "environment"},
 	}
 	m, _ = withFakeAuth(t, m, client)
 
