@@ -15,7 +15,10 @@ import (
 func setupPanel(title string, lines []string, widths ...int) string {
 	totalWidth := setupPanelWidth
 	if len(widths) > 0 {
-		totalWidth = maxInt(setupPanelWidth, widths[0])
+		// An explicit width is authoritative. This lets compact setup cards
+		// (Scrobbling, Interface, Completed) stay genuinely narrow while the
+		// information-heavy pages continue to use the normal panel width.
+		totalWidth = maxInt(31, widths[0])
 	}
 	titleCore := "┤ " + theme.HeaderTextStyle.Render(title) + " ├"
 	remaining := totalWidth - 2 - lipgloss.Width(titleCore)
@@ -35,14 +38,42 @@ func setupPanel(title string, lines []string, widths ...int) string {
 	return strings.Join(out, "\n")
 }
 
+func setupNarrowPanelWidth(m model, preferred int) int {
+	maxWidth := maxInt(31, m.panelWidth())
+	return minInt(maxWidth, maxInt(31, preferred))
+}
+
 func setupPanelForModel(m model, title string, lines []string) string {
 	return setupPanel(title, lines, m.panelWidth())
+}
+
+// setupBridgeLine visually continues the SETUP stage badge into the current
+// wizard page. The bridge is generated from display widths instead of copied
+// dash counts, so long titles such as CREDENTIAL STORAGE stay centered.
+func setupBridgeLine(title string, width int) string {
+	width = maxInt(setupPanelWidth, width)
+	icon := theme.IconSettings
+	ribbon := "────" + icon + "────"
+	// The bridge widens only as much as the child title grows beyond SETUP.
+	// That keeps short pages compact (╭───╯ ... ╰───╮) while long titles such
+	// as CREDENTIAL STORAGE naturally receive longer shoulders.
+	titleDelta := maxInt(0, lipgloss.Width(title)-lipgloss.Width("S E T U P"))
+	leftShoulder := maxInt(3, titleDelta/2)
+	rightShoulder := maxInt(3, titleDelta-leftShoulder)
+	maxShoulders := maxInt(3, (width-lipgloss.Width(ribbon)-7)/2)
+	leftShoulder = minInt(leftShoulder, maxShoulders)
+	rightShoulder = minInt(rightShoulder, maxShoulders)
+	bridge := theme.BadgeBorderStyle.Render("╭"+strings.Repeat("─", leftShoulder)+"╯ ") +
+		theme.BadgeBorderStyle.Render(strings.Repeat("─", 4)) +
+		theme.BadgeStyle.Render(icon) +
+		theme.BadgeBorderStyle.Render(strings.Repeat("─", 4)+" ╰"+strings.Repeat("─", rightShoulder)+"╮")
+	return centerText(bridge, width)
 }
 
 func setupRow(label, value string, focused bool, widths ...int) string {
 	totalWidth := setupPanelWidth
 	if len(widths) > 0 {
-		totalWidth = maxInt(setupPanelWidth, widths[0])
+		totalWidth = maxInt(31, widths[0])
 	}
 	labelStyle, arrowStyle, valueStyle := theme.RowLabelStyle, theme.RowArrowStyle, theme.RowValueStyle
 	if focused {
@@ -56,7 +87,7 @@ func setupRow(label, value string, focused bool, widths ...int) string {
 func setupInputRow(label, value string, focused bool, widths ...int) string {
 	totalWidth := setupPanelWidth
 	if len(widths) > 0 {
-		totalWidth = maxInt(setupPanelWidth, widths[0])
+		totalWidth = maxInt(31, widths[0])
 	}
 	labelStyle, arrowStyle := theme.RowLabelStyle, theme.RowArrowStyle
 	if focused {
@@ -66,16 +97,25 @@ func setupInputRow(label, value string, focused bool, widths ...int) string {
 }
 
 func setupStatusRow(label, status string, applying bool, widths ...int) string {
+	totalWidth := setupPanelWidth
+	if len(widths) > 0 {
+		totalWidth = maxInt(31, widths[0])
+	}
 	if status == "" && applying {
 		status = "waiting"
 	}
+	glyph := theme.SecondaryTextStyle.Render("○")
+	statusStyle := theme.RowValueStyle
 	if status == "installed" || status == "configured" || status == "saved" || status == "stored securely" || status == "connected" || status == "ready" {
-		return theme.CompleteStyle.Render(theme.IconSuccess) + "  " + theme.RowLabelStyle.Render(label) + "  " + theme.CompleteStyle.Render(status)
+		glyph = theme.CompleteStyle.Render(theme.IconSuccess)
+		statusStyle = theme.CompleteStyle
+	} else if status == "failed" {
+		glyph = theme.ErrorStyle.Render(theme.IconError)
+		statusStyle = theme.ErrorStyle
 	}
-	if status == "failed" {
-		return theme.ErrorStyle.Render(theme.IconError) + "  " + theme.RowLabelStyle.Render(label) + "  " + theme.ErrorStyle.Render(status)
-	}
-	return theme.SecondaryTextStyle.Render("○") + "  " + theme.RowLabelStyle.Render(label) + "  " + theme.RowValueStyle.Render(status)
+	labelWidth := minInt(22, maxInt(14, totalWidth/4))
+	row := glyph + "  " + padRight(theme.RowLabelStyle.Render(label), labelWidth) + "  " + statusStyle.Render(status)
+	return fitSetupValue(row, totalWidth-4)
 }
 
 func fitSetupValue(value string, width int) string { return padRight(fitStyled(value, width), width) }
@@ -87,32 +127,12 @@ func setupOnOff(value bool) string {
 	return "OFF"
 }
 
-func setupFontDetection(m model) string {
-	if m.setup.HasFont() {
-		return "selected"
-	}
-	return "not detected"
-}
-
-func setupTerminalChoice(m model) string {
-	if !m.setup.HasFont() {
-		return "NO"
-	}
-	if m.setup.TerminalDefault && m.setup.Terminal.Supported {
-		return "YES"
-	}
-	if m.setup.TerminalDefault {
-		return "MANUAL"
-	}
-	return "NO"
-}
-
 func setupProgress(page setup.Page) string {
-	step := -1
+	step := 0
 	switch page {
-	case setup.PageSystem:
+	case setup.PageWelcome:
 		step = 0
-	case setup.PageFont:
+	case setup.PageSystem:
 		step = 1
 	case setup.PageAccount:
 		step = 2
@@ -124,23 +144,23 @@ func setupProgress(page setup.Page) string {
 		step = 5
 	case setup.PageReview:
 		step = 6
-	case setup.PageApply:
-		step = 7
 	case setup.PageComplete:
-		step = setup.NumberedPageCount
+		step = 7
+	default:
+		step = 6
 	}
-	dots := make([]string, setup.NumberedPageCount)
+	dots := make([]string, 8)
 	for index := range dots {
 		style := theme.MutedStyle
-		if index < step || step == setup.NumberedPageCount {
+		if index < step {
 			style = theme.AccentTextStyle
 		} else if index == step {
 			style = theme.PrimaryTextStyle
 		}
+		if page == setup.PageComplete {
+			style = theme.AccentTextStyle
+		}
 		dots[index] = style.Render("●")
-	}
-	if page == setup.PageComplete {
-		dots = append(dots, theme.CompleteStyle.Render(theme.IconSuccess))
 	}
 	return strings.Join(dots, "  ")
 }
@@ -159,12 +179,6 @@ func setupScreenRegions(m model, bodyY int) []mouseRegion {
 	switch m.setup.Page {
 	case setup.PageWelcome:
 		add("setup:continue", "GET STARTED", keyMessage("enter"))
-	case setup.PageFont:
-		for index, font := range m.setup.Fonts {
-			add(fmt.Sprintf("setup:font:%d", index), font.Name, keyMessage("enter"))
-		}
-		add("setup:toggle:install", "INSTALL FONT", keyMessage("space"))
-		add("setup:toggle:terminal", "TERMINAL DEFAULT", keyMessage("space"))
 	case setup.PageAccount:
 		for index, label := range []string{"USERNAME", "PASSWORD", "API KEY", "SECRET"} {
 			add(fmt.Sprintf("setup:account:%d", index), label, keyMessage("tab"))
@@ -183,10 +197,12 @@ func setupScreenRegions(m model, bodyY int) []mouseRegion {
 		}
 	case setup.PageReview:
 		add("setup:continue", "ACCOUNT", keyMessage("enter"))
-	case setup.PageApply:
-		add("setup:continue", "C O N N E C T I O N", keyMessage("enter"))
 	case setup.PageComplete:
-		add("setup:continue", "S E T U P", keyMessage("enter"))
+		if strings.TrimSpace(m.cfg.SessionKey) == "" {
+			add("setup:continue", "E N J O Y", keyMessage("enter"))
+		} else {
+			add("setup:continue", "E N J O Y", keyMessage("enter"))
+		}
 	}
 	return regions
 }

@@ -13,13 +13,11 @@ type Page int
 const (
 	PageWelcome Page = iota
 	PageSystem
-	PageFont
 	PageAccount
 	PageStorage
 	PageScrobbling
 	PageInterface
 	PageReview
-	PageApply
 	PageComplete
 )
 
@@ -73,7 +71,7 @@ func NewState(cfg config.Config) State {
 		Terminal:         terminal,
 		Fonts:            fonts,
 		FontIndex:        0,
-		InstallFont:      true,
+		InstallFont:      false,
 		TerminalDefault:  false,
 		Account:          Account{Username: cfg.Username, Password: cfg.Password, APIKey: cfg.APIKey, APISecret: cfg.APISecret},
 		CredentialSource: initialCredentialSource(cfg),

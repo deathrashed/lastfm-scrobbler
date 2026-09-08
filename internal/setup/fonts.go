@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const nerdFontsDownloadBase = "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/"
@@ -44,7 +45,7 @@ type fontInstaller struct {
 
 func NewFontInstaller(client *http.Client) FontInstaller {
 	if client == nil {
-		client = &http.Client{}
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
 	return &fontInstaller{httpClient: client, fontDir: userFontDirectory}
 }

@@ -14,3 +14,7 @@ coverage.out
 
 # macOS
 .DS_Store
+Icon
+# macOS custom folder icon files
+/Icon
+/Icon?

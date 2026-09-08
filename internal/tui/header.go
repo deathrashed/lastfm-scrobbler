@@ -168,6 +168,9 @@ func (m model) headerHeight() int {
 	switch m.headerLayout() {
 	case headerHero:
 		height := heroHeaderLines
+		if m.stage == stageSetup {
+			height-- // setup body owns the icon bridge beneath the SETUP badge
+		}
 		if m.headerArtist() != "" {
 			// Contextual artist badge renders two more rows beneath the
 			// stage badge, exactly like the original classic header.
@@ -181,6 +184,9 @@ func (m model) headerHeight() int {
 		return compactHeaderLines
 	default:
 		height := fullHeaderLines
+		if m.stage == stageSetup {
+			height-- // setup body owns the icon bridge beneath the SETUP badge
+		}
 		if m.nowPlayingEnabled() {
 			// The activity treatment also promotes the profile URL into the attached
 			// top badge requested for Now Playing, which adds one structural row in
@@ -299,7 +305,9 @@ func renderHeroHeader(width int, stg stage, modeChoice, username, settingsLine s
 	badgeTop, bottomLine, badgeUnderline := renderBadgeBottom(width, badgeText, badgeIcon)
 	lines = append(lines, badgeTop, bottomLine)
 	if strings.TrimSpace(artist) == "" {
-		lines = append(lines, badgeUnderline)
+		if stg != stageSetup {
+			lines = append(lines, badgeUnderline)
+		}
 	} else {
 		// Workflow context (searched/selected artist, discography, etc.)
 		// takes priority over Now Playing and is rendered as a contextual

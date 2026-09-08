@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
@@ -471,4 +472,63 @@ func (m model) openSettingsRowAction_helper(id string) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m.openSettingsRowAction()
+}
+
+func TestAuthAttachedGeometryIsExactWidth(t *testing.T) {
+	states := []authState{authPending, authExchanging, authValid, authFailed, authInvalid}
+	for _, terminalWidth := range []int{67, 80, 100, 127} {
+		for _, state := range states {
+			m := model{stage: stageAuth, authState: state, width: terminalWidth, cfg: config.Config{Username: "deathrashed"}}
+			want := m.panelWidth()
+			for row, line := range authStatusHeader(m) {
+				if got := lipgloss.Width(stripANSI(line)); got != want {
+					t.Fatalf("width=%d state=%d status row %d width=%d want=%d: %q", terminalWidth, state, row, got, want, stripANSI(line))
+				}
+			}
+
+			var actions [][3]string
+			switch state {
+			case authPending:
+				actions = append(actions, authActionCapsule("OPEN LAST.FM ↗", 20, false), authActionCapsule("GET SESSION KEY", 22, false))
+			case authFailed, authInvalid:
+				actions = append(actions, authActionCapsule("START AGAIN ↻", 18, false))
+			case authValid:
+				actions = append(actions, authActionCapsule("RETURN TO SCROBBLING", 30, false))
+			}
+			for row, line := range authActionRows(want, actions) {
+				if got := lipgloss.Width(stripANSI(line)); got != want {
+					t.Fatalf("width=%d state=%d action row %d width=%d want=%d: %q", terminalWidth, state, row, got, want, stripANSI(line))
+				}
+			}
+		}
+	}
+}
+
+func TestAuthDetachedResultCapsulesHaveCleanVerticalSides(t *testing.T) {
+	m := model{stage: stageAuth, authState: authValid, width: 100, cfg: config.Config{Username: "deathrashed"}}
+	lines := strings.Split(stripANSI(m.authResultLine()), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("result capsule lines=%d want=3: %q", len(lines), strings.Join(lines, "\\n"))
+	}
+	middle := strings.TrimSpace(lines[1])
+	if !strings.HasPrefix(middle, "│") || !strings.HasSuffix(middle, "│") {
+		t.Fatalf("detached result capsule should use vertical sides, got %q", middle)
+	}
+	if strings.HasPrefix(middle, "┤") || strings.HasSuffix(middle, "├") {
+		t.Fatalf("detached result capsule must not expose attachment joints: %q", middle)
+	}
+}
+
+func TestAuthActionMouseRegionFollowsRenderedButton(t *testing.T) {
+	m := model{stage: stageAuth, authState: authPending, authToken: "tk", width: 100, cfg: config.Config{Username: "deathrashed"}}
+	region, ok := m.authActionRegion("auth:open", "OPEN LAST.FM ↗", "o", 20)
+	if !ok {
+		t.Fatal("OPEN LAST.FM rendered button was not discoverable for mouse geometry")
+	}
+	if region.width != 20 || region.height != 3 {
+		t.Fatalf("auth open region geometry=%dx%d want 20x3", region.width, region.height)
+	}
+	if region.y < m.headerHeight() {
+		t.Fatalf("auth open region y=%d appears above auth body starting at %d", region.y, m.headerHeight())
+	}
 }

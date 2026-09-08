@@ -127,7 +127,7 @@ func footerSpec(m model) [][]footerItem {
 			return [][]footerItem{{enter(" continue", "continue with setup")}, {esc(" skip", "skip setup without writing changes"), help()}}
 		}
 		if m.setup.Page == setup.PageComplete {
-			return [][]footerItem{{enter(" continue", "open the dashboard")}, {help()}}
+			return [][]footerItem{{enter(" done", "finish setup")}, {esc(" previous", "return to review"), help()}}
 		}
 		return [][]footerItem{
 			{s("↑ ↓", " navigate"), enter(" continue", "continue with the current setup step")},
@@ -496,6 +496,32 @@ func (m model) helpCloseRegion() (mouseRegion, bool) {
 	return mouseRegion{}, false
 }
 
+func (m model) authActionRegion(id, label, key string, width int) (mouseRegion, bool) {
+	lines := strings.Split(stripANSI(m.renderAuthView()), "\n")
+	for lineIndex, line := range lines {
+		at := strings.Index(line, label)
+		if at < 0 {
+			continue
+		}
+		// Action buttons are complete boxes inside the auth panel. Find the
+		// button's own left vertical border on the label row (the last │ before
+		// the label), rather than relying on the old attached ┤ junction.
+		buttonLeft := strings.LastIndex(line[:at], "│")
+		if buttonLeft < 0 {
+			continue
+		}
+		return mouseRegion{
+			id:      id,
+			x:       lipgloss.Width(line[:buttonLeft]),
+			y:       m.headerHeight() + maxInt(0, lineIndex-1),
+			width:   width,
+			height:  3,
+			message: keyMessage(key),
+		}, true
+	}
+	return mouseRegion{}, false
+}
+
 func (m model) screenRegions() []mouseRegion {
 	if m.helpVisible {
 		if region, ok := m.helpCloseRegion(); ok {
@@ -523,59 +549,47 @@ func (m model) screenRegions() []mouseRegion {
 	case stageCompletions:
 		regions = append(regions, completionScreenRegions(m, bodyY)...)
 	case stageAuth:
-		// Exact regions matching the visible action buttons only. Buttons are
-		// centered under the panel; compute their x from the group layout.
-		bodyY := m.headerHeight()
-		totalWidth := m.panelWidth()
-		var boxes []struct {
+		var specs []struct {
 			id    string
-			width int
+			label string
 			key   string
+			width int
 		}
 		switch m.authState {
 		case authPending:
-			boxes = append(boxes,
+			specs = append(specs,
 				struct {
 					id    string
-					width int
+					label string
 					key   string
-				}{"auth:open", 20, "o"},
+					width int
+				}{"auth:open", "OPEN LAST.FM ↗", "o", 20},
 				struct {
 					id    string
-					width int
+					label string
 					key   string
-				}{"auth:get-session", 22, "enter"},
+					width int
+				}{"auth:get-session", "GET SESSION KEY", "enter", 22},
 			)
 		case authFailed, authInvalid:
-			boxes = append(boxes, struct {
+			specs = append(specs, struct {
 				id    string
-				width int
+				label string
 				key   string
-			}{"auth:retry", 18, "enter"})
+				width int
+			}{"auth:retry", "START AGAIN ↻", "enter", 18})
 		case authValid:
 			label, _ := m.authReturnAction()
-			boxes = append(boxes, struct {
+			specs = append(specs, struct {
 				id    string
-				width int
+				label string
 				key   string
-			}{"auth:return", maxInt(24, minInt(totalWidth-6, 30)), "enter"})
-			_ = label
+				width int
+			}{"auth:return", label, "enter", maxInt(24, minInt(m.panelWidth()-6, 30))})
 		}
-		if len(boxes) > 0 {
-			gap := 2
-			groupWidth := 0
-			for i, b := range boxes {
-				if i > 0 {
-					groupWidth += gap
-				}
-				groupWidth += b.width
-			}
-			left := maxInt(0, (totalWidth-groupWidth)/2)
-			x := left + m.workX()
-			y := bodyY // first button row is attached to the panel bottom border
-			for _, b := range boxes {
-				regions = append(regions, mouseRegion{id: b.id, x: x, y: y, width: b.width, height: 3, message: keyMessage(b.key)})
-				x += b.width + gap
+		for _, spec := range specs {
+			if region, ok := m.authActionRegion(spec.id, spec.label, spec.key, spec.width); ok {
+				regions = append(regions, region)
 			}
 		}
 	case stageSearch:

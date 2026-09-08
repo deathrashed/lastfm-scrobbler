@@ -29,6 +29,9 @@ func clearConfigEnvironment(t *testing.T) {
 func TestLoadReadsDotEnvAndEnvironmentOverrides(t *testing.T) {
 	clearConfigEnvironment(t)
 	dir := t.TempDir()
+	// Load() intentionally considers ~/.env as a fallback. Isolate HOME so a
+	// developer's real credentials cannot influence this precedence test.
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	oldWD, err := os.Getwd()

@@ -280,9 +280,10 @@ func (m model) renderAuthView() string {
 	return m.renderAuthViewFull()
 }
 
-// authCapsule renders a detached-top/attached-bottom capsule in the
-// Discography control-tab grammar: label ❯ value with ┤ ├ side joints.
-func authCapsule(label, value string, totalWidth int, valueStyle lipgloss.Style) [3]string {
+// authAttachedCapsule renders a three-line capsule that interrupts the top
+// border of a parent frame. Geometry is based on terminal display width; the
+// middle row deliberately uses ┤/├ so the parent rule can join it cleanly.
+func authAttachedCapsule(label, value string, totalWidth int, valueStyle lipgloss.Style) [3]string {
 	border := theme.BorderStyle
 	innerWidth := maxInt(1, totalWidth-2)
 	content := theme.SummaryLabelStyle.Render(label+" ") + theme.SummaryArrowStyle.Render("❯") +
@@ -294,8 +295,49 @@ func authCapsule(label, value string, totalWidth int, valueStyle lipgloss.Style)
 	}
 }
 
-// authAttachedRow composes one body line whose bottom border is interrupted by
-// attached capsules, mirroring renderDiscographyCountAttachment.
+// authStandaloneCapsule renders an ordinary detached information box. It must
+// never use junction glyphs because there is no parent rule to connect to.
+func authStandaloneCapsule(label, value string, totalWidth int, valueStyle lipgloss.Style) [3]string {
+	border := theme.BorderStyle
+	innerWidth := maxInt(1, totalWidth-2)
+	content := theme.SummaryLabelStyle.Render(label+" ") + theme.SummaryArrowStyle.Render("❯") +
+		" " + valueStyle.Render(value)
+	return [3]string{
+		border.Render("╭" + strings.Repeat("─", innerWidth) + "╮"),
+		border.Render("│") + centerText(fitStyled(content, innerWidth), innerWidth) + border.Render("│"),
+		border.Render("╰" + strings.Repeat("─", innerWidth) + "╯"),
+	}
+}
+
+// authActionCapsule is a complete button box. Earlier versions tried to splice
+// action buttons directly into the parent panel's bottom border; that created
+// dangling joints and uneven rule lengths in real terminals. Buttons now sit
+// cleanly *inside* the stable parent frame while RESULT/RETURN remain detached
+// below it.
+func authActionCapsule(label string, totalWidth int, hovered bool) [3]string {
+	border := theme.BorderStyle
+	labelStyle := theme.ModeStyle
+	mnemonicStyle := theme.MnemonicStyle
+	if hovered {
+		border = theme.InnerBorderStyle
+		labelStyle = theme.SelectedModeStyle
+		mnemonicStyle = theme.SelectedMnemonicStyle
+	}
+	innerWidth := maxInt(1, totalWidth-2)
+	labelText := labelStyle.Render(label)
+	if label != "" {
+		labelText = mnemonicStyle.Render(label[:1]) + labelStyle.Render(label[1:])
+	}
+	return [3]string{
+		border.Render("╭" + strings.Repeat("─", innerWidth) + "╮"),
+		border.Render("│") + centerText(fitStyled(labelText, innerWidth), innerWidth) + border.Render("│"),
+		border.Render("╰" + strings.Repeat("─", innerWidth) + "╯"),
+	}
+}
+
+// authStatusHeader attaches STATUS and ACCOUNT to one exact-width parent
+// frame. The attachment positions are computed once and reused on all three
+// structural rows, so the capsules cannot drift independently.
 func authStatusHeader(m model) []string {
 	totalWidth := m.panelWidth()
 	statusLabel := map[authState]string{
@@ -310,32 +352,74 @@ func authStatusHeader(m model) []string {
 	if m.authState == authUnknown && strings.TrimSpace(m.cfg.SessionKey) != "" {
 		statusValue = "AUTHENTICATED"
 	}
-	statusStyle := m.authStatusStyle()
-	account := authCapsule("ACCOUNT", m.authenticatedAs(), maxInt(24, minInt(totalWidth-4, 26)), theme.PrimaryTextStyle)
-	status := authCapsule("STATUS", statusValue, maxInt(22, minInt(totalWidth-4, 14+lipgloss.Width(statusValue)+2)), statusStyle)
-	gap := "  "
-	groupTop := status[0] + gap + account[0]
-	groupMid := status[1] + gap + account[1]
-	groupBottom := status[2] + gap + account[2]
-	groupWidth := lipgloss.Width(groupTop)
-	left := maxInt(0, (totalWidth-groupWidth)/2)
-	right := maxInt(0, totalWidth-groupWidth-left)
-	border := theme.BorderStyle
-	return []string{
-		fitStyled(strings.Repeat(" ", left)+groupTop+strings.Repeat(" ", right), totalWidth),
-		border.Render("╭"+strings.Repeat("─", maxInt(0, left-1))) + groupMid + border.Render(strings.Repeat("─", maxInt(0, right-1))+"╮"),
-		border.Render("│") + strings.Repeat(" ", maxInt(0, left-1)) + groupBottom + strings.Repeat(" ", maxInt(0, right-1)) + border.Render("│"),
+
+	const gapWidth = 2
+	available := maxInt(1, totalWidth-2-gapWidth)
+	maxEach := maxInt(18, available/2)
+	statusWidth := minInt(maxEach, maxInt(24, lipgloss.Width("STATUS ❯ "+statusValue)+4))
+	accountWidth := minInt(maxEach, maxInt(24, lipgloss.Width("ACCOUNT ❯ "+m.authenticatedAs())+4))
+	groupWidth := statusWidth + gapWidth + accountWidth
+	if groupWidth > totalWidth-2 {
+		overflow := groupWidth - (totalWidth - 2)
+		if accountWidth >= statusWidth {
+			accountWidth = maxInt(18, accountWidth-overflow)
+		} else {
+			statusWidth = maxInt(18, statusWidth-overflow)
+		}
+		groupWidth = statusWidth + gapWidth + accountWidth
 	}
+
+	status := authAttachedCapsule("STATUS", statusValue, statusWidth, m.authStatusStyle())
+	account := authAttachedCapsule("ACCOUNT", m.authenticatedAs(), accountWidth, theme.PrimaryTextStyle)
+	start := maxInt(1, (totalWidth-groupWidth)/2)
+	rightInside := maxInt(0, totalWidth-start-groupWidth-1)
+	leftInside := maxInt(0, start-1)
+	border := theme.BorderStyle
+
+	row0 := strings.Repeat(" ", start) + status[0] + strings.Repeat(" ", gapWidth) + account[0]
+	row0 += strings.Repeat(" ", maxInt(0, totalWidth-lipgloss.Width(row0)))
+
+	middleGroup := status[1] + border.Render(strings.Repeat("─", gapWidth)) + account[1]
+	row1 := border.Render("╭"+strings.Repeat("─", leftInside)) + middleGroup +
+		border.Render(strings.Repeat("─", rightInside)+"╮")
+
+	bottomGroup := status[2] + strings.Repeat(" ", gapWidth) + account[2]
+	row2 := border.Render("│") + strings.Repeat(" ", leftInside) + bottomGroup +
+		strings.Repeat(" ", rightInside) + border.Render("│")
+
+	return []string{row0, row1, row2}
 }
 
-// authActionBox is a standalone (detached) action button; it sits below the
-// panel like the discography badge bottoms.
-func authActionBox(label string, width int, enabled bool) string {
-	box := renderExactBoxWithMnemonic(label, width, false, true)
-	if !enabled {
-		return box
+// authActionRows places one or more complete action boxes inside the parent
+// frame and centers them as a group. All three rows retain the parent's left
+// and right border columns, eliminating the broken/dangling bottom joins seen
+// in Ghostty.
+func authActionRows(totalWidth int, actions [][3]string) []string {
+	border := theme.BorderStyle
+	if len(actions) == 0 {
+		return nil
 	}
-	return box
+	const gapWidth = 2
+	groupWidth := 0
+	for index, action := range actions {
+		if index > 0 {
+			groupWidth += gapWidth
+		}
+		groupWidth += lipgloss.Width(action[0])
+	}
+	innerWidth := maxInt(1, totalWidth-2)
+	left := maxInt(0, (innerWidth-groupWidth)/2)
+	right := maxInt(0, innerWidth-groupWidth-left)
+	rows := make([]string, 0, 3)
+	for row := 0; row < 3; row++ {
+		parts := make([]string, 0, len(actions))
+		for _, action := range actions {
+			parts = append(parts, action[row])
+		}
+		group := strings.Join(parts, strings.Repeat(" ", gapWidth))
+		rows = append(rows, border.Render("│")+strings.Repeat(" ", left)+group+strings.Repeat(" ", right)+border.Render("│"))
+	}
+	return rows
 }
 
 func (m model) authCurrentAction() string {
@@ -374,16 +458,13 @@ func (m model) authResultLine() string {
 	default:
 		return ""
 	}
-	capsule := authCapsule("RESULT", text, maxInt(24, minInt(m.panelWidth()-4, 44)), style)
+	capsule := authStandaloneCapsule("RESULT", text, maxInt(24, minInt(m.panelWidth()-4, 44)), style)
 	return m.centerCapsule(capsule)
 }
 
 // centerCapsule pads a 3-line capsule to sit centered under/over the panel.
 func (m model) centerCapsule(capsule [3]string) string {
-	width := lipgloss.Width(capsule[0])
-	left := maxInt(0, (m.panelWidth()-width)/2)
-	pad := strings.Repeat(" ", left)
-	return pad + capsule[0] + "\n" + pad + capsule[1] + "\n" + pad + capsule[2]
+	return centerToWidth(strings.Join(capsule[:], "\n"), m.panelWidth())
 }
 
 // authErrorCodeString summarizes a Last.fm API error as "N · short reason"
@@ -434,11 +515,8 @@ func (m model) authPreservedProgress() string {
 	done := m.scrobbleIdx
 	total := len(m.scrobbleQueue)
 	text := fmt.Sprintf("SCROBBLING • %d / %d preserved", done, total)
-	capsule := authCapsule("RETURN", text, maxInt(28, minInt(m.panelWidth()-4, 44)), theme.PrimaryTextStyle)
-	width := lipgloss.Width(capsule[0])
-	left := maxInt(0, (m.panelWidth()-width)/2)
-	pad := strings.Repeat(" ", left)
-	return pad + capsule[0] + "\n" + pad + capsule[1] + "\n" + pad + capsule[2]
+	capsule := authStandaloneCapsule("RETURN", text, maxInt(28, minInt(m.panelWidth()-4, 48)), theme.PrimaryTextStyle)
+	return m.centerCapsule(capsule)
 }
 
 func (m model) authStepRows() []string {
@@ -484,108 +562,49 @@ func (m model) authStepRows() []string {
 func (m model) renderAuthViewFull() string {
 	totalWidth := m.panelWidth()
 	border := theme.BorderStyle
+	contentWidth := maxInt(8, totalWidth-4)
 
 	lines := authStatusHeader(m)
-
-	// CURRENT ACTION section header + rule. Every in-frame line is padded to
-	// the same inner width so the right border never raggeds.
-	contentWidth := maxInt(8, totalWidth-4)
 	frame := func(content string) string {
 		return border.Render("│") + " " + padRight(fitStyled(content, contentWidth), contentWidth) + " " + border.Render("│")
 	}
-	action := m.authCurrentAction()
+
 	lines = append(lines,
 		frame(theme.SummaryLabelStyle.Render("CURRENT ACTION")),
 		frame(theme.MutedStyle.Render(strings.Repeat("─", contentWidth))),
-		frame(theme.PrimaryTextStyle.Render(action)),
+		frame(theme.PrimaryTextStyle.Render(m.authCurrentAction())),
 		frame(""),
 	)
-
 	for _, row := range m.authStepRows() {
 		lines = append(lines, frame(row))
 	}
 	lines = append(lines, frame(""))
 
-	body := []string{}
-	if result := m.authResultLine(); result != "" {
-		body = append(body, strings.Split(result, "\n")...)
-	}
-	if progress := m.authPreservedProgress(); progress != "" {
-		body = append(body, strings.Split(progress, "\n")...)
-	}
-
-	// State-specific primary actions, centered below the panel frame.
-	var actions []string
+	var actions [][3]string
 	switch m.authState {
 	case authPending:
-		open := renderExactBoxWithMnemonicHover("OPEN LAST.FM ↗", 20, false, true, m.hoverRegion == "auth:open")
-		getKey := renderExactBoxWithMnemonicHover("GET SESSION KEY", 22, false, true, m.hoverRegion == "auth:get-session")
-		actions = []string{open, getKey}
+		actions = append(actions,
+			authActionCapsule("OPEN LAST.FM ↗", 20, m.hoverRegion == "auth:open"),
+			authActionCapsule("GET SESSION KEY", 22, m.hoverRegion == "auth:get-session"),
+		)
 	case authFailed, authInvalid:
-		retry := renderExactBoxWithMnemonicHover("START AGAIN ↻", 18, false, true, m.hoverRegion == "auth:retry")
-		actions = []string{retry}
+		actions = append(actions, authActionCapsule("START AGAIN ↻", 18, m.hoverRegion == "auth:retry"))
 	case authValid:
 		label, _ := m.authReturnAction()
-		ret := renderExactBoxWithMnemonicHover(label, maxInt(24, minInt(totalWidth-6, 30)), false, true, m.hoverRegion == "auth:return")
-		actions = []string{ret}
+		actions = append(actions, authActionCapsule(label, maxInt(24, minInt(totalWidth-6, 30)), m.hoverRegion == "auth:return"))
+	}
+	lines = append(lines, authActionRows(totalWidth, actions)...)
+	lines = append(lines, border.Render("╰"+strings.Repeat("─", maxInt(1, totalWidth-2))+"╯"))
+
+	if result := m.authResultLine(); result != "" {
+		lines = append(lines, "")
+		lines = append(lines, strings.Split(result, "\n")...)
+	}
+	if progress := m.authPreservedProgress(); progress != "" {
+		lines = append(lines, strings.Split(progress, "\n")...)
 	}
 
-	out := []string{strings.Join(lines, "\n")}
-	bottom := border.Render("╰" + strings.Repeat("─", maxInt(4, totalWidth-2)) + "╯")
-	if len(actions) > 0 {
-		gap := "  "
-		group := ""
-		for i, a := range actions {
-			if i > 0 {
-				group += gap
-			}
-			group += a
-		}
-		// Join multi-line boxes horizontally line-by-line.
-		splitBoxes := make([][]string, len(actions))
-		heights := make([]int, len(actions))
-		maxHeight := 0
-		for i, a := range actions {
-			splitBoxes[i] = strings.Split(a, "\n")
-			heights[i] = len(splitBoxes[i])
-			if heights[i] > maxHeight {
-				maxHeight = heights[i]
-			}
-		}
-		var joined []string
-		for row := 0; row < maxHeight; row++ {
-			parts := make([]string, 0, len(actions))
-			for i := range actions {
-				line := ""
-				if row < heights[i] {
-					line = splitBoxes[i][row]
-				} else {
-					line = strings.Repeat(" ", lipgloss.Width(splitBoxes[i][0]))
-				}
-				parts = append(parts, line)
-			}
-			joined = append(joined, strings.Join(parts, gap))
-		}
-		group = strings.Join(joined, "\n")
-		groupWidth := lipgloss.Width(joined[0])
-		left := maxInt(0, (totalWidth-groupWidth)/2)
-		pad := strings.Repeat(" ", left)
-		for i, l := range joined {
-			if i == 0 {
-				// Attach the first button line to the panel bottom border.
-				lDashLeft := maxInt(0, left-1)
-				rDashRight := maxInt(0, totalWidth-left-groupWidth-1)
-				bottom = border.Render("╰"+strings.Repeat("─", lDashLeft)) + splitBoxes[0][0] + border.Render(strings.Repeat("─", rDashRight)+"╯")
-				continue
-			}
-			out = append(out, pad+l)
-		}
-	}
-	out = append(out, bottom)
-	for _, b := range body {
-		out = append(out, b)
-	}
-	return m.centerToApp(strings.Join(out, "\n") + "\n")
+	return m.centerToApp(strings.Join(lines, "\n"))
 }
 
 func (m model) authCompactLayout() bool {

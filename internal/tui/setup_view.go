@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -23,8 +24,6 @@ func renderSetupBody(m model) string {
 		content = renderSetupWelcome(m)
 	case setup.PageSystem:
 		content = renderSetupSystem(m)
-	case setup.PageFont:
-		content = renderSetupFont(m)
 	case setup.PageAccount:
 		content = renderSetupAccount(m)
 	case setup.PageStorage:
@@ -35,8 +34,6 @@ func renderSetupBody(m model) string {
 		content = renderSetupInterface(m)
 	case setup.PageReview:
 		content = renderSetupReview(m)
-	case setup.PageApply:
-		content = renderSetupApply(m)
 	case setup.PageComplete:
 		content = renderSetupComplete(m)
 	}
@@ -44,49 +41,22 @@ func renderSetupBody(m model) string {
 }
 
 func renderSetupWelcome(m model) string {
-	wordmark := renderWordmarkLinesFor(m.appWidth())
-	lines := make([]string, 0, len(wordmark)+3)
-	for _, line := range wordmark {
-		lines = append(lines, centerText(line, m.panelWidth()-4))
+	lines := []string{
+		centerText(theme.MutedStyle.Render("first-time configuration wizard"), m.panelWidth()-4),
+		centerToWidth(renderExactBox("GET STARTED  ❯", 20, true), m.panelWidth()-4),
 	}
-	lines = append(lines, centerText(theme.MutedStyle.Render("first-time configuration wizard"), m.panelWidth()-4))
-	lines = append(lines, "", centerText(renderExactBox("GET STARTED  ❯", 20, true), m.panelWidth()-4))
 	return setupPanelForModel(m, "W E L C O M E", lines)
 }
 
 func renderSetupSystem(m model) string {
 	env := m.setup.Environment
 	rows := []string{
-		setupRow("OPERATING SYSTEM", env.OperatingSystem, false),
+		setupRow("OS", env.OperatingSystem, false, m.panelWidth()),
+		setupRow("ARCH", env.Architecture, false, m.panelWidth()),
+		setupRow("TERM", env.Terminal, false, m.panelWidth()),
+		setupRow("PKG", env.PackageManager, false, m.panelWidth()),
 	}
-	if env.Distribution != "" && env.Distribution != "unknown" {
-		rows = append(rows, setupRow("DISTRIBUTION", env.Distribution, false))
-	}
-	rows = append(rows,
-		setupRow("ARCHITECTURE", env.Architecture, false),
-		setupRow("TERMINAL", env.Terminal, false),
-		setupRow("NERD FONT", setupFontDetection(m), false),
-		setupRow("PACKAGE MANAGER", env.PackageManager, false),
-	)
 	return setupPanelForModel(m, "S Y S T E M", rows)
-}
-
-func renderSetupFont(m model) string {
-	rows := make([]string, 0, len(m.setup.Fonts)+2)
-	for index, font := range m.setup.Fonts {
-		value := font.Name
-		if index == m.setup.FontIndex {
-			value = theme.AccentTextStyle.Render("❯") + " " + theme.PrimaryTextStyle.Render(font.Name)
-		} else {
-			value = theme.SecondaryTextStyle.Render("○") + " " + theme.RowLabelStyle.Render(font.Name)
-		}
-		rows = append(rows, fitSetupValue(value, m.panelWidth()-4))
-	}
-	rows = append(rows,
-		setupRow("INSTALL FONT", setupOnOff(m.setup.InstallFont), m.setup.Field == len(m.setup.Fonts), m.panelWidth()),
-		setupRow("TERMINAL DEFAULT", setupTerminalChoice(m), m.setup.Field == len(m.setup.Fonts)+1, m.panelWidth()),
-	)
-	return setupPanelForModel(m, "N E R D  F O N T", rows)
 }
 
 func renderSetupAccount(m model) string {
@@ -117,65 +87,40 @@ func renderSetupStorage(m model) string {
 }
 
 func renderSetupScrobbling(m model) string {
+	width := setupNarrowPanelWidth(m, 39)
 	rows := []string{
-		setupRow("USE RECOMMENDED", setupOnOff(m.setup.Recommended), m.setup.Field == 0, m.panelWidth()),
-		setupRow("LOOP", fmt.Sprintf("%d", m.setup.Loop), m.setup.Field == 1, m.panelWidth()),
-		setupRow("INTERVAL", m.setup.Interval.String(), m.setup.Field == 2, m.panelWidth()),
+		setupRow("USE RECOMMENDED", setupOnOff(m.setup.Recommended), m.setup.Field == 0, width),
+		setupRow("LOOP", fmt.Sprintf("%d", m.setup.Loop), m.setup.Field == 1, width),
+		setupRow("INTERVAL", m.setup.Interval.String(), m.setup.Field == 2, width),
 	}
-	return setupPanelForModel(m, "S C R O B B L I N G", rows)
+	return setupPanel("S C R O B B L I N G", rows, width)
 }
 
 func renderSetupInterface(m model) string {
+	width := setupNarrowPanelWidth(m, 37)
 	rows := []string{
-		setupRow("MOUSE SUPPORT", setupOnOff(m.setup.MouseEnabled), m.setup.Field == 0, m.panelWidth()),
-		setupRow("COMPACT HEADER", setupOnOff(m.setup.CompactHeader), m.setup.Field == 1, m.panelWidth()),
-		setupRow("NOTIFICATIONS", setupOnOff(m.setup.Notify), m.setup.Field == 2, m.panelWidth()),
+		setupRow("MOUSE SUPPORT", setupOnOff(m.setup.MouseEnabled), m.setup.Field == 0, width),
+		setupRow("COMPACT HEADER", setupOnOff(m.setup.CompactHeader), m.setup.Field == 1, width),
+		setupRow("NOTIFICATIONS", setupOnOff(m.setup.Notify), m.setup.Field == 2, width),
 	}
-	return setupPanelForModel(m, "I N T E R F A C E", rows)
+	return setupPanel("I N T E R F A C E", rows, width)
 }
 
 func renderSetupReview(m model) string {
-	font := m.setup.SelectedFont().Name
-	if font == "" {
-		font = "current font"
-	}
 	rows := []string{
-		setupRow("ACCOUNT", m.setup.Account.Username, false),
-		setupRow("CREDENTIALS", m.setup.CredentialSource, false),
-		setupRow("LOOP", fmt.Sprintf("%d", m.setup.ApplyConfig().DefaultLoop), false),
-		setupRow("INTERVAL", m.setup.ApplyConfig().DefaultInterval.String(), false),
-		setupRow("MOUSE", setupOnOff(m.setup.MouseEnabled), false),
-		setupRow("NOTIFICATIONS", setupOnOff(m.setup.Notify), false),
-		setupRow("COMPACT", setupOnOff(m.setup.CompactHeader), false),
-		setupRow("NERD FONT", font, false),
-		setupRow("TERMINAL DEFAULT", setupTerminalChoice(m), false),
+		setupRow("ACCOUNT", m.setup.Account.Username, false, m.panelWidth()),
+		setupRow("CREDENTIALS", m.setup.CredentialSource, false, m.panelWidth()),
+		setupRow("LOOP", fmt.Sprintf("%d", m.setup.ApplyConfig().DefaultLoop), false, m.panelWidth()),
+		setupRow("INTERVAL", m.setup.ApplyConfig().DefaultInterval.String(), false, m.panelWidth()),
+		setupRow("MOUSE", setupOnOff(m.setup.MouseEnabled), false, m.panelWidth()),
+		setupRow("NOTIFICATIONS", setupOnOff(m.setup.Notify), false, m.panelWidth()),
+		setupRow("COMPACT", setupOnOff(m.setup.CompactHeader), false, m.panelWidth()),
 	}
 	return setupPanelForModel(m, "R E V I E W", rows)
 }
 
-func renderSetupApply(m model) string {
-	result := m.setup.ApplyResult
-	rows := []string{
-		setupStatusRow("Nerd Font", result.FontStatus, m.setup.Applying),
-		setupStatusRow("terminal", result.TerminalStatus, m.setup.Applying),
-		setupStatusRow("configuration", result.Configuration, m.setup.Applying),
-		setupStatusRow("credentials", result.Credentials, m.setup.Applying),
-		setupStatusRow("Last.fm API", result.Connection, m.setup.Applying),
-		setupStatusRow("authentication", result.Authentication, m.setup.Applying),
-	}
-	if m.setup.Applying {
-		rows[0] = m.spinner.View() + "  " + theme.RowLabelStyle.Render("Nerd Font") + "  " + theme.RowValueStyle.Render("working")
-	}
-	if result.Error != nil {
-		rows = append(rows, theme.ErrorStyle.Render(truncateToWidth("setup failed: "+result.Error.Error(), m.panelWidth()-4)))
-	}
-	return setupPanelForModel(m, "C O N N E C T I O N  T E S T", rows)
-}
-
 func renderSetupComplete(m model) string {
-	return setupPanelForModel(m, "S E T U P  C O M P L E T E  "+theme.IconSuccess, []string{
-		"Last.fm Scrobbler is ready to use.",
-		"",
-		"You can change these options later in Settings.",
-	})
+	width := setupNarrowPanelWidth(m, 37)
+	button := centerToWidth(renderExactBox("E N J O Y  ❯", 18, true), width-4)
+	return setupPanel("C O M P L E T E D", []string{button}, width)
 }

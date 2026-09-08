@@ -2,15 +2,13 @@ package tui
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/deathrashed/lastfm-scrobbler/internal/config"
-	"github.com/deathrashed/lastfm-scrobbler/internal/connection"
 	"github.com/deathrashed/lastfm-scrobbler/internal/lastfm"
-	"github.com/deathrashed/lastfm-scrobbler/internal/platform"
 	"github.com/deathrashed/lastfm-scrobbler/internal/setup"
 )
 
@@ -23,13 +21,18 @@ func (m model) updateSetup(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if apply, ok := msg.(setupApplyMsg); ok {
 		m.setup.Applying = false
 		m.setup.ApplyResult = apply.result
-		if apply.result.Error == nil {
-			m.cfg = apply.config
-			m.client = lastfm.New(m.cfg.APIKey, m.cfg.APISecret, m.cfg.Username, m.cfg.Password, m.cfg.SessionKey)
-			m.setup.Page = setup.PageComplete
+		if apply.result.Error != nil {
+			m.err = apply.result.Error
+			m.setup.Page = setup.PageReview
+			return m, nil
 		}
+		m.err = nil
+		m.cfg = apply.config
+		m.client = lastfm.New(m.cfg.APIKey, m.cfg.APISecret, m.cfg.Username, m.cfg.Password, m.cfg.SessionKey)
+		m.setup.Page = setup.PageComplete
 		return m, nil
 	}
+
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -39,6 +42,11 @@ func (m model) updateSetup(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.setup.Page == setup.PageAccount {
 		return m.updateSetupAccount(key)
+	}
+	if m.setup.Page == setup.PageComplete && key.String() == "esc" {
+		m.setup.Page = setup.PageReview
+		m.setup.Field = 0
+		return m, nil
 	}
 	switch key.String() {
 	case "esc":
@@ -104,17 +112,12 @@ func (m *model) updateSetupAccountValue() {
 func (m *model) moveSetupCursor(delta int) {
 	count := 1
 	switch m.setup.Page {
-	case setup.PageFont:
-		count = len(m.setup.Fonts) + 2
 	case setup.PageStorage:
 		count = len(credentialChoices())
 	case setup.PageScrobbling, setup.PageInterface:
 		count = 3
 	}
 	m.setup.Field = (m.setup.Field + delta + count) % count
-	if m.setup.Page == setup.PageFont && m.setup.Field < len(m.setup.Fonts) {
-		m.setup.FontIndex = m.setup.Field
-	}
 	if m.setup.Page == setup.PageStorage {
 		m.setup.CredentialSource = credentialChoices()[m.setup.Field].value
 	}
@@ -126,13 +129,6 @@ func (m *model) toggleSetupValue() {
 
 func (m *model) adjustSetupValue(direction int) {
 	switch m.setup.Page {
-	case setup.PageFont:
-		switch m.setup.Field {
-		case len(m.setup.Fonts):
-			m.setup.InstallFont = !m.setup.InstallFont
-		case len(m.setup.Fonts) + 1:
-			m.setup.TerminalDefault = !m.setup.TerminalDefault
-		}
 	case setup.PageScrobbling:
 		switch m.setup.Field {
 		case 0:
@@ -169,11 +165,6 @@ func (m model) setupContinue() (tea.Model, tea.Cmd) {
 	case setup.PageWelcome:
 		m.setup.Page = setup.PageSystem
 	case setup.PageSystem:
-		m.setup.Page = setup.PageFont
-	case setup.PageFont:
-		if m.setup.SelectedFont().Name == "Browse all Nerd Fonts..." {
-			return m, openNerdFontsURL()
-		}
 		m.setup.Page = setup.PageAccount
 		m.setup.Field = 0
 		return m.focusSetupInput()
@@ -190,18 +181,18 @@ func (m model) setupContinue() (tea.Model, tea.Cmd) {
 	case setup.PageInterface:
 		m.setup.Page = setup.PageReview
 	case setup.PageReview:
-		m.setup.Page = setup.PageApply
-		m.setup.Applying = true
-		return m, tea.Batch(m.setupApplyCommand(), m.spinner.Tick)
-	case setup.PageApply:
-		if m.setup.ApplyResult.Error != nil {
-			m.setup.Applying = true
-			return m, tea.Batch(m.setupApplyCommand(), m.spinner.Tick)
+		if m.setup.Applying {
+			return m, nil
 		}
+		m.setup.Applying = true
+		return m, m.setupApplyCommand()
 	case setup.PageComplete:
+		m.setupOriginal = config.Config{}
 		m.stage = stageInput
 		m.modeChoice = ""
-		m.setupOriginal = config.Config{}
+		if strings.TrimSpace(m.cfg.SessionKey) == "" {
+			return m.openAuth()
+		}
 	}
 	return m, nil
 }
@@ -223,6 +214,11 @@ func (m model) setupPrevious() (tea.Model, tea.Cmd) {
 		m.modeChoice = ""
 		return m, nil
 	}
+	if m.setup.Page == setup.PageAccount {
+		m.setup.Page = setup.PageSystem
+		m.setup.Field = 0
+		return m, nil
+	}
 	m.setup.Page--
 	if m.setup.Page == setup.PageAccount {
 		m.setup.Field = len(m.setupInputs) - 1
@@ -234,33 +230,23 @@ func (m model) setupPrevious() (tea.Model, tea.Cmd) {
 
 func (m model) setupApplyCommand() tea.Cmd {
 	state := m.setup
+	// First-run setup no longer downloads or configures Nerd Fonts. Font
+	// management belongs outside the critical configuration path so setup can
+	// never hang waiting on a large GitHub download or font-cache refresh.
+	state.InstallFont = false
+	state.TerminalDefault = false
 	return func() tea.Msg {
-		result := setup.Apply(context.Background(), state, setup.ApplyHooks{
+		// Bound first-run setup so a slow/offline Last.fm request cannot leave
+		// the wizard looking frozen indefinitely.
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		result := setup.Apply(ctx, state, setup.ApplyHooks{
 			SaveConfig: config.Save,
-			TestConnect: func(ctx context.Context, cfg config.Config) (string, string, error) {
-				client := lastfm.New(cfg.APIKey, cfg.APISecret, cfg.Username, cfg.Password, cfg.SessionKey)
-				report := connection.TestWithoutPersistence(ctx, cfg, client)
-				connectionStatus, authenticationStatus := "failed", "failed"
-				for _, item := range report.Items {
-					if item.Label == "READ API" && item.OK {
-						connectionStatus = "connected"
-					}
-					if item.Label == "AUTH" && item.OK {
-						authenticationStatus = "ready"
-					}
-				}
-				if !report.OK() {
-					return connectionStatus, authenticationStatus, fmt.Errorf("Last.fm connection test failed")
-				}
-				return connectionStatus, authenticationStatus, nil
-			},
+			// First-run setup should complete immediately after saving valid
+			// configuration. Connection/auth checks now happen in the dedicated
+			// auth flow instead of blocking the wizard on a spinner screen.
+			TestConnect: nil,
 		})
 		return setupApplyMsg{result: result, config: state.ApplyConfig()}
-	}
-}
-
-func openNerdFontsURL() tea.Cmd {
-	return func() tea.Msg {
-		return headerURLMsg{err: platform.OpenURL("https://github.com/ryanoasis/nerd-fonts/releases/latest")}
 	}
 }

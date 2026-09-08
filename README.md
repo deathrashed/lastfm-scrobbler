@@ -5,10 +5,11 @@
 <h1 align="center">𝗟𝗔𝗦𝗧.𝗙𝗠 𝗦𝗖𝗥𝗢𝗕𝗕𝗟𝗘𝗥</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=white" alt="Last.fm">
-  <img src="https://img.shields.io/badge/Go-source%20builds%201.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.24.2 or newer for source builds">
-  <img src="https://img.shields.io/badge/License-WTFPL%202-f8211c?style=for-the-badge&logo=open-source-initiative&logoColor=white" alt="WTFPL 2 License">
+  <img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=a8958b" alt="Last.fm">
+  <img src="https://img.shields.io/badge/Go-%201.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=a8958b" alt="Go 1.24.2 or newer for source builds">
+  <img src="https://img.shields.io/badge/License-WTFPL%202-f8211c?style=for-the-badge&logo=open-source-initiative&logoColor=a8958b" alt="WTFPL 2 License">
 </p>
+
 
 
 <p align="center">
@@ -780,7 +781,12 @@ imports, exports, history/recovery, queue construction, cell-aligned layouts,
 connection reports, diagnostics redaction, update parsing, and editable
 re-runs.
 
-## License
+## <img src="uploads/icons/wtfpl/wtfpl-logo-white.svg" height="22">  Licence
 
-This project uses the **Do What The Fuck You Want To Public License, Version
-2**, supplied in [LICENSE](LICENSE).
+<div align="center">
+  <a href="https://raw.githubusercontent.com/deathrashed/deathrashed/refs/heads/main/LICENSE"><strong>𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘 𝗩𝟮</strong></a>
+<br>
+  <img src="uploads/icons/wtfpl/wtfpl-badge.svg" alt="WTFPL badge" width="150">
+
+  <p><strong>𝗖𝗢𝗣𝗬𝗥𝗜𝗚𝗛𝗧 © 𝟮𝟬𝟮𝟲 𝗗𝗘𝗔𝗧𝗛𝗥𝗔𝗦𝗛𝗘𝗗.</strong></p>
+</div>
