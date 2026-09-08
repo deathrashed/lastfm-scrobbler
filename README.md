@@ -5,9 +5,9 @@
 <h1 align="center">𝗟𝗔𝗦𝗧.𝗙𝗠 𝗦𝗖𝗥𝗢𝗕𝗕𝗟𝗘𝗥</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=a8958b" alt="Last.fm">
-  <img src="https://img.shields.io/badge/Go-%201.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=a8958b" alt="Go 1.24.2 or newer for source builds">
-  <img src="https://img.shields.io/badge/License-WTFPL%202-f8211c?style=for-the-badge&logo=open-source-initiative&logoColor=a8958b" alt="WTFPL 2 License">
+  <a href="https://www.last.fm/"><img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=white" alt="Last.fm"></a>
+  <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-%201.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.24.2 or newer for source builds"></a>
+  <a href="https://deathrashed.short.gy/wEOeRM"><img src="https://custom-icon-badges.demolab.com/badge/Licence-wtfpl-f8211c?style=for-the-badge&logo=wtfpl-logo-white&logoColor=white" alt="WTFPL 2 License"></a>
 </p>
 
 <p align="center">
@@ -779,13 +779,15 @@ imports, exports, history/recovery, queue construction, cell-aligned layouts,
 connection reports, diagnostics redaction, update parsing, and editable
 re-runs.
 
-## <img src="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/icons/wtfpl/wtfpl-logo-white.svg" height="22">  Licence
+
+## <a href="https://www.wtfpl.net/"><img src="https://deathrashed.short.gy/t8mwFF" height="20"></a> License
 
 <div align="center">
-  <a href="https://raw.githubusercontent.com/deathrashed/deathrashed/refs/heads/main/LICENSE"><strong>𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘</strong></a>
-<br>
-  <img src="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/icons/wtfpl/wtfpl-badge.svg" alt="WTFPL badge" width="175">
 
+[**𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘**](https://www.wtfpl.net/)
 
-  <p><strong>𝗖𝗢𝗣𝗬𝗥𝗜𝗚𝗛𝗧 © 𝟮𝟬𝟮𝟲 𝗗𝗘𝗔𝗧𝗛𝗥𝗔𝗦𝗛𝗘𝗗.</strong></p>
+<a href="https://deathrashed.short.gy/wEOeRM"><img src="https://deathrashed.short.gy/mkqomG" alt="WTFPL Badge" width="180"></a>
+
+**𝗖𝗢𝗣𝗬𝗥𝗜𝗚𝗛𝗧 © 𝟮𝟬𝟮𝟲 𝗗𝗘𝗔𝗧𝗛𝗥𝗔𝗦𝗛𝗘𝗗**
+
 </div>
