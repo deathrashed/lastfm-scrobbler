@@ -10,11 +10,19 @@
   <img src="https://img.shields.io/badge/License-WTFPL%202-f8211c?style=for-the-badge&logo=open-source-initiative&logoColor=a8958b" alt="WTFPL 2 License">
 </p>
 
-
-
 <p align="center">
   A responsive terminal application for searching, curating, previewing, and
   scrobbling Last.fm album queues.
+</p>
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#installation--build">Installation</a> •
+  <a href="#quick-start">Quick start</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#headless-cli">CLI</a> •
+  <a href="#credentials">Configuration</a> •
+  <a href="#troubleshooting">Troubleshooting</a>
 </p>
 
 ### Install
@@ -30,16 +38,6 @@ brew install deathrashed/tap/scrobbler
 Download a prebuilt binary for macOS, Linux, or Windows from
 [GitHub Releases](https://github.com/deathrashed/lastfm-scrobbler/releases/latest).
 
-<p align="center">
-  <a href="#features">Features</a> •
-  <a href="#installation--build">Installation</a> •
-  <a href="#quick-start">Quick start</a> •
-  <a href="#documentation">Documentation</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#headless-cli">CLI</a> •
-  <a href="#credentials">Configuration</a> •
-  <a href="#troubleshooting">Troubleshooting</a>
-</p>
 
 The visual system is deliberately consistent across every screen:
 
@@ -781,12 +779,13 @@ imports, exports, history/recovery, queue construction, cell-aligned layouts,
 connection reports, diagnostics redaction, update parsing, and editable
 re-runs.
 
-## <img src="uploads/icons/wtfpl/wtfpl-logo-white.svg" height="22">  Licence
+## <img src="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/icons/wtfpl/wtfpl-logo-white.svg" height="22">  Licence
 
 <div align="center">
-  <a href="https://raw.githubusercontent.com/deathrashed/deathrashed/refs/heads/main/LICENSE"><strong>𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘 𝗩𝟮</strong></a>
+  <a href="https://raw.githubusercontent.com/deathrashed/deathrashed/refs/heads/main/LICENSE"><strong>𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘</strong></a>
 <br>
-  <img src="uploads/icons/wtfpl/wtfpl-badge.svg" alt="WTFPL badge" width="150">
+  <img src="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/icons/wtfpl/wtfpl-badge.svg" alt="WTFPL badge" width="175">
+
 
   <p><strong>𝗖𝗢𝗣𝗬𝗥𝗜𝗚𝗛𝗧 © 𝟮𝟬𝟮𝟲 𝗗𝗘𝗔𝗧𝗛𝗥𝗔𝗦𝗛𝗘𝗗.</strong></p>
 </div>
