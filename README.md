@@ -5,10 +5,25 @@
 <h1 align="center">𝗟𝗔𝗦𝗧.𝗙𝗠 𝗦𝗖𝗥𝗢𝗕𝗕𝗟𝗘𝗥</h1>
 
 <p align="center">
-  <a href="https://www.last.fm/"><img src="https://img.shields.io/badge/Last.fm-Scrobbler-f8211c?style=for-the-badge&logo=last.fm&logoColor=white" alt="Last.fm"></a>
-  <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-%201.24.2%2B-f8211c?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.24.2 or newer for source builds"></a>
-  <a href="https://deathrashed.short.gy/wEOeRM"><img src="https://custom-icon-badges.demolab.com/badge/Licence-wtfpl-f8211c?style=for-the-badge&logo=wtfpl-logo-white&logoColor=white" alt="WTFPL 2 License"></a>
+  <a href="https://www.last.fm/">
+    <img
+      src="https://shieldcn.dev/badge/Last.fm-Scrobbler-f8211c.svg?variant=outline&amp;split=true&amp;logo=ri%3AFaLastfm&amp;logoColor=f8211c&amp;color=f8211c&amp;labelColor=ffffff&amp;labelTextColor=000000"
+      alt="Last.fm Scrobbler">
+  </a>
+  <a href="https://go.dev/">
+    <img
+      src="https://shieldcn.dev/badge/Go-1.24.2%2B-f8211c.svg?variant=outline&amp;split=true&amp;logo=go&amp;logoColor=f8211c&amp;color=f8211c&amp;labelColor=ffffff&amp;labelTextColor=000000"
+      alt="Go 1.24.2 or newer">
+  </a>
+  <a href="https://deathrashed.short.gy/wEOeRM">
+    <img
+      src="https://shieldcn.dev/badge/License-WTFPL-f8211c.svg?variant=outline&amp;split=true&amp;logo=ri%3ATbBrandOpenSource&amp;logoColor=f8211c&amp;color=f8211c&amp;labelColor=ffffff&amp;labelTextColor=000000"
+      alt="WTFPL 2 License">
+  </a>
 </p>
+
+
+
 
 <p align="center">
   A responsive terminal application for searching, curating, previewing, and
@@ -25,7 +40,7 @@
   <a href="#troubleshooting">Troubleshooting</a>
 </p>
 
-### Install
+### <img src="https://api.iconify.design/lucide/download.svg?color=%23f8211c" width="18" height="18" align="absmiddle" alt=""> Install
 
 **macOS with Homebrew**
 
@@ -78,7 +93,9 @@ Working surfaces expand selectively:
 
 </details>
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Features
+<a name="features"></a>
+
+## <img src="https://api.iconify.design/lucide/sparkles.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Features
 
 | Area | What it provides |
 | --- | --- |
@@ -89,7 +106,9 @@ Working surfaces expand selectively:
 | **Automation** | Use stable JSON-capable CLI commands from Keyboard Maestro, shell scripts, and launch agents. |
 | **Terminal UI** | A responsive Bubble Tea interface that live-resizes from 67–127 columns, centers itself on wider terminals, adapts list/panel widths and heights, and supports mouse input. |
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Installation & Build
+<a name="installation--build"></a>
+
+## <img src="https://api.iconify.design/lucide/package-check.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Installation & Build
 
 Choose the distribution that fits your platform. Release binaries and the
 Homebrew package do not require Go; Go 1.24.2 or newer is only required for
@@ -102,7 +121,7 @@ Homebrew package do not require Go; Go 1.24.2 or newer is only required for
 | [Go install](#go-install-and-source-build) | macOS, Linux, Windows | A source/module install using the current tagged module |
 | [Source build](#go-install-and-source-build) | macOS, Linux, Windows | A checkout build for development or maintainers |
 
-### Homebrew (macOS)
+### <img src="https://api.iconify.design/lucide/beer.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Homebrew (macOS)
 
 ```bash
 brew install deathrashed/tap/scrobbler
@@ -113,7 +132,7 @@ The formula installs the `scrobbler` binary and Zsh, Bash, and Fish
 completions. PowerShell completion remains available through the binary's
 completion generator or the TUI completion installer.
 
-### GitHub release binaries
+### <img src="https://api.iconify.design/lucide/package.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> GitHub release binaries
 
 Download [Last.fm Scrobbler v1.2.0](https://github.com/deathrashed/lastfm-scrobbler/releases/tag/v1.2.0),
 verify the matching entry in `checksums.txt`, and put the executable on your
@@ -131,7 +150,7 @@ Unix archives contain `scrobbler`, `LICENSE`, and all four completion files.
 The Windows archive contains `scrobbler.exe`, `LICENSE`, and the same
 completion files. No package manager or Go installation is required.
 
-### Go install and source build
+### <img src="https://api.iconify.design/lucide/code-2.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Go install and source build
 
 Go 1.24.2 or newer is required for these paths. `go install` is a module/source
 installation, not a prebuilt release archive:
@@ -165,7 +184,7 @@ go build -buildvcs=false \
 A Nerd Font is recommended for the intended icons. Internet access is needed
 for the first source build so Go can download modules.
 
-### First-run setup
+### <img src="https://api.iconify.design/lucide/list-checks.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> First-run setup
 
 After installing a release binary, Homebrew package, or source build, launch:
 
@@ -187,7 +206,9 @@ environment-variable backends. Automatic terminal font configuration is
 limited to detected Ghostty configurations; other terminals receive manual
 instructions while font installation can still complete.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Quick Start
+<a name="quick-start"></a>
+
+## <img src="https://api.iconify.design/lucide/rocket.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Quick Start
 
 1. Install `scrobbler` with [Homebrew](#homebrew-macos), a [release
    archive](#github-release-binaries), or [Go/source](#go-install-and-source-build).
@@ -228,7 +249,9 @@ environment, remembered-path, and Keychain resolution rules.
 > Keep `.env`, `~/.env`, and exported credentials files private. Use the
 > redacted diagnostics bundle when sharing troubleshooting information.
 
-## Documentation
+<a name="documentation"></a>
+
+## <img src="https://api.iconify.design/lucide/book-open.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Documentation
 
 The README gives the short path from installation to a working scrobble. The
 full guides cover the details without making the main page a wall of text:
@@ -249,7 +272,9 @@ full guides cover the details without making the main page a wall of text:
 | [v1.2.0 release notes](docs/RELEASE_NOTES_v1.2.0.md) | User-facing changes and supported release assets |
 | [Release checklist](docs/RELEASING.md) | Maintainer validation, packaging, checksums, and publishing |
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Screenshots
+<a name="screenshots"></a>
+
+## <img src="https://api.iconify.design/lucide/images.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Screenshots
 
 The interface keeps the same Torch Red, cell-aligned visual language across
 search, selection, settings, recovery, and scrobbling workflows. The gallery
@@ -337,16 +362,16 @@ Profiles.
   </tr>
 </table>
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Main TUI Workflows
+## <img src="https://api.iconify.design/lucide/workflow.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Main TUI Workflows
 
-### Manual
+### <img src="https://api.iconify.design/lucide/mouse-pointer-click.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Manual
 
 Search by artist, album, or both, select the correct result when necessary, choose
 individual tracks, adjust loops and interval controls, inspect the dry-run
 preview, and start scrobbling. Manual result lists show a compact attached
 `RESULTS` count rather than a multiselect counter.
 
-### Discography
+### <img src="https://api.iconify.design/lucide/disc-3.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Discography
 
 Search an artist, filter and sort the returned albums, hide obvious reissues or
 duplicates, select any combination, load their tracks, and build one queue. The
@@ -356,7 +381,7 @@ wide input. The source is Last.fm's `artist.getTopAlbums` result, not a
 canonical complete discography; long results and track lists include scroll
 indicators.
 
-### File and folder import
+### <img src="https://api.iconify.design/lucide/folder-input.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> File and folder import
 
 The File page keeps source selection and PATH entry on one screen. It supports:
 
@@ -368,19 +393,19 @@ The File page keeps source selection and PATH entry on one screen. It supports:
 Press `O` for the platform picker when available, or enter the path manually.
 The screen shows the accepted formats in a dynamic `TYPE`/`TYPES` attachment.
 
-### Similar albums
+### <img src="https://api.iconify.design/lucide/list-music.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Similar albums
 
 Press `S` from an album result, queue preview, or completed session to retrieve
 album suggestions based on similar artists.
 
-### History, recovery, and re-running
+### <img src="https://api.iconify.design/lucide/history.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> History, recovery, and re-running
 
 Completed and cancelled sessions are recorded locally. History can re-open a
 saved queue for editing before it runs again. `Shift+R` performs an exact
 re-run without editing. An interrupted active queue is offered for resume at
 the next launch.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> TUI Controls
+## <img src="https://api.iconify.design/lucide/keyboard.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> TUI Controls
 
 | Context | Controls |
 | --- | --- |
@@ -393,7 +418,7 @@ When a text field is focused, printable characters are passed to the field so
 usernames, passwords, API keys, paths, and filters can contain normal letters
 without triggering navigation shortcuts.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Settings Interface
+## <img src="https://api.iconify.design/lucide/settings-2.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Settings Interface
 
 Press `S` from the Dashboard to open Settings. The six sections share one
 symmetrical navigation grid that keeps natural card widths and spreads them as
@@ -442,7 +467,7 @@ details, redacted configuration, a history summary, and the tail of the
 application log. Passwords, API secrets, session keys, and complete API keys
 are excluded.
 
-### Last.fm authentication
+### <img src="https://api.iconify.design/lucide/shield-check.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Last.fm authentication
 
 **Settings → Account** shows whether a session is stored (`✓ username` or
 `✗ not authenticated`) without ever displaying the key itself, plus a
@@ -458,7 +483,9 @@ A failed exchange is summarized as `Error N · reason`; raw API messages stay
 out of the main UI. See [docs/RELEASE_NOTES_v1.2.0.md](docs/RELEASE_NOTES_v1.2.0.md)
 for the full walkthrough.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Credentials
+<a name="credentials"></a>
+
+## <img src="https://api.iconify.design/lucide/key-round.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Credentials
 
 Read-only Last.fm operations need an API key. Scrobbling needs an API key, API
 secret, and authenticated session.
@@ -498,7 +525,7 @@ or Keychain override is active. Newly acquired session keys go to Keychain for
 `auto` and `keychain`, to the credentials file for `file`, and nowhere
 automatically for `environment`.
 
-### Environment file precedence
+### <img src="https://api.iconify.design/lucide/file-cog.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Environment file precedence
 
 File selection and value precedence are separate. For automatic file
 discovery, the application checks these locations in order:
@@ -531,7 +558,9 @@ file.
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for every variable and its
 precedence.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Headless CLI
+<a name="headless-cli"></a>
+
+## <img src="https://api.iconify.design/lucide/terminal.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Headless CLI
 
 Launching `scrobbler` without a command opens the TUI. Subcommands are stable,
 non-interactive entry points suitable for Keyboard Maestro and shell scripts.
@@ -565,7 +594,7 @@ that need to inspect totals or exported paths.
 Detailed command documentation and Keyboard Maestro examples are in
 [docs/CLI.md](docs/CLI.md) and [docs/AUTOMATION.md](docs/AUTOMATION.md).
 
-## Shell completion
+## <img src="https://api.iconify.design/lucide/terminal-square.svg?color=%23ffffff" width="18" height="18" align="absmiddle" alt=""> Shell completion
 
 Generate or install completion from the binary so it always matches the
 installed commands. Installation is per-user and idempotent; it never requires
@@ -579,7 +608,7 @@ scrobbler completion install fish
 scrobbler completion install powershell
 ```
 
-### Zsh
+### <img src="https://api.iconify.design/lucide/terminal.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Zsh
 
 ```bash
 mkdir -p ~/.zfunc
@@ -588,21 +617,21 @@ fpath=(~/.zfunc $fpath)
 autoload -Uz compinit && compinit
 ```
 
-### Bash
+### <img src="https://api.iconify.design/lucide/terminal.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Bash
 
 ```bash
 scrobbler completion bash > ~/.scrobbler-completion.bash
 source ~/.scrobbler-completion.bash
 ```
 
-### Fish
+### <img src="https://api.iconify.design/lucide/terminal.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> Fish
 
 ```bash
 mkdir -p ~/.config/fish/completions
 scrobbler completion fish > ~/.config/fish/completions/scrobbler.fish
 ```
 
-### PowerShell
+### <img src="https://api.iconify.design/lucide/terminal.svg?color=%23ffffff" width="16" height="16" align="absmiddle" alt=""> PowerShell
 
 ```powershell
 scrobbler completion powershell > $HOME/.config/powershell/completions/scrobbler.ps1
@@ -611,7 +640,7 @@ scrobbler completion powershell > $HOME/.config/powershell/completions/scrobbler
 The TUI equivalent is **Settings → Tools → Install Completions**. A profile
 reload may be needed after installation.
 
-## Mouse support
+## <img src="https://api.iconify.design/lucide/mouse.svg?color=%23ffffff" width="18" height="18" align="absmiddle" alt=""> Mouse support
 
 Mouse support is enabled by default and can be disabled in **Settings → Interface** or with
 `SCROBBLE_MOUSE=false`.
@@ -631,7 +660,7 @@ hover, and opens when clicked. Compact Header does not expose a URL target.
 Bubble Tea mouse capture can interfere with normal terminal text selection in
 some terminals. Disable the setting when native selection is more important.
 
-## Update checking
+## <img src="https://api.iconify.design/lucide/refresh-cw.svg?color=%23ffffff" width="18" height="18" align="absmiddle" alt=""> Update checking
 
 Official and normal development builds default to this project's public GitHub
 Releases, so **Settings → Tools → Check for Updates** and `scrobbler
@@ -643,7 +672,7 @@ replace the running binary.
 Set `SCROBBLER_UPDATE_URL` only when an advanced custom endpoint is required;
 the empty value means the official GitHub Releases source.
 
-## Exports and diagnostics
+## <img src="https://api.iconify.design/lucide/file-output.svg?color=%23ffffff" width="18" height="18" align="absmiddle" alt=""> Exports and diagnostics
 
 Queue/session export formats:
 
@@ -655,7 +684,7 @@ Queue/session export formats:
 Diagnostics bundles are written to `SCROBBLE_EXPORT_DIR` and are safe to review
 before sharing. Application logs rotate after approximately 2 MB.
 
-## Persistent data
+## <img src="https://api.iconify.design/lucide/database.svg?color=%23ffffff" width="18" height="18" align="absmiddle" alt=""> Persistent data
 
 By default:
 
@@ -666,7 +695,7 @@ By default:
 This contains History, pending-session recovery, profiles, remembered paths,
 and `scrobbler.log`. `XDG_DATA_HOME` or `XDG_CONFIG_HOME` is respected.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Architecture
+## <img src="https://api.iconify.design/lucide/blocks.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Architecture
 
 ```text
 Input
@@ -694,7 +723,9 @@ The TUI and CLI share the same configuration, Last.fm client, queue-building,
 history, export, and diagnostics packages. This keeps interactive and
 automation workflows behaviorally aligned.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Troubleshooting
+<a name="troubleshooting"></a>
+
+## <img src="https://api.iconify.design/lucide/triangle-alert.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Troubleshooting
 
 <details>
   <summary><strong>Credentials are saved to the wrong file</strong></summary>
@@ -756,7 +787,7 @@ sharing.
 
 </details>
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Limitations
+## <img src="https://api.iconify.design/lucide/shield-alert.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Limitations
 
 - The application requires network access to resolve Last.fm albums and submit
   scrobbles.
@@ -767,7 +798,7 @@ sharing.
 - API limits, unavailable albums, renamed releases, and Last.fm authentication
   failures remain external service conditions.
 
-## <img src="https://api.iconify.design/selfhst:last-fm.svg?color=f8211c" width="22" height="22" alt="Last.fm icon"> Testing
+## <img src="https://api.iconify.design/lucide/flask-conical.svg?color=%23f8211c" width="22" height="22" align="absmiddle" alt=""> Testing
 
 ```bash
 go test ./...
@@ -780,13 +811,16 @@ connection reports, diagnostics redaction, update parsing, and editable
 re-runs.
 
 
-## <a href="https://www.wtfpl.net/"><img src="https://deathrashed.short.gy/t8mwFF" height="20"></a> License
+
+<a name="license"></a>
+
+## <a href="https://www.wtfpl.net/"><img src="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/files/licenses/wtfpl/wtfpl-logo-white.svg" height="20" alt="WTFPL license website"></a> License
 
 <div align="center">
 
-[**𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘**](https://www.wtfpl.net/)
+[**𝗗𝗢 𝗪𝗛𝗔𝗧 𝗧𝗛𝗘 𝗙𝗨𝗖𝗞 𝗬𝗢𝗨 𝗪𝗔𝗡𝗧 𝗧𝗢 𝗣𝗨𝗕𝗟𝗜𝗖 𝗟𝗜𝗖𝗘𝗡𝗦𝗘**](https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/files/licenses/wtfpl/LICENSE)
 
-<a href="https://deathrashed.short.gy/wEOeRM"><img src="https://deathrashed.short.gy/mkqomG" alt="WTFPL Badge" width="180"></a>
+<a href="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/files/licenses/wtfpl/LICENSE"><img src="https://raw.githubusercontent.com/deathrashed/gupload/refs/heads/main/uploads/files/licenses/wtfpl/wtfpl-badge.svg" alt="WTFPL Badge" width="180"></a>
 
 **𝗖𝗢𝗣𝗬𝗥𝗜𝗚𝗛𝗧 © 𝟮𝟬𝟮𝟲 𝗗𝗘𝗔𝗧𝗛𝗥𝗔𝗦𝗛𝗘𝗗**
 
